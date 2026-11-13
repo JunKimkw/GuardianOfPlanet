@@ -1,17 +1,17 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
 using System;
-using System.Text.RegularExpressions;
+using System.Globalization;
 
 public class GameManager : MonoBehaviour, IDataPersistence
 {
     public static GameManager instance;
 
-    [Header("ī�޶�")]
+    [Header("카메라")]
     public Camera mainCamera;
 
-    [Header("��ŸƮ")]
+    [Header("스타트")]
     public GameObject StartScreen;
 
     [Header("Ingame Money")]
@@ -36,12 +36,18 @@ public class GameManager : MonoBehaviour, IDataPersistence
 
     [Header("#----Real time")]
     public GameObject RealTimeErrorTab;
-    const string API_URL = "https://worldtimeapi.org/api/ip";
-    DateTime currentDateTime = DateTime.Now;
+    // 기기 시간 조작 검사: 서버 응답의 Date 헤더(UTC)와 기기 시간을 비교해요.
+    // 서버에 하나도 접속하지 못하면 검사를 건너뛰어요(게임을 멈추지 않음).
+    static readonly string[] TIME_CHECK_URLS = { "https://www.google.com", "https://www.apple.com", "https://www.microsoft.com" };
+    const double TIME_TOLERANCE_MINUTES = 15;
+    const float CLOCK_JUMP_CHECK_INTERVAL = 10f;
+    const double CLOCK_JUMP_THRESHOLD_SECONDS = 120;
+    bool isCheckingServerTime;
+    DateTime lastUtcSample;
+    float lastRealtimeSample;
 
     float temp = 1;
 
-    bool checkTimeDifferrence;
     public bool noAdsBought;
 
     private void Awake()
@@ -49,11 +55,12 @@ public class GameManager : MonoBehaviour, IDataPersistence
         Time.timeScale = 1;
         instance = this;
 
-        //��ũ�� Ÿ�� ����
+        //스크린 타임 방지
         Screen.sleepTimeout = SleepTimeout.NeverSleep;
         Application.runInBackground = true;
 
-        InvokeRepeating("checkRealTimeError", 0, 1f);
+        ResetClockSample();
+        InvokeRepeating("CheckClockJump", CLOCK_JUMP_CHECK_INTERVAL, CLOCK_JUMP_CHECK_INTERVAL);
 
         RemoteSettings.ForceUpdate();
     }
@@ -63,6 +70,7 @@ public class GameManager : MonoBehaviour, IDataPersistence
     {
         Application.targetFrameRate = 60;
         StartScreen.gameObject.SetActive(true);
+        RequestServerTimeCheck();
     }
 
     // Update is called once per frame
@@ -73,7 +81,7 @@ public class GameManager : MonoBehaviour, IDataPersistence
             //TotalPlayedTime
             totalPlayedTime += Time.deltaTime / Time.timeScale;
 
-            //�ִ� ��
+            //최대 돈
             if(money >= maxMoney)
                 maxMoney = money;
         }
@@ -92,55 +100,65 @@ public class GameManager : MonoBehaviour, IDataPersistence
 #endif
     }
 
-    public void checkRealTimeError()
-    {
-        if(checkTimeDifferrence) {
-            if(!RealTimeErrorTab.activeSelf) {
-                StartCoroutine(GetRealDateTimeFromAPI());
-            }
-        }
-    }
-
     void OnApplicationFocus(bool hasFocus)
     {
-        if(!hasFocus) {
-            checkTimeDifferrence = false;
-        } else {
-            if(checkTimeDifferrence == false) {
-                currentDateTime = DateTime.Now;
+        if(hasFocus) {
+            ResetClockSample();
+            RequestServerTimeCheck();
+        }
+    }
+
+    void ResetClockSample()
+    {
+        lastUtcSample = DateTime.UtcNow;
+        lastRealtimeSample = Time.realtimeSinceStartup;
+    }
+
+    // 앱이 켜져 있는 동안 기기 시계가 실제 흐른 시간과 다르게 크게 움직이면(시간 조작 의심) 서버 시간을 확인해요.
+    void CheckClockJump()
+    {
+        double utcElapsed = (DateTime.UtcNow - lastUtcSample).TotalSeconds;
+        double realElapsed = Time.realtimeSinceStartup - lastRealtimeSample;
+        ResetClockSample();
+
+        if(Math.Abs(utcElapsed - realElapsed) > CLOCK_JUMP_THRESHOLD_SECONDS) {
+            RequestServerTimeCheck();
+        }
+    }
+
+    void RequestServerTimeCheck()
+    {
+        if(isCheckingServerTime || RealTimeErrorTab == null || RealTimeErrorTab.activeSelf)
+            return;
+        StartCoroutine(CheckServerTime());
+    }
+
+    IEnumerator CheckServerTime()
+    {
+        isCheckingServerTime = true;
+
+        for(int i = 0; i < TIME_CHECK_URLS.Length; i++) {
+            using(UnityWebRequest request = UnityWebRequest.Head(TIME_CHECK_URLS[i])) {
+                request.timeout = 5;
+                yield return request.SendWebRequest();
+
+                string dateHeader = request.GetResponseHeader("Date");
+                if(!string.IsNullOrEmpty(dateHeader) &&
+                   DateTime.TryParseExact(dateHeader, "r", CultureInfo.InvariantCulture,
+                       DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime serverUtc)) {
+
+                    if(Math.Abs((serverUtc - DateTime.UtcNow).TotalMinutes) > TIME_TOLERANCE_MINUTES) {
+                        Time.timeScale = 0;
+                        RealTimeErrorTab.SetActive(true);
+                    }
+                    isCheckingServerTime = false;
+                    yield break;
+                }
             }
-            checkTimeDifferrence = true;
         }
-    }
 
-    void OnApplicationPause(bool pauseStatus)
-    {
-        if(pauseStatus) {
-            checkTimeDifferrence = false;
-        }
-    }
-
-    IEnumerator GetRealDateTimeFromAPI()
-    {
-        UnityWebRequest webRequest = UnityWebRequest.Get(API_URL);
-        yield return webRequest.SendWebRequest();
-
-        if(webRequest.result == UnityWebRequest.Result.ConnectionError || webRequest.result == UnityWebRequest.Result.ProtocolError) {
-        } else {
-            string timeData = webRequest.downloadHandler.text;
-            currentDateTime = ParseDateTime(timeData);
-        }
-        if(Mathf.Abs((float)(currentDateTime - DateTime.Now).TotalMinutes) > 15) { 
-            Time.timeScale = 0;
-            RealTimeErrorTab.SetActive(true);
-        }
-    }
-
-    DateTime ParseDateTime(string dateTime)
-    {
-        string date = Regex.Match(dateTime, @"\d{4}-\d{2}-\d{2}").Value;
-        string time = Regex.Match(dateTime, @"\d{2}:\d{2}:\d{2}").Value;
-        return DateTime.Parse(string.Format("{0} {1}", date, time));
+        // 모든 서버 접속 실패: 검사를 건너뛰어요.
+        isCheckingServerTime = false;
     }
 
     public void Error()
@@ -330,13 +348,13 @@ public class GameManager : MonoBehaviour, IDataPersistence
         return "";
     }
 
-    //����ġ �ø���
+    //경험치 올리기
     public static void Enemy_Dead_Player_EXP_UP(int exp)
     {
         Player.instance.PlayerEXPUP(exp);
     }
 
-    //�� �ø���
+    //돈 올리기
     public static void Enemy_Dead_Money_UP(long money)
     {
         if(instance.money + money > 0)
