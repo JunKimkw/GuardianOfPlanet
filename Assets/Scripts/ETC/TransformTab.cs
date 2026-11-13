@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -32,34 +32,34 @@ public class TransformTab : MonoBehaviour
         int r = Random.Range(0, 11);
         switch(r) {
             case 1:
-                TipText.text = "*Tip µµ°¨À» ÅëÇØ ´ÙÀÌ¾Æ¸¦ È¹µæÇÒ ¼ö ÀÖ´Ù";
+                TipText.text = "*Tip ë„ê°ì„ í†µí•´ ë‹¤ì´ì•„ë¥¼ íšë“í•  ìˆ˜ ìˆë‹¤";
                 break;
             case 2:
-                TipText.text = "*Tip ¸ğÇè¿¡¼­ Çà¼ºÁ¤º¸¸¦ Å¬¸¯ÇÏ¸é ¸ó½ºÅÍÀÇ Á¤º¸¸¦ ¾Ë ¼ö ÀÖ´Ù";
+                TipText.text = "*Tip ëª¨í—˜ì—ì„œ í–‰ì„±ì •ë³´ë¥¼ í´ë¦­í•˜ë©´ ëª¬ìŠ¤í„°ì˜ ì •ë³´ë¥¼ ì•Œ ìˆ˜ ìˆë‹¤";
                 break;
             case 3:
-                TipText.text = "*Tip ¸ğÇèÀº ³­ÀÌµµ¿¡ µû¶ó º¸»óÀÌ ´Ş¶óÁø´Ù";
+                TipText.text = "*Tip ëª¨í—˜ì€ ë‚œì´ë„ì— ë”°ë¼ ë³´ìƒì´ ë‹¬ë¼ì§„ë‹¤";
                 break;
             case 4:
-                TipText.text = "*Tip 1ÀÎ °³¹ß °ÔÀÓÀÌ´Ù";
+                TipText.text = "*Tip 1ì¸ ê°œë°œ ê²Œì„ì´ë‹¤";
                 break;
             case 5:
-                TipText.text = "*Tip ±¤»êÀ» ÅëÇØ ºÎÁ·ÇÑ ´É·ÂÄ¡¸¦ Çâ»ó ½ÃÅ³ ¼ö ÀÖ´Ù";
+                TipText.text = "*Tip ê´‘ì‚°ì„ í†µí•´ ë¶€ì¡±í•œ ëŠ¥ë ¥ì¹˜ë¥¼ í–¥ìƒ ì‹œí‚¬ ìˆ˜ ìˆë‹¤";
                 break;
             case 6:
-                TipText.text = "*Tip ÀÚµ¿»ç³ÉÀº º¸½ºº¸´Ù °¡±î¿î ÀûºÎÅÍ °ø°İÇÑ´Ù";
+                TipText.text = "*Tip ìë™ì‚¬ëƒ¥ì€ ë³´ìŠ¤ë³´ë‹¤ ê°€ê¹Œìš´ ì ë¶€í„° ê³µê²©í•œë‹¤";
                 break;
             case 7:
-                TipText.text = "*Tip »óÅÂÃ¢ÀÇ ½ºÅÈ °­È­¸¦ ÅëÇØ ´õ¿í °­ÇØÁú ¼ö ÀÖ´Ù";
+                TipText.text = "*Tip ìƒíƒœì°½ì˜ ìŠ¤íƒ¯ ê°•í™”ë¥¼ í†µí•´ ë”ìš± ê°•í•´ì§ˆ ìˆ˜ ìˆë‹¤";
                 break;
             case 8:
-                TipText.text = "*Tip ¶È°°Àº Àåºñ¸¦ ¸ğÀ¸¸é ´ÙÀ½ µî±ŞÀÇ Àåºñ¸¦ È¹µæÇÒ ¼ö ÀÖ´Ù";
+                TipText.text = "*Tip ë˜‘ê°™ì€ ì¥ë¹„ë¥¼ ëª¨ìœ¼ë©´ ë‹¤ìŒ ë“±ê¸‰ì˜ ì¥ë¹„ë¥¼ íšë“í•  ìˆ˜ ìˆë‹¤";
                 break;
             case 9:
-                TipText.text = "*Tip ·¹º§ÀÌ ¿À¸¦¶§ ¸¶´Ù µ¥¹ÌÁö°¡ Áõ°¡ÇÑ´Ù";
+                TipText.text = "*Tip ë ˆë²¨ì´ ì˜¤ë¥¼ë•Œ ë§ˆë‹¤ ë°ë¯¸ì§€ê°€ ì¦ê°€í•œë‹¤";
                 break;
             case 10:
-                TipText.text = "*Tip °­È­´Â 10¼ººÎÅÍ ½ÇÆĞ ½Ã Àåºñ ·¹º§ÀÌ ÇÏ¶ôÇÑ´Ù";
+                TipText.text = "*Tip ê°•í™”ëŠ” 10ì„±ë¶€í„° ì‹¤íŒ¨ ì‹œ ì¥ë¹„ ë ˆë²¨ì´ í•˜ë½í•œë‹¤";
                 break;
         }
     }

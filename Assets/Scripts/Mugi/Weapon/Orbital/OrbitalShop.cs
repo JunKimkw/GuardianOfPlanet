@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,7 +11,7 @@ public class OrbitalShop : MonoBehaviour
     [HideInInspector]
     public Orbital weapon;
 
-    [Header("UI ¹Ù²Ù±â")]
+    [Header("UI ë°”ê¾¸ê¸°")]
     public TextMeshProUGUI LevelText;
     public TextMeshProUGUI WeaponStat;
     public TextMeshProUGUI priceText;
@@ -20,7 +20,7 @@ public class OrbitalShop : MonoBehaviour
     public int purchaseSize;
     long TotalPrice;
 
-    [Header("#-----Àá±İ")]
+    [Header("#-----ì ê¸ˆ")]
     public GameObject LockCover;
     public TextMeshProUGUI LockText;
 
@@ -41,16 +41,16 @@ public class OrbitalShop : MonoBehaviour
 
         //Check Lock
         LockCover.SetActive(!StageManager.instance.planets[7].PlanetCleared);
-        LockText.text = StageManager.instance.planets[7].PlanetName + " Çà¼º Å¬¸®¾î";
+        LockText.text = StageManager.instance.planets[7].PlanetName + " í–‰ì„± í´ë¦¬ì–´";
     }
 
     // Update is called once per frame
     void Update()
     {
         if(weapon.UpgradeLevel > 0)
-            WeaponStat.text = "µå·Ğ µ¥¹ÌÁöÀÇ " + ((1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.CodeA, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%·Î °ø°İ\n" + "ÇöÀç µ¥¹ÌÁö: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + ((weapon.OribitalDamage + weapon.ExtraDamage) * (1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.CodeA, TraitsData.TraitsType.DamagePercent)))));
+            WeaponStat.text = "ë“œë¡  ë°ë¯¸ì§€ì˜ " + ((1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.CodeA, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%ë¡œ ê³µê²©\n" + "í˜„ì¬ ë°ë¯¸ì§€: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + ((weapon.OribitalDamage + weapon.ExtraDamage) * (1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.CodeA, TraitsData.TraitsType.DamagePercent)))));
         else
-            WeaponStat.text = "¿ìÁÖ¼± ÁÖº¯À» µ¹¸ç ¸ó½ºÅÍ¸¦\n°ø°İÇÏ´Â ¼³Ä¡¹°";
+            WeaponStat.text = "ìš°ì£¼ì„  ì£¼ë³€ì„ ëŒë©° ëª¬ìŠ¤í„°ë¥¼\nê³µê²©í•˜ëŠ” ì„¤ì¹˜ë¬¼";
 
         LevelText.text = "Lv." + weapon.UpgradeLevel.ToString();
         TotalPrice = getTotalMoney(weapon.UpgradeLevel, purchaseSize);
@@ -112,7 +112,7 @@ public class OrbitalShop : MonoBehaviour
 
     public void setPassiveValues()
     {
-        //°ãÄ¡¸é
+        //ê²¹ì¹˜ë©´
         weapon.ExtraDamagePercent = 0;
 
         //Passive 1

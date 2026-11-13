@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -73,7 +73,7 @@ public class DungeonManager : MonoBehaviour, IDataPersistence
         for(int i = 0; i < EnemiesParent.childCount; i++)
             EnemiesParent.GetChild(i).gameObject.SetActive(false);
         StageInfoTitle.text = data.DungeonName;
-        TotalEnemyText.text = "ÃâÇö ¸ó½ºÅÍ: " + data.getTotalEnemy() + "¸¶¸®";
+        TotalEnemyText.text = "ì¶œí˜„ ëª¬ìŠ¤í„°: " + data.getTotalEnemy() + "ë§ˆë¦¬";
 
         for(int i = 0; i < data.DungeonEnimes.Length; i++) {
             CreateMapInfo(data.DungeonEnimes[i], data.DungeonEnimes[i].RawImage, data.DungeonEnimes[i]._typeofEnemy == Enemy.typeofEnemy.DungeonBoss);

@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -47,7 +47,7 @@ public class MainBullet : MonoBehaviour
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if(collision.gameObject.GetComponent<Enemy>() != null) {
-            //Passive·Î ´ÙÀÌ¾Æ È¹µæ
+            //Passiveë¡œ ë‹¤ì´ì•„ íšë“
             if(MainWeapon.instance.diamondPerHit) {
                 getDiamondRandomNumber(collision.gameObject.GetComponent<Enemy>().transform);
             }

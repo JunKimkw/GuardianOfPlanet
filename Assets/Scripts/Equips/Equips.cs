@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -18,7 +18,7 @@ public class Equips : MonoBehaviour
 
     public string EquipName;
 
-    [Header("#-----Àåºñ ¿É¼Ç")]
+    [Header("#-----ì¥ë¹„ ì˜µì…˜")]
     [Space(7)]
     public EquipsOption baseOption;
     [HideInInspector]
@@ -27,16 +27,16 @@ public class Equips : MonoBehaviour
     public EquipsOption FinalOption;
 
     public enum MaterialClass {Ancient = 5, Legendary = 4, Unique = 3, Epic = 2, Rare = 1, Normal = 0}
-    [Header("Àåºñ µî±Ş")]
+    [Header("ì¥ë¹„ ë“±ê¸‰")]
     [Space(7)]
     public MaterialClass Grade;
     public enum Type { Ring, Necklace, Book, Accessory, Relics }
-    [Header("Àåºñ Á¾·ù")]
+    [Header("ì¥ë¹„ ì¢…ë¥˜")]
     [Space(7)]
     public Type TypeOfEquip;
 
     public enum SetType {None, Zeus_Set, Hades_Set, Beginner_Set, Atena_Set, Demeter_Set, Hydra_Set, Jungle_Set, Wood_Set, Warrior_Set, Hunter_Set, Magician_Set, Sea_Set, Evil_Set, Devil_Set, Dark_Set, Ice_Set, Honor_Set, Blood_Set, Iron_Set, ME_Set, Argos_Set, Gaea_Set, Pan_Set, Gold_Set, Ares_Set, Poseidon_Set, Hercules_Set, Cerberus_Set, Hestia_Set, Aphrodite_Set, Hephaistus_Set, Artemis_Set}
-    [Header("Àåºñ ¼¼Æ® È¿°ú")]
+    [Header("ì¥ë¹„ ì„¸íŠ¸ íš¨ê³¼")]
     [Space(7)]
     public SetType setType;
 
@@ -64,7 +64,7 @@ public class Equips : MonoBehaviour
             switch(Level) {
                 case 0: SP = 15; break;
                 case 1: SP = 30; break;
-                case 2: SP = 550; break;
+                case 2: SP = 50; break;
                 case 3: SP = 75; break;
                 case 4: SP = 100; break;
                 case 5: SP = 125; break;
@@ -207,27 +207,27 @@ public class Equips : MonoBehaviour
     {
         switch(Grade) {
             case MaterialClass.Normal:
-                gradeText = "ÀÏ¹İ";
+                gradeText = "ì¼ë°˜";
                 RequiredAmountForMerge = 30;
                 break;
             case MaterialClass.Rare:
-                gradeText = "·¹¾î";
+                gradeText = "ë ˆì–´";
                 RequiredAmountForMerge = 20;
                 break;
             case MaterialClass.Epic:
-                gradeText = "¿¡ÇÈ";
+                gradeText = "ì—í”½";
                 RequiredAmountForMerge = 15;
                 break;
             case MaterialClass.Unique:
-                gradeText = "À¯´ÏÅ©";
+                gradeText = "ìœ ë‹ˆí¬";
                 RequiredAmountForMerge = 10;
                 break;
             case MaterialClass.Legendary:
-                gradeText = "Àü¼³";
+                gradeText = "ì „ì„¤";
                 RequiredAmountForMerge = 5;
                 break;
             case MaterialClass.Ancient:
-                gradeText = "°í´ë";
+                gradeText = "ê³ ëŒ€";
                 RequiredAmountForMerge = 0;
                 break;
         }
@@ -238,38 +238,38 @@ public class Equips : MonoBehaviour
     {
         switch(TypeOfEquip) {
             case Type.Ring:
-                return "¹İÁö";
+                return "ë°˜ì§€";
             case Type.Necklace:
-                return "¸ñ°ÉÀÌ";
+                return "ëª©ê±¸ì´";
             case Type.Accessory:
-                return "Àå½Å±¸";
+                return "ì¥ì‹ êµ¬";
             case Type.Relics:
-                return "Ææ´øÆ®";
+                return "íœë˜íŠ¸";
             case Type.Book:
-                return "°í¼­";
+                return "ê³ ì„œ";
         }
         return null;
     }
 
     public void setFinalOptionStats()
     {
-        //µ¥¹ÌÁö
+        //ë°ë¯¸ì§€
         FinalOption.option.damage = baseOption.option.damage + extraOption.option.damage;
-        //µ¥¹ÌÁö ÆÛ¼¾Æ®
+        //ë°ë¯¸ì§€ í¼ì„¼íŠ¸
         FinalOption.option.damagePercent = baseOption.option.damagePercent + extraOption.option.damagePercent;
-        //°ø°İ¼Óµµ
+        //ê³µê²©ì†ë„
         FinalOption.option.AttackSpeed = baseOption.option.AttackSpeed + extraOption.option.AttackSpeed;
-        //ÃÑ¾Ë¼Óµµ
+        //ì´ì•Œì†ë„
         FinalOption.option.BulletSpeed = baseOption.option.BulletSpeed + extraOption.option.BulletSpeed;
-        //Ä¡¸íÅ¸ È®·ü
+        //ì¹˜ëª…íƒ€ í™•ë¥ 
         FinalOption.option.CritChance = baseOption.option.CritChance + extraOption.option.CritChance;
-        //Ä¡¸íÅ¸ µ¥¹ÌÁö
+        //ì¹˜ëª…íƒ€ ë°ë¯¸ì§€
         FinalOption.option.CritDamage = baseOption.option.CritDamage + extraOption.option.CritDamage;
-        //½ºÅÏÈ®·ü
+        //ìŠ¤í„´í™•ë¥ 
         FinalOption.option.StunPercent = baseOption.option.StunPercent + extraOption.option.StunPercent;
-        //Ãß°¡ %°æÇèÄ¡
+        //ì¶”ê°€ %ê²½í—˜ì¹˜
         FinalOption.option.ExtraEXP = baseOption.option.ExtraEXP + extraOption.option.ExtraEXP;
-        //Ãß°¡ %°ñµå
+        //ì¶”ê°€ %ê³¨ë“œ
         FinalOption.option.ExtraMoney = baseOption.option.ExtraMoney + extraOption.option.ExtraMoney;
     }
 

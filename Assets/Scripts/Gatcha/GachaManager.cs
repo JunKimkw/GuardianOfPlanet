@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -114,14 +114,14 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         SetSliderValue();
         InvokeRepeating("SetTicket", 0, 0.5f);
     }
-    //One È®Á¤
+    //One í™•ì •
     public void gachaOneMust(int RingAmount, int NecklaceAmount, int RelicsAmount, int AccessoryAmount, int BookAmount, Equips.MaterialClass minType, Equips.MaterialClass MaxType, Equips.MaterialClass confirmedType, bool moreChance, int boxType)
     {
-        //¼³Á¤
+        //ì„¤ì •
         DOTween.KillAll();
         StopAllCoroutines();
 
-        //·£´ı Àåºñ °¡Áö°í¿À±â
+        //ëœë¤ ì¥ë¹„ ê°€ì§€ê³ ì˜¤ê¸°
         if(randomStones != null)
             randomStones.Clear();
 
@@ -328,11 +328,11 @@ public class GachaManager : MonoBehaviour, IDataPersistence
 
     public void gachaOneMust(int totalCount, Equips.MaterialClass minType, Equips.MaterialClass MaxType, Equips.MaterialClass confirmedType, bool moreChance, int boxType)
     {
-        //¼³Á¤
+        //ì„¤ì •
         DOTween.KillAll();
         StopAllCoroutines();
 
-        //·£´ı Àåºñ °¡Áö°í¿À±â
+        //ëœë¤ ì¥ë¹„ ê°€ì§€ê³ ì˜¤ê¸°
         if(randomStones != null)
             randomStones.Clear();
 
@@ -432,11 +432,11 @@ public class GachaManager : MonoBehaviour, IDataPersistence
     //Real Money Purchase
     public void gachaRealMoney(int RingAmount, int NecklaceAmount, int RelicsAmount, int AccessoryAmount, int BookAmount, Equips.MaterialClass minType, Equips.MaterialClass MaxType, bool moreChance)
     {
-        //¼³Á¤
+        //ì„¤ì •
         DOTween.KillAll();
         StopAllCoroutines();
 
-        //·£´ı Àåºñ °¡Áö°í¿À±â
+        //ëœë¤ ì¥ë¹„ ê°€ì§€ê³ ì˜¤ê¸°
         if(randomStones != null)
             randomStones.Clear();
 
@@ -625,27 +625,27 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         switch(data.gacha) {
             case GachaData.GachaType.Normal:
                 ChestImage.sprite = GachaBox_Sprites[0];
-                chestName_Text.text = "ÀÏ¹İ »Ì±â 1È¸";
+                chestName_Text.text = "ì¼ë°˜ ë½‘ê¸° 1íšŒ";
                 break;
             case GachaData.GachaType.Normalx10:
                 ChestImage.sprite = GachaBox_Sprites[0]; 
-                chestName_Text.text = "ÀÏ¹İ »Ì±â 10È¸";
+                chestName_Text.text = "ì¼ë°˜ ë½‘ê¸° 10íšŒ";
                 break;
             case GachaData.GachaType.Special:
                 ChestImage.sprite = GachaBox_Sprites[1]; 
-                chestName_Text.text = "½ºÆä¼È »Ì±â 1È¸";
+                chestName_Text.text = "ìŠ¤í˜ì…œ ë½‘ê¸° 1íšŒ";
                 break;
             case GachaData.GachaType.Specialx10:
                 ChestImage.sprite = GachaBox_Sprites[1];
-                chestName_Text.text = "½ºÆä¼È »Ì±â 10È¸";
+                chestName_Text.text = "ìŠ¤í˜ì…œ ë½‘ê¸° 10íšŒ";
                 break;
             case GachaData.GachaType.UpgradeStone:
                 ChestImage.sprite = GachaBox_Sprites[2];
-                chestName_Text.text = "°­È­¼® »Ì±â 1È¸";
+                chestName_Text.text = "ê°•í™”ì„ ë½‘ê¸° 1íšŒ";
                 break;
             case GachaData.GachaType.UpgradeStonex10:
                 ChestImage.sprite = GachaBox_Sprites[2];
-                chestName_Text.text = "°­È­¼® »Ì±â 20È¸";
+                chestName_Text.text = "ê°•í™”ì„ ë½‘ê¸° 20íšŒ";
                 break;
         }
     }
@@ -723,12 +723,12 @@ public class GachaManager : MonoBehaviour, IDataPersistence
 
     public void StartGacha(GachaData data)
     {
-        //¼³Á¤
+        //ì„¤ì •
         DOTween.KillAll();
         StopAllCoroutines();
 
 
-        //·£´ı Àåºñ °¡Áö°í¿À±â
+        //ëœë¤ ì¥ë¹„ ê°€ì§€ê³ ì˜¤ê¸°
         if(randomStones != null)
             randomStones.Clear();
 
@@ -740,7 +740,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         }
 
 
-        //Ä«µå ¼³Á¤
+        //ì¹´ë“œ ì„¤ì •
         if(data.gacha == GachaData.GachaType.Normal)
             NormalGacha(1);
         else if(data.gacha == GachaData.GachaType.Normalx10)
@@ -951,7 +951,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
 
     public void StartAnimation()
     {
-        //±âº»ÀûÀÎ ¼¼ÆÃ
+        //ê¸°ë³¸ì ì¸ ì„¸íŒ…
         Result_Panel.SetActive(false);
         GachaBox_Image.gameObject.SetActive(true);
         EquipShowTab.SetActive(false);
@@ -1438,7 +1438,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             return Equips.Type.Necklace;
         else if(random < 72)
             return Equips.Type.Accessory;
-        else if(random < 988)
+        else if(random < 88)
             return Equips.Type.Relics;
         else if(random < 100)
             return Equips.Type.Book;

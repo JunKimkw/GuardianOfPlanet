@@ -93,6 +93,11 @@ public class Player : MonoBehaviour, IDataPersistence
     [Header("총 획득 경험치")]
     public long expTotal;
 
+    // 리마스터: 증강 보너스를 뺀 공격력 (전투력·리더보드용)
+    [HideInInspector] public long BaseAttack_Damage;
+    long lastSentDamagePower = -1;
+    float nextLeaderboardSendTime;
+
     private void Awake()
     {
         instance = this;
@@ -103,18 +108,24 @@ public class Player : MonoBehaviour, IDataPersistence
 
         calculateValues();
 
-        if(exp >= getEXPRequired()) {
-            PlayerEXPUP(exp);
+        // 경험치가 이미 필요량 이상이면 레벨업만 처리 (예전에는 경험치를 한 번 더 더해서 두 배로 받던 문제)
+        int safety = 0;
+        while(exp >= getEXPRequired() && safety++ < 100) {
+            exp -= getEXPRequired();
+            LevelUp();
         }
 
 
 
-        TotalDamagePower = (long)((FinalAttack_Damage * 5) + (FinalAttack_SpeedPercent * 20) + (FinalAttack_Bullet_SpeedPercent * 10) + (FinalStunPower * 15) + (FinalCriticalChance * 15) + (FinalCriticalDamage * 50) + (WeaponManager.instance.getTotalWeaponLevel() * 10));
+        // 전투력은 영구 성장 기준 (원정 증강의 일시 보너스는 제외)
+        TotalDamagePower = (long)((BaseAttack_Damage * 5) + (FinalAttack_SpeedPercent * 20) + (FinalAttack_Bullet_SpeedPercent * 10) + (FinalStunPower * 15) + (FinalCriticalChance * 15) + (FinalCriticalDamage * 50) + (WeaponManager.instance.getTotalWeaponLevel() * 10));
 
-        if(TotalDamagePower != previousTotalDamagePower) {
+        // 리더보드 전송은 값이 바뀌었을 때만, 최소 30초 간격으로 (요청 폭주 방지)
+        if(TotalDamagePower != lastSentDamagePower && Time.unscaledTime >= nextLeaderboardSendTime) {
             if(AuthenticationService.Instance.IsSignedIn) {
                 LeaderBoardManager.Instance.AddTotalDamageScore(TotalDamagePower);
-                previousTotalDamagePower = TotalDamagePower;
+                lastSentDamagePower = TotalDamagePower;
+                nextLeaderboardSendTime = Time.unscaledTime + 30f;
             }
         }
         if(Lvl > 1500) {
@@ -227,7 +238,9 @@ public class Player : MonoBehaviour, IDataPersistence
     void calculateValues()
     {
         //Final Damage
-        FinalAttack_Damage = (int)((EquipingManager.Instance.Attack_Damage_Equip + Attack_Damage) * (1 + EquipingManager.Instance.Attack_DamagePercent_Equip + Attack_Damage_Percent + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.DamageIncrease) + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Damage)));
+        float augmentDamage = AugmentManager.Instance != null ? AugmentManager.Instance.DamageMultiplier : 1f;
+        BaseAttack_Damage = (long)((EquipingManager.Instance.Attack_Damage_Equip + Attack_Damage) * (1 + EquipingManager.Instance.Attack_DamagePercent_Equip + Attack_Damage_Percent + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.DamageIncrease) + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Damage)));
+        FinalAttack_Damage = (long)(BaseAttack_Damage * (double)augmentDamage);
         FinalAttack_SpeedPercent = (Attack_Speed + EquipingManager.Instance.Attack_Speed_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Attack_Speed)) * (1 + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.AttackSpeedIncrease));
         FinalAttack_Bullet_SpeedPercent = (Attack_Bullet_Speed + EquipingManager.Instance.Bullet_Speed_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Attack_Bullet_Speed)) * (1 + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.BulletSpeedIncrease));
         FinalStunPower = StunPower + EquipingManager.Instance.StunPower_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.StunPercent) + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.StunIncrease);
@@ -242,7 +255,7 @@ public class Player : MonoBehaviour, IDataPersistence
         if(FinalStunPower > 70) FinalStunPower = 70;
         if(FinalCriticalChance < 0) FinalCriticalChance = 0;
         if(FinalCriticalChance > 100) FinalCriticalChance = 100;
-        if(CriticalDamage < 0) FinalCriticalDamage = 0;
+        if(FinalCriticalDamage < 0) FinalCriticalDamage = 0;
         if(FinalExtraEXP < 0) FinalExtraEXP = 0;
         if(FinalExtraGold < 0) FinalExtraGold = 0;
         if(FinalAttack_Bullet_SpeedPercent > 4) FinalAttack_Bullet_SpeedPercent = 4;      

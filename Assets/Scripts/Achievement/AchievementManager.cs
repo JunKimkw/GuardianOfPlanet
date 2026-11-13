@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -124,7 +124,7 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
     void Update()
     {
         if(Time.timeScale > 0.3f) {
-            //Äù½ºÆ® µµ¿ì¹Ì
+            //í€˜ìŠ¤íŠ¸ ë„ìš°ë¯¸
             PlayedTimeDaily += Time.deltaTime / Time.timeScale;
             PlayedTimeWeekly += Time.deltaTime / Time.timeScale;
         }
@@ -200,49 +200,49 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
             string ResultText = data.QuestName;
             string newText = data.QuestName;
 
-            if(data._type == AchievementData.TypeofQuest.Daily) { //ÀÏ°£ Äù½ºÆ®
+            if(data._type == AchievementData.TypeofQuest.Daily) { //ì¼ê°„ í€˜ìŠ¤íŠ¸
                 switch(data.QuestNumber) {
-                    case 1: //1½Ã°£ ÇÃ·¹ÀÌ
+                    case 1: //1ì‹œê°„ í”Œë ˆì´
                         data.slider.maxValue = 60;
                         data.slider.value = ((int)(PlayedTimeDaily / 60));
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 2: //¸ó½ºÅÍ 300¸¶¸® Ã³Ä¡
+                    case 2: //ëª¬ìŠ¤í„° 300ë§ˆë¦¬ ì²˜ì¹˜
                         data.slider.maxValue = 300;
                         data.slider.value = killedEnemyDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 3: //º¸½º 5¸¶¸® Ã³Ä¡
+                    case 3: //ë³´ìŠ¤ 5ë§ˆë¦¬ ì²˜ì¹˜
                         data.slider.maxValue = 5;
                         data.slider.value = killedBossDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 4: //Àåºñ »Ì±â 5È¸
+                    case 4: //ì¥ë¹„ ë½‘ê¸° 5íšŒ
                         data.slider.maxValue = 5;
                         data.slider.value = GachaDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 5: //Å¸¿ö Å½»çÇÏ±â
+                    case 5: //íƒ€ì›Œ íƒì‚¬í•˜ê¸°
                         data.slider.maxValue = 1;
                         data.slider.value = TowerAdventureDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 6: //±¤»ê Á¦Ã¶¼Ò¿¡¼­ °Å·¡ÇÏ±â 3È¸
+                    case 6: //ê´‘ì‚° ì œì² ì†Œì—ì„œ ê±°ë˜í•˜ê¸° 3íšŒ
                         data.slider.maxValue = 3;
                         data.slider.value = IronworkTradeDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 7: //±¤¼® 500°³ Ä³±â
+                    case 7: //ê´‘ì„ 500ê°œ ìºê¸°
                         data.slider.maxValue = 500;
                         data.slider.value = OremineDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 8: //¹ÌÈ®ÀÎ ±¤¼® 500°³ È¹µæÇÏ±â
+                    case 8: //ë¯¸í™•ì¸ ê´‘ì„ 500ê°œ íšë“í•˜ê¸°
                         data.slider.maxValue = 500;
                         data.slider.value = UnminedOreDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 9: //»ç³ÉÅÍ ½ºÅ×ÀÌÁö 10È¸ Å¬¸®¾î
+                    case 9: //ì‚¬ëƒ¥í„° ìŠ¤í…Œì´ì§€ 10íšŒ í´ë¦¬ì–´
                         data.slider.maxValue = 10;
                         data.slider.value = InfiniteStageDaily;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
@@ -250,42 +250,42 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
                 }
             } else if(data._type == AchievementData.TypeofQuest.Weekly) {
                 switch(data.QuestNumber) {
-                    case 1: //20½Ã°£ ÇÃ·¹ÀÌÇÏ±â
+                    case 1: //20ì‹œê°„ í”Œë ˆì´í•˜ê¸°
                         data.slider.maxValue = 600;
                         data.slider.value = ((int)PlayedTimeWeekly) / 60;
                         data.SliderText.text = ((int)data.slider.value) + "/" + data.slider.maxValue;
                         break;
-                    case 2: //¸ó½ºÅÍ 3000¸¶¸® Ã³Ä¡ÇÏ±â (»ç³ÉÅÍ Á¦¿Ü)
+                    case 2: //ëª¬ìŠ¤í„° 3000ë§ˆë¦¬ ì²˜ì¹˜í•˜ê¸° (ì‚¬ëƒ¥í„° ì œì™¸)
                         data.slider.maxValue = 3000;
                         data.slider.value = killedEnemyWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 3: //Àåºñ »Ì±â 50È¸
+                    case 3: //ì¥ë¹„ ë½‘ê¸° 50íšŒ
                         data.slider.maxValue = 50;
                         data.slider.value = GachaWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 4: //±¤¼® 10000°³ Ä³±â
+                    case 4: //ê´‘ì„ 10000ê°œ ìºê¸°
                         data.slider.maxValue = 10000;
                         data.slider.value = OremineWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 5: //¹ÌÈ®ÀÎ ±¤¼® 10000°³ È¹µæÇÏ±â
+                    case 5: //ë¯¸í™•ì¸ ê´‘ì„ 10000ê°œ íšë“í•˜ê¸°
                         data.slider.maxValue = 10000;
                         data.slider.value = UnminedOreWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 6: //ÀÏÀÏ Äù½ºÆ® 35È¸ ±ú±â
+                    case 6: //ì¼ì¼ í€˜ìŠ¤íŠ¸ 35íšŒ ê¹¨ê¸°
                         data.slider.maxValue = 35;
                         data.slider.value = DailyQuestClearWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 7: //º¸½º 100È¸ Ã³Ä¡ÇÏ±â (»ç³ÉÅÍ Á¦¿Ü)
+                    case 7: //ë³´ìŠ¤ 100íšŒ ì²˜ì¹˜í•˜ê¸° (ì‚¬ëƒ¥í„° ì œì™¸)
                         data.slider.maxValue = 100;
                         data.slider.value = killedBossWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 8: //»ç³ÉÅÍ ½ºÅ×ÀÌÁö 100È¸ Å¬¸®¾î
+                    case 8: //ì‚¬ëƒ¥í„° ìŠ¤í…Œì´ì§€ 100íšŒ í´ë¦¬ì–´
                         data.slider.maxValue = 50;
                         data.slider.value = InfiniteStageWeekly;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
@@ -293,155 +293,155 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
                 }
             } else if(data._type == AchievementData.TypeofQuest.Quest) {
                 switch(data.QuestNumber) {
-                    case 1: //¸ó½ºÅÍ ÃÑ @¸¶¸® Ã³Ä¡
+                    case 1: //ëª¬ìŠ¤í„° ì´ @ë§ˆë¦¬ ì²˜ì¹˜
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EnemyManager.Instance.enemyKilled_Number;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 2: //@ Çà¼º Å¬¸®¾îÇÏ±â
+                    case 2: //@ í–‰ì„± í´ë¦¬ì–´í•˜ê¸°
                         ResultText = newText.Replace("@", StageManager.instance.planets[data.CurrentQuest].PlanetName);
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = Convert.ToInt32(StageManager.instance.planets[data.CurrentQuest].PlanetCleared);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 3: //@½Ã°£ ÇÃ·¹ÀÌÇÏ±â
+                    case 3: //@ì‹œê°„ í”Œë ˆì´í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest] * 60;
                         data.slider.value = GameManager.instance.totalPlayedTime / 60;
                         data.SliderText.text = data.slider.value.ToString("F0") + "/" + data.slider.maxValue;
                         break;
-                    case 4: //Àåºñ »Ì±â @È¸
+                    case 4: //ì¥ë¹„ ë½‘ê¸° @íšŒ
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = GachaTimeQuest;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 5: //Å¸¿ö Å½»çÇÏ±â @È¸
+                    case 5: //íƒ€ì›Œ íƒì‚¬í•˜ê¸° @íšŒ
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = TowerAdventureQuest;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 6: //±¤¼® @°³ Ä³±â
+                    case 6: //ê´‘ì„ @ê°œ ìºê¸°
                         ResultText = newText.Replace("@", string.Format("{0:#,###}", data.QuestConditionAmount[data.CurrentQuest]));
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = OreMinedQuest;
                         data.SliderText.text = string.Format("{0:#,###}", data.slider.value) + "/" + string.Format("{0:#,###}", data.slider.maxValue);
                         break;
-                    case 7: //º¸½º @¸¶¸® Ã³Â÷ÇÏ±â
+                    case 7: //ë³´ìŠ¤ @ë§ˆë¦¬ ì²˜ì°¨í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EnemyManager.Instance.totalBossKilled;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 8: //¹ÌÈ®ÀÎ ±¤¼® @°³ È¹µæÇÏ±â
+                    case 8: //ë¯¸í™•ì¸ ê´‘ì„ @ê°œ íšë“í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = UnminedOreQuest;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 9: //»ç³ÉÅÍ ½ºÅ×ÀÌÁö @ Å¬¸®¾î
+                    case 9: //ì‚¬ëƒ¥í„° ìŠ¤í…Œì´ì§€ @ í´ë¦¬ì–´
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = InfiniteStage.Instance.CurrentStage - 1;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 10: //µ¥¹ÌÁö ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 10: //ë°ë¯¸ì§€ ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.Damage);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 11: //°ø°İ¼Óµµ ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 11: //ê³µê²©ì†ë„ ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.Attack_Speed);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 12: //ÃÑ¾Ë¼Óµµ ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 12: //ì´ì•Œì†ë„ ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.Attack_Bullet_Speed);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 13: //Ä¡¸íÅ¸ È®·ü ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 13: //ì¹˜ëª…íƒ€ í™•ë¥  ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.CritChance);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 14: //Ä¡¸íÅ¸ µ¥¹ÌÁö ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 14: //ì¹˜ëª…íƒ€ ë°ë¯¸ì§€ ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.CritDamage);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 15: //½ºÅÏ È®·ü ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 15: //ìŠ¤í„´ í™•ë¥  ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.StunPercent);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 16: //Ãß°¡ °æÇèÄ¡ ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 16: //ì¶”ê°€ ê²½í—˜ì¹˜ ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.ExtraEXP);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 17: //Ãß°¡ °ñµå ½ºÅÈ @·¹º§ ´Ş¼º
+                    case 17: //ì¶”ê°€ ê³¨ë“œ ìŠ¤íƒ¯ @ë ˆë²¨ ë‹¬ì„±
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = StatsManager.instance.getStatLevel(StatsData.TypeofStat.ExtraMoney);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 18: //ÀÏ¹İ ¸ó½ºÅÍ µµ°¨ Ã¤¿ì±â
+                    case 18: //ì¼ë°˜ ëª¬ìŠ¤í„° ë„ê° ì±„ìš°ê¸°
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = CollectionManager.Instance.getNormalCollectionFoundAmount();
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 19: //º¸½º ¸ó½ºÅÍ µµ°¨ Ã¤¿ì±â
+                    case 19: //ë³´ìŠ¤ ëª¬ìŠ¤í„° ë„ê° ì±„ìš°ê¸°
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = CollectionManager.Instance.getBossCollectionFoundAmount();
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 20: //¹İÁö @°³ È¹µæÇÏ±â
+                    case 20: //ë°˜ì§€ @ê°œ íšë“í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EquipManager.Instance.getEquipNumberByType(Equips.Type.Ring);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 21: //¸ñ°ÉÀÌ @°³ È¹µæÇÏ±â
+                    case 21: //ëª©ê±¸ì´ @ê°œ íšë“í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EquipManager.Instance.getEquipNumberByType(Equips.Type.Necklace);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 22: //À¯¹° @°³ È¹µæÇÏ±â
+                    case 22: //ìœ ë¬¼ @ê°œ íšë“í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EquipManager.Instance.getEquipNumberByType(Equips.Type.Relics);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 23: //Àå½Å±¸ @°³ È¹µæÇÏ±â
+                    case 23: //ì¥ì‹ êµ¬ @ê°œ íšë“í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EquipManager.Instance.getEquipNumberByType(Equips.Type.Accessory);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 24: //°í¼­ @°³ È¹µæÇÏ±â
+                    case 24: //ê³ ì„œ @ê°œ íšë“í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = EquipManager.Instance.getEquipNumberByType(Equips.Type.Book);
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 25: //@ ·¹º§ ´Ş¼ºÇÏ±â
+                    case 25: //@ ë ˆë²¨ ë‹¬ì„±í•˜ê¸°
                         ResultText = newText.Replace("@", data.QuestConditionAmount[data.CurrentQuest].ToString());
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = Player.instance.Lvl;
                         data.SliderText.text = data.slider.value + "/" + data.slider.maxValue;
                         break;
-                    case 26: //@ Çà¼º Å¬¸®¾îÇÏ±â
+                    case 26: //@ í–‰ì„± í´ë¦¬ì–´í•˜ê¸°
                         ResultText = newText.Replace("@", StageManager.instance.planets[data.CurrentQuest + 14].PlanetName);
                         data.slider.maxValue = data.QuestConditionAmount[data.CurrentQuest];
                         data.slider.value = Convert.ToInt32(StageManager.instance.planets[data.CurrentQuest + 14].PlanetCleared);
@@ -462,7 +462,7 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
             case AchievementData.rewardType.Diamond:
                 data.rewardImage.sprite = sprites[0];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[0];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "°³";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "ê°œ";
                 break;
             case AchievementData.rewardType.Money:
                 data.rewardImage.sprite = sprites[1];
@@ -475,32 +475,32 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
             case AchievementData.rewardType.AutoFarm:
                 data.rewardImage.sprite = sprites[2];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[2];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest] / 60 + "ºĞ";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest] / 60 + "ë¶„";
                 break;
             case AchievementData.rewardType.NormalTicket:
                 data.rewardImage.sprite = sprites[3];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[3];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "°³";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "ê°œ";
                 break;
             case AchievementData.rewardType.SpecialTicket:
                 data.rewardImage.sprite = sprites[4];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[4];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "°³";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "ê°œ";
                 break;
             case AchievementData.rewardType.StoneTicket:
                 data.rewardImage.sprite = sprites[5];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[5];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "°³";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "ê°œ";
                 break;
             case AchievementData.rewardType.UnminedOre:
                 data.rewardImage.sprite = sprites[6];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[6];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "°³";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "ê°œ";
                 break;
             case AchievementData.rewardType.Parts:
                 data.rewardImage.sprite = sprites[7];
                 data.rewardImage.rectTransform.sizeDelta = sizeOfSprites[7];
-                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "°³";
+                data.rewardText.text = data.RewardAmount[data.CurrentQuest].ToString() + "ê°œ";
                 break;
         }
     }
@@ -681,7 +681,7 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
 
 
         prizeAmount = n;
-        orePrizeAmount_Text.text = "¹ÌÈ®ÀÎ ±¤¼® " + prizeAmount.ToString() + "°³";
+        orePrizeAmount_Text.text = "ë¯¸í™•ì¸ ê´‘ì„ " + prizeAmount.ToString() + "ê°œ";
 
         for(int i = 0; i < Railmanager.Instance.currentRails.Count; i++) {
             RailInfoData _r = Instantiate(prizeData_pfb, prizeData_parent);
@@ -838,7 +838,7 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
         }
 
         if(data.ResetTimeWeekly != 0) {
-            if(DateTime.Now.DayOfYear - data.ResetTimeWeekly >= 7) {
+            if(DateTime.Now.DayOfYear - data.ResetTimeWeekly >= 7 || DateTime.Now.DayOfYear < data.ResetTimeWeekly) {
                 resetWeeklyAchievement();
                 ResetTimeWeekly = DateTime.Now.DayOfYear;
             }
@@ -878,12 +878,12 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
         data.OreMinedQuest = OreMinedQuest;
         data.UnminedOreQuest = UnminedOreQuest;
 
-        // ¾÷Àû µñ¼Å³Ê¸® null ¹æ¾î
+        // ì—…ì  ë”•ì…”ë„ˆë¦¬ null ë°©ì–´
         if(data.currentQuest == null) data.currentQuest = new SerializableDictionary<string, int>();
         if(data.AchieveCondition == null) data.AchieveCondition = new SerializableDictionary<string, bool>();
         if(data.CompletedTab == null) data.CompletedTab = new SerializableDictionary<string, bool>();
 
-        // ±âÁ¸ °ª ºñ¿ì°í ´Ù½Ã ÀúÀå
+        // ê¸°ì¡´ ê°’ ë¹„ìš°ê³  ë‹¤ì‹œ ì €ì¥
         data.currentQuest.Clear();
         data.AchieveCondition.Clear();
         data.CompletedTab.Clear();

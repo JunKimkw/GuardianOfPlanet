@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,7 +14,7 @@ public class Stone : MonoBehaviour
     public Sprite oreSprites;
 
 
-    [Header("ä��")]
+    [Header("채력")]
     public int StoneHealth;
     [HideInInspector]
     public int MaxHealth;

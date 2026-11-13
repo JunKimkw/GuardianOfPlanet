@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -71,7 +71,7 @@ public class MineShop : MonoBehaviour
 
     public void SetData()
     {
-        //´É·Â
+        //ëŠ¥ë ¥
         MinerBuff = 10 * (ShopLevel / 10);
         TabBuff = 5 * (ShopLevel / 10);
         OrePerSecond = IncreasePerUpgrade * ShopLevel;
@@ -81,7 +81,7 @@ public class MineShop : MonoBehaviour
             TotalOrePerSecond = 0;
         //UI
         LvlText.text = "Lv." + ShopLevel;
-        MinerInfoText.text = "±¤ºÎ ´É·Â: " + GameManager.MoneyString(TotalOrePerSecond) + "/ÃÊ\n±¤ºÎ ¹öÇÁ: " + MinerBuff + "%\nÅÇ ¹öÇÁ: " + TabBuff + "%";
+        MinerInfoText.text = "ê´‘ë¶€ ëŠ¥ë ¥: " + GameManager.MoneyString(TotalOrePerSecond) + "/ì´ˆ\nê´‘ë¶€ ë²„í”„: " + MinerBuff + "%\níƒ­ ë²„í”„: " + TabBuff + "%";
         PriceText.text = GameManager.MoneyString(MinerPrice);
         MinerPrice = (long)(InitialMinerPrice * Mathf.Pow(1.2f, ShopLevel));
     }

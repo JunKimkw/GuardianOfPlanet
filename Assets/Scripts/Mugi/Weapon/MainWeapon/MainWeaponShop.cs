@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ public class MainWeaponShop : MonoBehaviour
     [HideInInspector]
     public MainWeapon mainWeapon;
 
-    [Header("UI ¹Ù²Ù±â")]
+    [Header("UI ë°”ê¾¸ê¸°")]
     public TextMeshProUGUI LevelText;
     public TextMeshProUGUI WeaponStat;
     public TextMeshProUGUI priceText;
@@ -35,9 +35,9 @@ public class MainWeaponShop : MonoBehaviour
     void Update()
     {
         if(mainWeapon.UpgradeLevel > 0)
-            WeaponStat.text = "¿ìÁÖ¼± µ¥¹ÌÁöÀÇ " + ((1 + mainWeapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.MainWeapon, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%·Î °ø°İ\n" + "ÇöÀç µ¥¹ÌÁö: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + ((mainWeapon.Damage + mainWeapon.ExtraDamage) * (1 + mainWeapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.MainWeapon, TraitsData.TraitsType.DamagePercent)))));
+            WeaponStat.text = "ìš°ì£¼ì„  ë°ë¯¸ì§€ì˜ " + ((1 + mainWeapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.MainWeapon, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%ë¡œ ê³µê²©\n" + "í˜„ì¬ ë°ë¯¸ì§€: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + ((mainWeapon.Damage + mainWeapon.ExtraDamage) * (1 + mainWeapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.MainWeapon, TraitsData.TraitsType.DamagePercent)))));
         else
-            WeaponStat.text = "¸ó½ºÅÍ¸¦ °ø°İÇÏ´Â ±âº» ÃÑ";
+            WeaponStat.text = "ëª¬ìŠ¤í„°ë¥¼ ê³µê²©í•˜ëŠ” ê¸°ë³¸ ì´";
         LevelText.text = "Lv." + mainWeapon.UpgradeLevel.ToString();
         TotalPrice = getTotalMoney(mainWeapon.UpgradeLevel, purchaseSize);
         priceText.text = GameManager.MoneyString(TotalPrice);
@@ -98,7 +98,7 @@ public class MainWeaponShop : MonoBehaviour
 
     public void setPassiveValues()
     {
-        //°ãÄ¡¸é
+        //ê²¹ì¹˜ë©´
         mainWeapon.ExtraDamagePercent = 0;
 
         //Passive 1

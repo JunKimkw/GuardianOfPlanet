@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -83,8 +83,8 @@ public class UserNameManager : MonoBehaviour
         if(!userNameInputField.text.IsNullOrEmpty()) {
             if(userNameInputField.text.Contains(" ") || userNameInputField.text.Trim().Length != userNameInputField.text.Length) {
                 duplicateConditionText.color = new Color(0.9056604f, 0, 0.01579501f);
-                duplicateConditionText.text = "´Ğ³×ÀÓ¿¡´Â °ø¹éÀÌ³ª ºó °ø°£À» Æ÷ÇÔÇÒ ¼ö ¾ø½À´Ï´Ù.";
-                ErrorName.text = "¿Ã¹Ù¸¥ ´Ğ³×ÀÓÀ» ÀÔ·ÂÇØÁÖ¼¼¿ä.";
+                duplicateConditionText.text = "ë‹‰ë„¤ì„ì—ëŠ” ê³µë°±ì´ë‚˜ ë¹ˆ ê³µê°„ì„ í¬í•¨í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤.";
+                ErrorName.text = "ì˜¬ë°”ë¥¸ ë‹‰ë„¤ì„ì„ ì…ë ¥í•´ì£¼ì„¸ìš”.";
                 DuplicateChecked = false;
                 return;
             }
@@ -92,8 +92,8 @@ public class UserNameManager : MonoBehaviour
             for(int i = 0; i < lines.Length; i++) {
                 if(userNameInputField.text.Contains(lines[i])) {
                     duplicateConditionText.color = new Color(0.9056604f, 0, 0.01579501f);
-                    duplicateConditionText.text = "ºñ¼Ó¾î´Â »ç¿ëÇÒ ¼ö ¾ø½À´Ï´Ù";
-                    ErrorName.text = "ºÎÀûÀıÇÑ ´Ü¾î¸¦ Æ÷ÇÔÇÏ°íÀÖ½À´Ï´Ù";
+                    duplicateConditionText.text = "ë¹„ì†ì–´ëŠ” ì‚¬ìš©í•  ìˆ˜ ì—†ìŠµë‹ˆë‹¤";
+                    ErrorName.text = "ë¶€ì ì ˆí•œ ë‹¨ì–´ë¥¼ í¬í•¨í•˜ê³ ìˆìŠµë‹ˆë‹¤";
                     DuplicateChecked = false;
                     return;
                 }
@@ -101,34 +101,34 @@ public class UserNameManager : MonoBehaviour
 
             if(userNameInputField.text.Length < 2) {
                 duplicateConditionText.color = new Color(0.9056604f, 0, 0.01579501f);
-                duplicateConditionText.text = "´Ğ³×ÀÓÀÌ ³Ê¹« Âª½À´Ï´Ù.";
-                ErrorName.text = "2ÀÚ~8ÀÚ »çÀÌ ´Ğ³×ÀÓÀ¸·Î ¼³Á¤ÇØÁÖ¼¼¿ä";
+                duplicateConditionText.text = "ë‹‰ë„¤ì„ì´ ë„ˆë¬´ ì§§ìŠµë‹ˆë‹¤.";
+                ErrorName.text = "2ì~8ì ì‚¬ì´ ë‹‰ë„¤ì„ìœ¼ë¡œ ì„¤ì •í•´ì£¼ì„¸ìš”";
                 DuplicateChecked = false;
                 return;
             }
 
             if(userNameInputField.text.Length > 8) {
                 duplicateConditionText.color = new Color(0.9056604f, 0, 0.01579501f);
-                duplicateConditionText.text = "´Ğ³×ÀÓÀÌ ³Ê¹« ±é´Ï´Ù.";
-                ErrorName.text = "2ÀÚ~8ÀÚ »çÀÌ ´Ğ³×ÀÓÀ¸·Î ¼³Á¤ÇØÁÖ¼¼¿ä";
+                duplicateConditionText.text = "ë‹‰ë„¤ì„ì´ ë„ˆë¬´ ê¹ë‹ˆë‹¤.";
+                ErrorName.text = "2ì~8ì ì‚¬ì´ ë‹‰ë„¤ì„ìœ¼ë¡œ ì„¤ì •í•´ì£¼ì„¸ìš”";
                 DuplicateChecked = false;
                 return;
             }
 
             if(a) {
                 duplicateConditionText.color = new Color(0, 0.5566038f, 0.0490791f);
-                duplicateConditionText.text = "»ç¿ë°¡´ÉÇÑ ÀÌ¸§ÀÔ´Ï´Ù";
+                duplicateConditionText.text = "ì‚¬ìš©ê°€ëŠ¥í•œ ì´ë¦„ì…ë‹ˆë‹¤";
                 DuplicateChecked = true;
             } else {
                 duplicateConditionText.color = new Color(0.9056604f, 0, 0.01579501f);
-                duplicateConditionText.text = "»ç¿ë ºÒ°¡´ÉÇÑ ÀÌ¸§ÀÔ´Ï´Ù";
-                ErrorName.text = "Áßº¹µÈ ´Ğ³×ÀÓÀÔ´Ï´Ù";
+                duplicateConditionText.text = "ì‚¬ìš© ë¶ˆê°€ëŠ¥í•œ ì´ë¦„ì…ë‹ˆë‹¤";
+                ErrorName.text = "ì¤‘ë³µëœ ë‹‰ë„¤ì„ì…ë‹ˆë‹¤";
                 DuplicateChecked = false;
             }
         } else {
             duplicateConditionText.color = new Color(0.9056604f, 0, 0.01579501f);
-            duplicateConditionText.text = "»ç¿ë ºÒ°¡´ÉÇÑ ÀÌ¸§ÀÔ´Ï´Ù";
-            ErrorName.text = "´Ğ³×ÀÓÀ» ÀÔ·ÂÇØÁÖ¼¼¿ä";
+            duplicateConditionText.text = "ì‚¬ìš© ë¶ˆê°€ëŠ¥í•œ ì´ë¦„ì…ë‹ˆë‹¤";
+            ErrorName.text = "ë‹‰ë„¤ì„ì„ ì…ë ¥í•´ì£¼ì„¸ìš”";
             DuplicateChecked = false;
         }
     }

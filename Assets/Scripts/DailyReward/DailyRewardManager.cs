@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,20 +20,20 @@ public class DailyRewardManager : MonoBehaviour, IDataPersistence
     public Transform rouletteTransform;
     public GameObject ExclamationMark;
 
-    [Header("ªÃ±‚πˆ∆∞")]
+    [Header("ÎΩëÍ∏∞Î≤ÑÌäº")]
     public Button GatchaButton;
     public Button SpinButton;
     public TextMeshProUGUI SpinRemained_Text;
     public TextMeshProUGUI ButtonNameText;
     public GameObject AdsIcon_Obj;
 
-    [Header("#---±§∞Ì")]
+    [Header("#---Í¥ëÍ≥†")]
     public GameObject Ads_Tab;
 
-    [Header("∆ºƒœ ∫∏¿Ø∑Æ")]
+    [Header("Ìã∞Ïºì Î≥¥Ïú†Îüâ")]
     public int Ticket;
 
-    [Header("√‚ºÆ ∞¸∑√")]
+    [Header("Ï∂úÏÑù Í¥ÄÎ†®")]
     int myTime = DateTime.Now.DayOfYear;
 
     int adsPerDay;
@@ -165,7 +165,7 @@ public class DailyRewardManager : MonoBehaviour, IDataPersistence
                 SpinButton.interactable = false;
 
                 AdsIcon_Obj.SetActive(true);
-                ButtonNameText.text = "±§∞Ì ∫∏±‚";
+                ButtonNameText.text = "Í¥ëÍ≥† Î≥¥Í∏∞";
                 SpinRemained_Text.text = (1 - adsPerDay) + " / 1";
                 GatchaButton.interactable = adsPerDay == 0;
 
@@ -173,7 +173,7 @@ public class DailyRewardManager : MonoBehaviour, IDataPersistence
                 GatchaButton.interactable = true;
                 SpinButton.interactable = true;
                 AdsIcon_Obj.SetActive(false);
-                ButtonNameText.text = "¿œ¿œ ªÃ±‚";
+                ButtonNameText.text = "ÏùºÏùº ÎΩëÍ∏∞";
                 SpinRemained_Text.text = Ticket + " / 1";
             }
         }

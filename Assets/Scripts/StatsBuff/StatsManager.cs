@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,7 +48,7 @@ public class StatsManager : MonoBehaviour, IDataPersistence
     {
         if(statPoint >= requiredStats_per_level[data._statsLevel]) {
             selectedStatsData = data;
-            Text_StatsPopup.text = "º¸À¯ ÁßÀÎ ½ºÅÈ: " + statPoint + "\n" + "ÇÊ¿ä ½ºÅÈ: " + requiredStats_per_level[data._statsLevel];
+            Text_StatsPopup.text = "ë³´ìœ  ì¤‘ì¸ ìŠ¤íƒ¯: " + statPoint + "\n" + "í•„ìš” ìŠ¤íƒ¯: " + requiredStats_per_level[data._statsLevel];
             StatsUpgrade_Popup.SetActive(true);
         } else
             LackPoint_Error.SetActive(true);

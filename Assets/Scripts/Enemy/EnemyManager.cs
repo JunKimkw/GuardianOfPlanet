@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,7 +6,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
 {
     public static EnemyManager Instance;
 
-    [Header("Àû")]
+    [Header("ì ")]
     [SerializeField] public List<Enemy> enemyData;
     public Enemy[] BossEnemies;
     [SerializeField] public List<Enemy> bossData;
@@ -30,7 +30,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         Enemy closeEnemy = null;
 
         if(bossData.Count > 0 || enemyData.Count > 0) {
-            //°¡Àå °¡±î¿î °Å¸®ÀÇ Àû
+            //ê°€ì¥ ê°€ê¹Œìš´ ê±°ë¦¬ì˜ ì 
             float distance = 100000;
             for(int i = 0; i < bossData.Count; i++) {
                 if(distance >= bossData[i].distance && bossData[i].IsInRange) {
@@ -66,7 +66,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         Enemy closeEnemy = null;
 
         if(bossData.Count > 0 || enemyData.Count > 0) {
-            //°¡Àå °¡±î¿î °Å¸®ÀÇ Àû
+            //ê°€ì¥ ê°€ê¹Œìš´ ê±°ë¦¬ì˜ ì 
             float distance = 100000;
             for(int i = 0; i < bossData.Count; i++) {
                 if(distance >= bossData[i].distance && bossData[i].IsInRange && !bounceEnemy.checkBouncedEnemyisInList(bossData[i])) {
@@ -106,7 +106,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         Enemy closeEnemy = null;
 
         if(bossData.Count > 0 || enemyData.Count > 0) {
-            //°¡Àå °¡±î¿î °Å¸®ÀÇ Àû
+            //ê°€ì¥ ê°€ê¹Œìš´ ê±°ë¦¬ì˜ ì 
             float distance = 100000;
             for(int i = 0; i < bossData.Count; i++) {
                 if(distance >= bossData[i].distance) {
@@ -211,6 +211,8 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         enemy.gameObject.SetActive(true);
         enemy.EnemyHealth *= (1 + scale);
         enemy.enemyMovingSpeed *= (1 + scale / 50);
+        if(AugmentManager.Instance != null)
+            enemy.enemyMovingSpeed *= AugmentManager.Instance.EnemySpeedMultiplier;
         enemy.enemy_Money = (long)(enemy.enemy_Money * (1 + scale / 5));
         enemy.Enemy_EXP = (int)(enemy.Enemy_EXP * (1 + scale / 5));
         enemy.StunResistence *= (1 + scale);
@@ -291,6 +293,10 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
 
     public static void EnemyDead(Enemy enemy)
     {
+        //ë¦¬ë§ˆìŠ¤í„°: ì¦ê°• ì²˜ì¹˜ íš¨ê³¼(í­ë°œ, ëˆ„ì  ìŠ¤íƒ)
+        if(AugmentManager.Instance != null)
+            AugmentManager.Instance.OnEnemyKilled(enemy);
+
         switch(enemy._typeofEnemy) {
             case Enemy.typeofEnemy.normal:
                 MoneyPopup.Create(enemy.transform.position, GameManager.GetTotalGoldOfEnemy(enemy), 2.5f);

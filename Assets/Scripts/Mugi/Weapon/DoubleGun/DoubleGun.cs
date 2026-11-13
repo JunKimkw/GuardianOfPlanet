@@ -80,6 +80,7 @@ public class DoubleGun : MonoBehaviour
             TimerAs += Time.deltaTime;
             if(TimerAs >= getAttackSpeed()) {
                 CreateBullet();
+                if(AugmentManager.RollMultiShot()) CreateBullet();
                 if(doubleAttack) {
                     StartCoroutine(DelayedAttack());
                     TimerAs = 0;

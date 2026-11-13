@@ -30,22 +30,25 @@ public class BounceBullet : MonoBehaviour
 
         if(TargetEnemy != null) {
             if(TargetEnemy._state == Enemy.EnemyState.dead) {
-                BounceTime++;
-                if(BounceTime < (BounceGun.instance.ExtraBounce ? 3 : 2)) {
-                    if(BounceTime == 1) {
-                        CreateBullet();
-                        CreateBullet();
-                    } else {
-                        CreateBullet();
-                        CreateBullet();
-                        CreateBullet();
-                    }
-                    DestroyBullet();
-                } else {
-                    BounceGun.instance.bounceEnemyList_Bullet.Remove(bounceEnemy);
-                    DestroyBullet();
-                }
+                HandleBounce();
             }
+        }
+    }
+
+    // 튕김 처리 (리마스터: 증식 튕김 증강으로 추가 튕김. 추가분은 1발씩만 이어져서 탄이 폭증하지 않아요)
+    void HandleBounce()
+    {
+        BounceTime++;
+        int baseMax = BounceGun.instance.ExtraBounce ? 3 : 2;
+        int extra = AugmentManager.Instance != null ? AugmentManager.Instance.BounceExtraCount : 0;
+        if(BounceTime < baseMax + extra) {
+            int count = BounceTime >= baseMax ? 1 : (BounceTime == 1 ? 2 : 3);
+            for(int i = 0; i < count; i++)
+                CreateBullet();
+            DestroyBullet();
+        } else {
+            BounceGun.instance.bounceEnemyList_Bullet.Remove(bounceEnemy);
+            DestroyBullet();
         }
     }
     public void DestroyBullet()
@@ -62,7 +65,9 @@ public class BounceBullet : MonoBehaviour
     {
         BounceBullet bullet_A = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.BounceBullet).GetComponent<BounceBullet>();
 
-        if(BounceGun.instance.NoDamageReduce) {
+        if(AugmentManager.Instance != null && AugmentManager.Instance.BounceExtraCount > 0) {
+            bullet_A.setBulletStats((int)Mathf.Min(int.MaxValue, bullet_Damage * 1.2f));
+        } else if(BounceGun.instance.NoDamageReduce) {
             bullet_A.setBulletStats(bullet_Damage);
         } else {
             bullet_A.setBulletStats((int)(bullet_Damage * Mathf.Pow(0.9f, BounceTime)));
@@ -94,21 +99,7 @@ public class BounceBullet : MonoBehaviour
             collision.gameObject.GetComponent<Enemy>().OnHit(bullet_Damage, isStunning, isCritical, Player.instance.FinalCriticalDamage);
             bounceEnemy.BouncedEnemies.Add(collision.gameObject.GetComponent<Enemy>());
 
-            BounceTime++;
-            if(BounceTime < (BounceGun.instance.ExtraBounce ? 3 : 2)) {
-                if(BounceTime == 1) {
-                    CreateBullet();
-                    CreateBullet();
-                } else {
-                    CreateBullet();
-                    CreateBullet();
-                    CreateBullet();
-                }
-                DestroyBullet();
-            } else {
-                BounceGun.instance.bounceEnemyList_Bullet.Remove(bounceEnemy);
-                DestroyBullet();
-            }
+            HandleBounce();
 
         } else if(collision.gameObject.GetComponent<Dummy>() != null) {
             collision.gameObject.GetComponent<Dummy>().addDamage(bullet_Damage, isCritical, Player.instance.FinalCriticalDamage);

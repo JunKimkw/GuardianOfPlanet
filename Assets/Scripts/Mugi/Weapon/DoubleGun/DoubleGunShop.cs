@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,7 +11,7 @@ public class DoubleGunShop : MonoBehaviour
     [HideInInspector]
     public DoubleGun weapon;
 
-    [Header("UI ¹Ù²Ù±â")]
+    [Header("UI ë°”ê¾¸ê¸°")]
     public TextMeshProUGUI LevelText;
     public TextMeshProUGUI WeaponStat;
     public TextMeshProUGUI priceText;
@@ -20,7 +20,7 @@ public class DoubleGunShop : MonoBehaviour
     public int purchaseSize;
     long TotalPrice;
 
-    [Header("#-----Àá±İ")]
+    [Header("#-----ì ê¸ˆ")]
     public GameObject LockCover;
     public TextMeshProUGUI LockText;
 
@@ -39,15 +39,15 @@ public class DoubleGunShop : MonoBehaviour
 
         //Check Lock
         LockCover.SetActive(!StageManager.instance.planets[0].PlanetCleared);
-        LockText.text = StageManager.instance.planets[0].PlanetName + " Çà¼º Å¬¸®¾î";
+        LockText.text = StageManager.instance.planets[0].PlanetName + " í–‰ì„± í´ë¦¬ì–´";
     }
 
     void Update()
     {
         if(weapon.UpgradeLevel > 0)
-            WeaponStat.text = "¿ìÁÖ¼± µ¥¹ÌÁöÀÇ " + ((1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%·Î °ø°İ\n" + "ÇöÀç µ¥¹ÌÁö: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + (weapon.Damage * (1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.DamagePercent)))));
+            WeaponStat.text = "ìš°ì£¼ì„  ë°ë¯¸ì§€ì˜ " + ((1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%ë¡œ ê³µê²©\n" + "í˜„ì¬ ë°ë¯¸ì§€: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + (weapon.Damage * (1 + weapon.ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.DamagePercent)))));
         else
-            WeaponStat.text = "µÎ°³ÀÇ ÃÑÀ¸·Î ¸ó½ºÅÍ¸¦ °ø°İÇÑ´Ù";
+            WeaponStat.text = "ë‘ê°œì˜ ì´ìœ¼ë¡œ ëª¬ìŠ¤í„°ë¥¼ ê³µê²©í•œë‹¤";
         LevelText.text = "Lv." + weapon.UpgradeLevel.ToString();
         TotalPrice = getTotalMoney(weapon.UpgradeLevel, purchaseSize);
         priceText.text = GameManager.MoneyString(TotalPrice);
@@ -109,7 +109,7 @@ public class DoubleGunShop : MonoBehaviour
 
     public void setPassiveValues()
     {
-        //°ãÄ¡¸é
+        //ê²¹ì¹˜ë©´
         weapon.ExtraDamagePercent = 0;
         weapon.ExtraAttackSpeedScale = 0;
 

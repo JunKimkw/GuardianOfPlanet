@@ -1,4 +1,4 @@
-using System.Text;
+ï»¿using System.Text;
 using UnityEngine;
 
 // External dependencies
@@ -65,7 +65,7 @@ public class IOSManager : MonoBehaviour
                     var fullName = appleIdCredential.FullName;
                     var identityToken = Encoding.UTF8.GetString(appleIdCredential.IdentityToken);
                     var authorizationCode = Encoding.UTF8.GetString(appleIdCredential.AuthorizationCode);
-                    // ·Î±×ÀÎÃ³¸®
+                    // ë¡œê·¸ì¸ì²˜ë¦¬
                 }
             },
             error => {

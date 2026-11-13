@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
@@ -93,23 +93,23 @@ public class SetScript : MonoBehaviour
     {
         string EquipStatsText = "";
         if(option.option.damage != 0)
-            EquipStatsText += string.Format("µ¥¹ÌÁö: {0}@", option.option.damage);
+            EquipStatsText += string.Format("ë°ë¯¸ì§€: {0}@", option.option.damage);
         if(option.option.damagePercent != 0)
-            EquipStatsText += string.Format("µ¥¹ÌÁö(%): {0}%@", option.option.damagePercent * 100);
+            EquipStatsText += string.Format("ë°ë¯¸ì§€(%): {0}%@", option.option.damagePercent * 100);
         if(option.option.AttackSpeed != 0)
-            EquipStatsText += string.Format("°ø°İ¼Óµµ: {0}%@", option.option.AttackSpeed * 100);
+            EquipStatsText += string.Format("ê³µê²©ì†ë„: {0}%@", option.option.AttackSpeed * 100);
         if(option.option.BulletSpeed != 0)
-            EquipStatsText += string.Format("ÃÑ¾Ë¼Óµµ: {0}@", option.option.BulletSpeed) + "m/s";
+            EquipStatsText += string.Format("ì´ì•Œì†ë„: {0}@", option.option.BulletSpeed) + "m/s";
         if(option.option.CritChance != 0)
-            EquipStatsText += string.Format("Ä¡¸íÅ¸ È®·ü: {0}%@", option.option.CritChance);
+            EquipStatsText += string.Format("ì¹˜ëª…íƒ€ í™•ë¥ : {0}%@", option.option.CritChance);
         if(option.option.CritDamage != 0)
-            EquipStatsText += string.Format("Ä¡¸íÅ¸ µ¥¹ÌÁö: {0}%@", option.option.CritDamage * 100);
+            EquipStatsText += string.Format("ì¹˜ëª…íƒ€ ë°ë¯¸ì§€: {0}%@", option.option.CritDamage * 100);
         if(option.option.StunPercent != 0)
-            EquipStatsText += string.Format("½ºÅÏ È®·ü: {0}%@", option.option.StunPercent);
+            EquipStatsText += string.Format("ìŠ¤í„´ í™•ë¥ : {0}%@", option.option.StunPercent);
         if(option.option.ExtraEXP != 0)
-            EquipStatsText += string.Format("Ãß°¡ °æÇèÄ¡(%): {0}%@", Mathf.Round(option.option.ExtraEXP * 100 * 10f) / 10f);
+            EquipStatsText += string.Format("ì¶”ê°€ ê²½í—˜ì¹˜(%): {0}%@", Mathf.Round(option.option.ExtraEXP * 100 * 10f) / 10f);
         if(option.option.ExtraMoney != 0)
-            EquipStatsText += string.Format("Ãß°¡ °ñµå(%): {0}%@", Mathf.Round(option.option.ExtraMoney * 100 * 10f) / 10f);
+            EquipStatsText += string.Format("ì¶”ê°€ ê³¨ë“œ(%): {0}%@", Mathf.Round(option.option.ExtraMoney * 100 * 10f) / 10f);
 
         return EquipStatsText;
     }

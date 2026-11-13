@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -292,32 +292,32 @@ public class MergeManager : MonoBehaviour
             case Equips.MaterialClass.Normal:
                 Background_Top.color = new Color(0.227451f, 0.2941177f, 0.3529412f);
                 Background_Glow.color = new Color(0.231373f, 0.478431f, 0.552941f);
-                gradeofEquip.text = "¿œπ›";
+                gradeofEquip.text = "ÏùºÎ∞ò";
                 break;
             case Equips.MaterialClass.Rare:
                 Background_Top.color = new Color(0.301961f, 0.329412f, 0.87451f);
                 Background_Glow.color = new Color(0.168627f, 0.619608f, 1.0f);
-                gradeofEquip.text = "∑πæÓ";
+                gradeofEquip.text = "Î†àÏñ¥";
                 break;
             case Equips.MaterialClass.Epic:
                 Background_Top.color = new Color(0.517647f, 0.0f, 1.0f);
                 Background_Glow.color = new Color(0.662745f, 0.294118f, 1.0f);
-                gradeofEquip.text = "ø°«»";
+                gradeofEquip.text = "ÏóêÌîΩ";
                 break;
             case Equips.MaterialClass.Unique:
                 Background_Top.color = new Color(1.0f, 0.690196f, 0.2f);
                 Background_Glow.color = new Color(1.0f, 0.847058f, 0.164706f);
-                gradeofEquip.text = "¿Ø¥œ≈©";
+                gradeofEquip.text = "Ïú†ÎãàÌÅ¨";
                 break;
             case Equips.MaterialClass.Legendary:
                 Background_Top.color = new Color(0.600000f, 0.086275f, 0.145098f);
                 Background_Glow.color = new Color(0.960784f, 0.200000f, 0.298039f);
-                gradeofEquip.text = "∑π¿¸¥ı∏Æ";
+                gradeofEquip.text = "Î†àÏ†ÑÎçîÎ¶¨";
                 break;
             case Equips.MaterialClass.Ancient:
                 Background_Top.color = new Color(0.831373f, 0.478431f, 0.0509804f);
                 Background_Glow.color = new Color(0.811765f, 0.627451f, 0.121569f);
-                gradeofEquip.text = "∞Ì¥Î";
+                gradeofEquip.text = "Í≥†ÎåÄ";
                 break;
         }
 
@@ -325,19 +325,19 @@ public class MergeManager : MonoBehaviour
 
         switch(RandomEquip.equipData.TypeOfEquip) {
             case Equips.Type.Ring:
-                typeofEquip.text = "π›¡ˆ";
+                typeofEquip.text = "Î∞òÏßÄ";
                 break;
             case Equips.Type.Necklace:
-                typeofEquip.text = "∏Ò∞…¿Ã";
+                typeofEquip.text = "Î™©Í±∏Ïù¥";
                 break;
             case Equips.Type.Relics:
-                typeofEquip.text = "¿Øπ∞";
+                typeofEquip.text = "Ïú†Î¨º";
                 break;
             case Equips.Type.Accessory:
-                typeofEquip.text = "¿ÂΩ≈±∏";
+                typeofEquip.text = "Ïû•Ïã†Íµ¨";
                 break;
             case Equips.Type.Book:
-                typeofEquip.text = "∞Ìº≠";
+                typeofEquip.text = "Í≥†ÏÑú";
                 break;
         }
 

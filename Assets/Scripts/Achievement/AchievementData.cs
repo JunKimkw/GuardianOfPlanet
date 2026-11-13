@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -66,13 +66,13 @@ public class AchievementData : MonoBehaviour
 
             long rewardValue = RewardAmount[CurrentQuest];
 
-            // º¸»ó ÆË¾÷Àº º¸¿©ÁÖµÇ, »óÅÂ È®Á¤Àº Áö±İ ÇØ¹ö¸²
+            // ë³´ìƒ íŒì—…ì€ ë³´ì—¬ì£¼ë˜, ìƒíƒœ í™•ì •ì€ ì§€ê¸ˆ í•´ë²„ë¦¼
             AchievementManager.instance.openRewardTab(this);
 
-            // º¸»ó Áö±Ş
+            // ë³´ìƒ ì§€ê¸‰
             AchievementManager.RewardPlayer(reType, rewardValue);
 
-            // ¾÷Àû »óÅÂ °»½Å
+            // ì—…ì  ìƒíƒœ ê°±ì‹ 
             if(_type == TypeofQuest.Daily)
                 AchievementManager.instance.DailyQuestClearWeekly++;
 
@@ -114,7 +114,7 @@ public class AchievementData : MonoBehaviour
         isClaiming = true;
         AchieveButton.interactable = false;
 
-        // ¾÷Àû »óÅÂ¸¦ ¸ÕÀú È®Á¤
+        // ì—…ì  ìƒíƒœë¥¼ ë¨¼ì € í™•ì •
         if(_type == TypeofQuest.Daily)
             AchievementManager.instance.DailyQuestClearWeekly++;
 
@@ -134,10 +134,10 @@ public class AchievementData : MonoBehaviour
         AchievementManager.instance.ChangeRewardUI(this);
         changeQuestGUI();
 
-        // ±× ´ÙÀ½ º¸»ó Áö±Ş
+        // ê·¸ ë‹¤ìŒ ë³´ìƒ ì§€ê¸‰
         AchievementManager.RewardPlayer(reType, RewardAmount[Mathf.Clamp(CurrentQuest - (hasEarnedPrize ? 0 : 1), 0, RewardAmount.Count - 1)]);
 
-        // Áï½Ã ÀúÀå
+        // ì¦‰ì‹œ ì €ì¥
         bool saveSuccess = false;
         if(DataPersistenceManager.instance != null) {
             saveSuccess = await DataPersistenceManager.instance.SaveGame();

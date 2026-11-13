@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
@@ -71,14 +71,18 @@ public class UpdateChecker : MonoBehaviour
 
     public void Start()
     {
-        InvokeRepeating("checkingProcess", 0f, 10f);
+        RemoteConfigService.Instance.FetchCompleted += Check;
+        InvokeRepeating("checkingProcess", 0f, 60f);
     }
 
     async Task checkingProcess()
     {
         if(_checkOnStart) {
-            RemoteConfigService.Instance.FetchCompleted += Check;
-            await RemoteConfigService.Instance.FetchConfigsAsync(new userAttributes(), new appAttributes());
+            try {
+                await RemoteConfigService.Instance.FetchConfigsAsync(new userAttributes(), new appAttributes());
+            } catch(Exception e) {
+                Debug.LogWarning("[UpdateChecker] fetch failed: " + e.Message);
+            }
         }
     }
 

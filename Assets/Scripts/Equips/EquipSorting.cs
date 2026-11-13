@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -20,7 +20,7 @@ public class EquipSorting : MonoBehaviour
 
     private void Awake()
     {
-        //¹ÝÁö
+        //ë°˜ì§€
         allItems.AddRange(Resources.LoadAll<Equips>("Prefab/Equips/" + resourcePath));
         LegendaryEquips = Resources.LoadAll<Equips>("Prefab/Equips/"+ resourcePath  +"/Legendary");
         UniqueEquips = Resources.LoadAll<Equips>("Prefab/Equips/"+resourcePath+"/Unique");

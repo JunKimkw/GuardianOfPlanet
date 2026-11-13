@@ -14,9 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   adMobAndroidAppId: ca-app-pub-1864928959429416~4751905202
   adMobIOSAppId: ca-app-pub-1864928959429416~2212068437
-  delayAppMeasurementInit: 0
   enableKotlinXCoroutinesPackagingOption: 1
-  optimizeInitialization: 0
-  optimizeAdLoading: 0
+  enableGradleBuildPreProcessor: 1
+  disableOptimizeInitialization: 0
+  disableOptimizeAdLoading: 0
   userTrackingUsageDescription: 
-  validateGradleDependencies: 1
+  userLanguage: en
+  overrideDefaultGmaAndroidSdk: 0
+  selectedGmaAndroidSdk: 0
+  enableExternalDependencyManager: 1
+  edmPackageDetected: 1
+  addedEdmVersion: 2.1.0

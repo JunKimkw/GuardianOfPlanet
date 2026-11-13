@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
@@ -20,7 +20,7 @@ public class LeaderBoardData : MonoBehaviour
         UserName.text = name.Substring(0, name.IndexOf("#"));
 
         if(typeOfData == BoardType.InfiniteStage) {
-            UserScore.text = "½ºÅ×ÀÌÁö " + score;
+            UserScore.text = "ìŠ¤í…Œì´ì§€ " + score;
         } else {
             UserScore.text = score;
         }

@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -15,7 +15,7 @@ public class GameData
     public bool gameSpeedBought;
     public bool noAdsBought;
 
-    //Ãß°¡ ½ºÅÈ
+    //ì¶”ê°€ ìŠ¤íƒ¯
     public float Attack_Damage;
     public float Attack_Damage_Percent;
     public float Attack_Speed;
@@ -26,7 +26,7 @@ public class GameData
     public float ExtraEXP;
     public float ExtraGold;
 
-    //ÃÖÁ¾ ½ºÅÈ
+    //ìµœì¢… ìŠ¤íƒ¯
     public int requiredLvlindex;
 
     //GameInfor
@@ -37,25 +37,25 @@ public class GameData
     public float totalPlayedTime;
     public long maxMoney;
 
-    //¹«±â
+    //ë¬´ê¸°
     public SerializableDictionary<string, int> UpgradeLevel_Weapon;
 
-    //½ºÅÈ
+    //ìŠ¤íƒ¯
     public int StatsPoint;
     public int UsedPoint;
     public SerializableDictionary<string, int> Stats_Level;
 
-    //ÃÑ Ã³Ä¡ ¼ö
+    //ì´ ì²˜ì¹˜ ìˆ˜
     public int enemyKilled_Number;
     public SerializableDictionary<string, int> bossKilled_Number;
     public int totalBossKill;
     public long totalKilledEnemy;
 
-    //½ºÅ×ÀÌÁö Ã³Ä¡¼ö
+    //ìŠ¤í…Œì´ì§€ ì²˜ì¹˜ìˆ˜
     public SerializableDictionary<string, bool> Stage_Cleared;
     public SerializableDictionary<string, bool> Planet_Cleared;
 
-    //Àåºñ
+    //ì¥ë¹„
     public SerializableDictionary<string, int> Equip_Amount;
 
     public SerializableDictionary<string, int> Equip_Level;
@@ -63,21 +63,21 @@ public class GameData
     public SerializableDictionary<string, string> Equip_SetData;
     public int currentSetIndex;
 
-    //Àåºñ ½ºÅÈ
+    //ì¥ë¹„ ìŠ¤íƒ¯
     public SerializableDictionary<string, string> Equip_UpgradeIndex;
 
-    //-------°­È­¼®
+    //-------ê°•í™”ì„
     public SerializableDictionary<string, int> UpgradeStone_Amount;
 
-    //-------Àç·á
+    //-------ì¬ë£Œ
     public SerializableDictionary<string, int> Loot_Amount;
 
-    //µµ°¨
+    //ë„ê°
     public SerializableDictionary<string, int> Collection_KilledAmount;
     public SerializableDictionary<string, int> Collection_Grade;
     public SerializableDictionary<string, int> Collection_EarnDiamond;
 
-    //Ãâ¼®º¸»ó
+    //ì¶œì„ë³´ìƒ
     public int DailyGachaTime;
     public int Ticket;
     public int adsPerDay;
@@ -190,12 +190,41 @@ public class GameData
     public SerializableDictionary<string, bool> autoSelectedRailBool;
     public bool firstTimeGame;
 
+    //---- ë¦¬ë§ˆìŠ¤í„°: ì›ì • / ì¦ê°• / í™˜ìƒ (0 = ì˜ˆì „ ì„¸ì´ë¸Œ, ë§ˆì´ê·¸ë ˆì´ì…˜ í•„ìš”)
+    public int expeditionVersion;
+    public List<string> augIds;
+    public List<int> augLevels;
+    public long expKills;
+    public int expBossKills;
+    public float expSoulStack;
+    public float expSlaughterStack;
+    public float expWraithStack;
+    public int expBlessing;          // -1 ì—†ìŒ, 0 ì—°ì‡„, 1 ì €ì£¼, 2 ì¦ì‹
+    public int expRerollBag;
+    public int expPity;
+    public int expExtraWeapon;       // -1 ì—†ìŒ
+    public int expSupplyWeapon;      // -1 ì—†ìŒ
+    public int expSupplyUntil;
+    public bool expLoadoutSet;
+    public int expLoadoutLeft;
+    public int expLoadoutRight;
+    public bool expPendingSetup;
+    public string freeRerollDate;
+    public int freeRerollsUsed;
+    public int adRerollsUsed;
+    public long stardust;
+    public List<int> rebirthTree;
+    public int bestExpeditionStage;
+    public int rebirthCount;
+    public long pendingMigrationStardust;
+    public int expPendingStartStage;   // í™˜ìƒ í›„ ì¶œë°œ ëŒ€ê¸° ì¤‘ì´ë©´ ì¶œë°œ ìŠ¤í…Œì´ì§€ (0 = ì—†ìŒ)
+
     //Default values
     public GameData()
     {
         PlayerName = "";
 
-        //±âº» ÃÑ Áö±Ş
+        //ê¸°ë³¸ ì´ ì§€ê¸‰
         Money = 0;
         maxMoney = 500;
         Diamond = 0;
@@ -208,7 +237,7 @@ public class GameData
         gameSpeedBought = false;
         noAdsBought = false;
 
-        //Ãß°¡ ½ºÅÈ
+        //ì¶”ê°€ ìŠ¤íƒ¯
         Attack_Damage = 10;
         Attack_Damage_Percent = 0;
         Attack_Speed = 0;
@@ -222,46 +251,46 @@ public class GameData
         requiredLvlindex = 0;
         totalPlayedTime = 0;
 
-        //¹«±â
+        //ë¬´ê¸°
         UpgradeLevel_Weapon = new SerializableDictionary<string, int>();
 
-        //½ºÅÈ
+        //ìŠ¤íƒ¯
         StatsPoint = 0;
         UsedPoint = 0;
         Stats_Level = new SerializableDictionary<string, int>();
 
-        //ÃÑ Ã³Ä¡ ¼ö
+        //ì´ ì²˜ì¹˜ ìˆ˜
         enemyKilled_Number = 0;
         bossKilled_Number = new SerializableDictionary<string, int>();
         totalBossKill = 0;
         totalKilledEnemy = 0;
 
-        //½ºÅ×ÀÌÁö Ã³Ä¡ ¼ö
+        //ìŠ¤í…Œì´ì§€ ì²˜ì¹˜ ìˆ˜
         Stage_Cleared = new SerializableDictionary<string, bool>();
         Planet_Cleared = new SerializableDictionary<string, bool>();
 
-        //Àåºñ
+        //ì¥ë¹„
         Equip_Amount = new SerializableDictionary<string, int>();
         Equip_Level = new SerializableDictionary<string, int>();
         Equip_IsEquiped = new SerializableDictionary<string, bool>();
         Equip_SetData = new SerializableDictionary<string, string>();
         currentSetIndex = 0;
 
-        //Àåºñ ½ºÅÈ
+        //ì¥ë¹„ ìŠ¤íƒ¯
         Equip_UpgradeIndex = new SerializableDictionary<string, string>();
 
-        //-----°­È­¼®
+        //-----ê°•í™”ì„
         UpgradeStone_Amount = new SerializableDictionary<string, int>();
 
-        //-----Àç·á
+        //-----ì¬ë£Œ
         Loot_Amount = new SerializableDictionary<string, int>();
 
-        //µµ°¨
+        //ë„ê°
         Collection_KilledAmount = new SerializableDictionary<string, int>();
         Collection_Grade = new SerializableDictionary<string, int>();
         Collection_EarnDiamond = new SerializableDictionary<string, int>();
 
-        //Ãâ¼®º¸»ó
+        //ì¶œì„ë³´ìƒ
         DailyGachaTime = DateTime.Now.DayOfYear;
         Ticket = 1;
         adsPerDay = 0;
@@ -373,5 +402,18 @@ public class GameData
         autoExchangeIndexBool = 1;
         autoSelectedRailBool = new SerializableDictionary<string, bool>();
         firstTimeGame = true;
+
+        //ë¦¬ë§ˆìŠ¤í„°: ë²„ì „ 0ì´ë©´ AugmentManagerê°€ ì²˜ìŒ ë¶ˆëŸ¬ì˜¬ ë•Œ ì´ˆê¸°í™”/ë§ˆì´ê·¸ë ˆì´ì…˜í•´ìš”.
+        //(ì˜ˆì „ ì„¸ì´ë¸Œë¥¼ JsonUtilityë¡œ ì½ì„ ë•Œ ìƒì„±ì ê°’ì´ ë‚¨ëŠ”ì§€ì™€ ìƒê´€ì—†ì´ ê°™ì€ ê²½ë¡œë¡œ ì²˜ë¦¬)
+        expeditionVersion = 0;
+        augIds = new List<string>();
+        augLevels = new List<int>();
+        expBlessing = -1;
+        expExtraWeapon = -1;
+        expSupplyWeapon = -1;
+        expLoadoutLeft = -1;
+        expLoadoutRight = -1;
+        freeRerollDate = "";
+        rebirthTree = new List<int>();
     }
 }

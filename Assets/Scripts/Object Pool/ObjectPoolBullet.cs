@@ -35,6 +35,7 @@ public class ObjectPoolBullet : Singleton<ObjectPoolBullet>
     List<PoolInfoBullet> listofPool;
 
     private Vector3 defaultPos = new Vector3(-100, -100, -100);
+    private readonly Dictionary<GameObject, Vector3> baseScales = new Dictionary<GameObject, Vector3>();
 
     void Start()
     {
@@ -65,6 +66,16 @@ public class ObjectPoolBullet : Singleton<ObjectPoolBullet>
             pool.Remove(obInstance);
         } else
             obInstance = Instantiate(selected.prefab, selected.Parent.transform);
+
+        //리마스터: 탄 크기 증강 (원래 크기를 기억해 두고 배율 적용)
+        if(type != PoolObjectTypeBullet.Mining && type != PoolObjectTypeBullet.PoisonArea && type != PoolObjectTypeBullet.Poison) {
+            if(!baseScales.TryGetValue(obInstance, out Vector3 baseScale)) {
+                baseScale = obInstance.transform.localScale;
+                baseScales[obInstance] = baseScale;
+            }
+            float mult = AugmentManager.Instance != null ? AugmentManager.Instance.BulletScaleMultiplier : 1f;
+            obInstance.transform.localScale = baseScale * mult;
+        }
 
         return obInstance;
     }

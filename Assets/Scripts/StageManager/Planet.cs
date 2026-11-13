@@ -1,4 +1,4 @@
-
+ï»¿
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -102,7 +102,7 @@ public class Planet : MonoBehaviour, IDataPersistence
     public void MapSelected(int index)
     {
         StageInfoTitle.text = PlanetName + " " + StagesOfThisPlanet[index].StageName;
-        TotalEnemy.text = "ÃâÇö ¸ó½ºÅÍ: " + StagesOfThisPlanet[index].EnemiesToKill + "¸¶¸®";
+        TotalEnemy.text = "ì¶œí˜„ ëª¬ìŠ¤í„°: " + StagesOfThisPlanet[index].EnemiesToKill + "ë§ˆë¦¬";
         for(int i = 0; i < monsterCardData.Count; i++)
             monsterCardData[i].gameObject.SetActive(false);
 

@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Services.Leaderboards;
@@ -61,20 +61,24 @@ public class LeaderBoardManager : MonoBehaviour
 
     public async void AddInfiniteStageScore()
     {
-        
-        var scoreResponse = await LeaderboardsService.Instance.AddPlayerScoreAsync(LeaderboardInfiniteStage, InfiniteStage.Instance.CurrentStage);
-        setLeaderBoard();
-        snapToMyScoreInfiniteStage();
-        
+        try {
+            var scoreResponse = await LeaderboardsService.Instance.AddPlayerScoreAsync(LeaderboardInfiniteStage, InfiniteStage.Instance.CurrentStage);
+            setLeaderBoard();
+            snapToMyScoreInfiniteStage();
+        } catch(System.Exception e) {
+            Debug.LogWarning("[LeaderBoard] stage score failed: " + e.Message);
+        }
     }
 
     public async void AddTotalDamageScore(long score)
-    {   
-        
-        var scoreResponse = await LeaderboardsService.Instance.AddPlayerScoreAsync(LeaderboardTotalDamage, score);
-        setLeaderBoard();
-        snapToMyScoreTotalDamage();      
-        
+    {
+        try {
+            var scoreResponse = await LeaderboardsService.Instance.AddPlayerScoreAsync(LeaderboardTotalDamage, score);
+            setLeaderBoard();
+            snapToMyScoreTotalDamage();
+        } catch(System.Exception e) {
+            Debug.LogWarning("[LeaderBoard] power score failed: " + e.Message);
+        }
     }
 
     public async void checkDuplication(string name)
@@ -282,19 +286,19 @@ public class LeaderBoardManager : MonoBehaviour
     public void setFirstPlaceInfiniteStage(string name, string score)
     {
         FirstPlace_UserName.text = name.Substring(0, name.IndexOf("#"));
-        FirstPlace_UserScore.text = "Ω∫≈◊¿Ã¡ˆ " + score;
+        FirstPlace_UserScore.text = "Ïä§ÌÖåÏù¥ÏßÄ " + score;
     }
 
     public void setSecondPlaceInfiniteStage(string name, string score)
     {
         SecondPlace_UserName.text = name.Substring(0, name.IndexOf("#"));
-        SecondPlace_UserScore.text = "Ω∫≈◊¿Ã¡ˆ " + score;
+        SecondPlace_UserScore.text = "Ïä§ÌÖåÏù¥ÏßÄ " + score;
     }
 
     public void setThirdPlaceInfiniteStage(string name, string score)
     {
         ThirdPlace_UserName.text = name.Substring(0, name.IndexOf("#"));
-        ThirdPlace_UserScore.text = "Ω∫≈◊¿Ã¡ˆ " + score;
+        ThirdPlace_UserScore.text = "Ïä§ÌÖåÏù¥ÏßÄ " + score;
     }
 
     public void setFirstPlaceTotalDamage(string name, string score)
@@ -322,7 +326,7 @@ public class LeaderBoardManager : MonoBehaviour
 
         MyUserRank_InfiniteStage.text = (scoreResponse.Rank + 1).ToString("N0");
         MyUserName_InfiniteStage.text = scoreResponse.PlayerName.Substring(0, scoreResponse.PlayerName.IndexOf("#"));
-        MyUserScore_InfiniteStage.text = "Ω∫≈◊¿Ã¡ˆ " + scoreResponse.Score.ToString("N0");
+        MyUserScore_InfiniteStage.text = "Ïä§ÌÖåÏù¥ÏßÄ " + scoreResponse.Score.ToString("N0");
     }
 
     public async void setMyScoreTotalDamage()

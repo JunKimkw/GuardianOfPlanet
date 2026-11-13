@@ -82,6 +82,7 @@ public class TrackingGun : MonoBehaviour
             TimerAs += Time.deltaTime;
             if(TimerAs >= getAttackSpeed()) {
                 CreateBullet();
+                if(AugmentManager.RollMultiShot()) CreateBullet();
                 TimerAs = 0;
             }
         }

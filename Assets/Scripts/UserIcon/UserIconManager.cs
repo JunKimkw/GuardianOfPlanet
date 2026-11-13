@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -73,7 +73,7 @@ public class UserIconManager : MonoBehaviour, IDataPersistence
         }
 
         //Text
-        PossessedAmountText.text = "º¸À¯ Áß: " + sum + "/" + AllData.Count;
+        PossessedAmountText.text = "ë³´ìœ  ì¤‘: " + sum + "/" + AllData.Count;
 
         //Order
 

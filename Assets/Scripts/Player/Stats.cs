@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -42,8 +42,8 @@ public class Stats : MonoBehaviour
         Damage_Text.text = string.Format("{0:#,###0.##}", Player.instance.FinalAttack_Damage);
         Attack_Speed_Text.text = "+" + string.Format("{0:#,###0.##}", Player.instance.FinalAttack_SpeedPercent * 100) + "%";
         Attack_Bullet_Speed_Text.text = "+" + string.Format("{0:#,###0.##}", Player.instance.FinalAttack_Bullet_SpeedPercent) + "%";
-        Text_InfiniteStage.text = "½ºÅ×ÀÌÁö " + string.Format("{0:#,###0.##}", InfiniteStage.Instance.CurrentStage);
-        Text_KilledEnemy.text = string.Format("{0:#,###0.##}", EnemyManager.Instance.totalKilledEnemy) + "¸¶¸®";
+        Text_InfiniteStage.text = "ìŠ¤í…Œì´ì§€ " + string.Format("{0:#,###0.##}", InfiniteStage.Instance.CurrentStage);
+        Text_KilledEnemy.text = string.Format("{0:#,###0.##}", EnemyManager.Instance.totalKilledEnemy) + "ë§ˆë¦¬";
         totalDamagePower_Text.text = string.Format("{0:#,###0.##}", Player.instance.TotalDamagePower);
         if(Player.instance.FinalCriticalChance > 100)
             CriticalChance_Text.text = "100%";
@@ -56,6 +56,6 @@ public class Stats : MonoBehaviour
         StunPercent_Text.text = string.Format("{0:#,###0.##}", Player.instance.FinalStunPower) + "%";
 
         var ts = TimeSpan.FromSeconds(GameManager.instance.totalPlayedTime);
-        TotalPlayedHour_text.text = string.Format("{0}½Ã°£ {1}ºÐ", (int)ts.TotalHours, ts.Minutes);
+        TotalPlayedHour_text.text = string.Format("{0}ì‹œê°„ {1}ë¶„", (int)ts.TotalHours, ts.Minutes);
     }
 }

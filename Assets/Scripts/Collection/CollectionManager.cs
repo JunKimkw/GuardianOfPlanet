@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -23,11 +23,11 @@ public class CollectionManager : MonoBehaviour, IDataPersistence
     public List<CollectionData> CollectionDatas;
     public TextMeshProUGUI collectionCollected_text;
 
-    [Header("∫∏ªÛ √¢")]
+    [Header("Î≥¥ÏÉÅ Ï∞Ω")]
     public GameObject DiamondReward_Tab;
     public TextMeshProUGUI DiamondReward_Text;
 
-    [Header("∞Ê∞Ì «•Ω√")]
+    [Header("Í≤ΩÍ≥† ÌëúÏãú")]
     public GameObject ExclamationMark;
 
     public bool checkingReward;
@@ -169,7 +169,7 @@ public class CollectionManager : MonoBehaviour, IDataPersistence
     public void EarnDiamond(int diaAmount)
     {
         GameManager.SetDiamond(diaAmount);
-        DiamondReward_Text.text = diaAmount + "∞≥";
+        DiamondReward_Text.text = diaAmount + "Í∞ú";
         DiamondReward_Tab.SetActive(true);
     }
 
@@ -251,7 +251,7 @@ public class CollectionManager : MonoBehaviour, IDataPersistence
 
             data.Collection_KilledAmount.Add(CollectionDatas[i].id, CollectionDatas[i].Killed_Num);
 
-            //µÓ±ﬁ
+            //Îì±Í∏â
             if(data.Collection_Grade.ContainsKey(CollectionDatas[i].id))
                 data.Collection_Grade.Remove(CollectionDatas[i].id);
 

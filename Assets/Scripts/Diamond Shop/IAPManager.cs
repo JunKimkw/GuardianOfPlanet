@@ -533,8 +533,8 @@ public class IAPManager : MonoBehaviour, IStoreListener
             Debug.Log("RestorePurchases started ...");
 
             var apple = m_StoreExtensionProvider.GetExtension<IAppleExtensions>();
-            apple.RestoreTransactions((result) => {
-                Debug.Log("RestorePurchases continuing: " + result + ". If no further messages, no purchases available to restore.");
+            apple.RestoreTransactions((result, error) => {
+                Debug.Log("RestorePurchases continuing: " + result + " " + error + ". If no further messages, no purchases available to restore.");
             });
         } else {
             Debug.Log("RestorePurchases FAIL. Not supported on this platform. Current = " + Application.platform);

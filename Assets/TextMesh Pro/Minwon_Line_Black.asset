@@ -108,6 +108,7 @@ Material:
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
     - _UnderlayColor: {r: 0, g: 0, b: 0, a: 0.5}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -120,21 +121,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71c1514a6bd24e1e882cebbe1904ce04, type: 3}
   m_Name: Minwon_Line_Black
   m_EditorClassIdentifier: 
-  hashCode: 1049309205
-  material: {fileID: -572888263662961012}
-  materialHashCode: 1225554069
   m_Version: 1.1.0
-  m_SourceFontFileGUID: 6e1a297ca3b43ae4b9c4136147a1700d
-  m_SourceFontFile_EditorRef: {fileID: 12800000, guid: 6e1a297ca3b43ae4b9c4136147a1700d, type: 3}
-  m_SourceFontFile: {fileID: 12800000, guid: 6e1a297ca3b43ae4b9c4136147a1700d, type: 3}
-  m_AtlasPopulationMode: 1
   m_FaceInfo:
     m_FaceIndex: 0
     m_FamilyName: Miwon
     m_StyleName: Bold
     m_PointSize: 26
     m_Scale: 1
-    m_UnitsPerEM: 0
+    m_UnitsPerEM: 1000
     m_LineHeight: 33.8
     m_AscentLine: 25.999998
     m_CapLine: 20
@@ -150,6 +144,31 @@ MonoBehaviour:
     m_StrikethroughOffset: 6
     m_StrikethroughThickness: 1.3
     m_TabWidth: 7
+  m_Material: {fileID: -572888263662961012}
+  m_SourceFontFileGUID: 6e1a297ca3b43ae4b9c4136147a1700d
+  m_CreationSettings:
+    sourceFontFileName: 
+    sourceFontFileGUID: 6e1a297ca3b43ae4b9c4136147a1700d
+    faceIndex: 0
+    pointSizeSamplingMode: 0
+    pointSize: 26
+    padding: 9
+    paddingMode: 0
+    packingMode: 0
+    atlasWidth: 1024
+    atlasHeight: 1024
+    characterSetSelectionMode: 6
+    characterSequence: 20-7E,A0,2026,25A1,3131,3137,3139,313C,3142,3147-3148,314C,314E-3151,3155,3157,315C,3160-3161,3163,AC00-AC01,AC04,AC10-AC12,AC15,AC19,AC1C,AC2F,AC70,AC74,AC78,AC80,AC8C,AC9F-ACA0,ACA8-ACA9,ACAB-ACAC,ACB0,ACBD,ACC4,ACE0-ACE1,ACE4,ACE8,ACF3,ACF5,ACFC,AD00,AD11,AD2D,AD34,AD49,AD50,AD6C,AD74,AD8C,ADC0,ADDC,ADF8,AE00,AE08-AE09,AE30,AE40,AE43,AE4C,AE68,AF43,AFBC,B04A,B098,B09C,B0A0-B0A1,B0A8,B0AD-B0AE,B0B4,B0E5,B113,B11B,B123-B124,B137,B140,B144,B178-B179,B192,B208,B294,B2A5,B2C8,B2E4,B2E8,B2EC,B2F4,B2F9,B300,B354,B358,B369,B370,B374,B3C4-B3C5,B3C8,B3CC,B3D9,B41C,B429,B450-B451,B460,B465,B4DC-B4DD,B4E0,B4E4,B4F1,B514,B530,B545,B610-B611,B625,B77C-B77D,B780,B78D,B798-B799,B7C9,B7EC,B808,B81D,B824-B825,B828,B834,B839,B840,B85C-B85D,B860,B864,B86D,B8CC,B8E1,B8E8,B8EC,B958,B960,B974,B978,B97C,B985,B9AC-B9AD,B9B0,B9BC-B9BD,B9BF,B9C1,B9C8,B9CC,B9CE,B9DD,B9E4-B9E5,B9F5,BA38,BA4D,BA54,BA70,BA74,BA85,BAA8-BAA9,BAAC,BB18,BB34,BB3C,BB47,BBF8,BC0F,BC14,BC18,BC1B-BC1C,BC25,BC29,BC40,BC84,BC88,BC94-BC95,BCA0,BCA8,BCBC,BCC0,BCF4-BCF5,BCF8,BD80,BD84,BD88-BD89,BD99,BE0C,BE14,BE21,BE44,BE5B,BF08,BF51,BFD4,C0AC,C0B0,C0BC,C0C1,C0C8-C0C9,C0DD,C0E4,C11C-C11D,C120,C124,C12C,C12F,C131,C138,C13C,C18C-C18D,C190,C193,C1A1,C1A8,C218-C219,C220,C232,C27D,C2A4,C2A8,C2AC,C2B5,C2B9,C2BD,C2C0,C2DC-C2DD,C2E0,C2E4,C2EC,C2F8,C528-C529,C544-C545,C548,C54C,C555,C557,C560,C57C-C57D,C591,C5B4,C5BB-C5BC,C5C4-C5C5,C5D0,C5EC-C5ED,C5F0,C5FC,C601,C608,C624-C625,C628,C62C,C637,C640,C644,C655,C678,C694,C6A9,C6B0-C6B1,C6B4,C6C3,C6C5,C6CC,C6D0,C6D4,C704,C720,C728,C73C,C740,C744,C74C,C758,C774,C778,C77C,C77F,C784-C785,C788,C78E,C790-C791,C7A0,C7A5,C7AC,C800-C801,C804,C810-C811,C815,C81C,C838,C84C,C870-C871,C874,C885,C8FC-C8FD,C900,C911,C988,C99D,C9C0-C9C1,C9C4,C9C8,C9D1,C9DC,C9F8,CC22,CC28-CC29,CC3D,CC44,CC98,CC9C,CCA0,CCA8,CCAB,CCAD,CCB4,CD08,CD1D,CD5C,CD94-CD95,CD9C,CDE8,CDFB,CE58,CE74,CE7C,CE90,CE94,CEE4,CF00,CF13,CF58,D018,D034,D050,D06C,D074,D0A4,D0AC,D0C0,D0C4,D0D0-D0D1,D0DC-D0DD,D0EF,D130,D134,D14C,D15C,D1A0,D1B5,D22C,D280,D290,D295,D2B8-D2B9,D2F0,D30C,D310,D314,D31C,D328,D32C,D37C,D398,D3B8,D3C9,D3EC-D3ED,D3F0,D3F4,D45C,D478,D488,D504,D50C,D53C-D53D,D540,D54F,D558-D559,D55C,D560,D569,D56B,D56D,D574,D589,D5C8,D5D8,D5E4,D604,D608,D615,D61C,D638,D63C,D640,D654-D655,D658,D669,D68C-D68D,D693,D69F,D6A8,D6C4,D718,D754,D759,D761,D788,D798
+    referencedFontAssetGUID: f6456fe8c11939e40a6252f201b7ddfc
+    referencedTextAssetGUID: 
+    fontStyle: 0
+    fontStyleModifier: 0
+    renderMode: 4165
+    includeFontFeatures: 0
+  m_SourceFontFile: {fileID: 12800000, guid: 6e1a297ca3b43ae4b9c4136147a1700d, type: 3}
+  m_SourceFontFilePath: 
+  m_AtlasPopulationMode: 1
+  InternalDynamicOS: 0
   m_GlyphTable:
   - m_Index: 1
     m_Metrics:
@@ -11142,7 +11161,12 @@ MonoBehaviour:
   - {fileID: 6393353424193378108}
   m_AtlasTextureIndex: 0
   m_IsMultiAtlasTexturesEnabled: 0
+  m_GetFontFeatures: 1
   m_ClearDynamicDataOnBuild: 0
+  m_AtlasWidth: 1024
+  m_AtlasHeight: 1024
+  m_AtlasPadding: 9
+  m_AtlasRenderMode: 4165
   m_UsedGlyphRects:
   - m_X: 0
     m_Y: 0
@@ -14017,57 +14041,14 @@ MonoBehaviour:
     m_Y: 965
     m_Width: 23
     m_Height: 58
-  m_fontInfo:
-    Name: 
-    PointSize: 0
-    Scale: 0
-    CharacterCount: 0
-    LineHeight: 0
-    Baseline: 0
-    Ascender: 0
-    CapHeight: 0
-    Descender: 0
-    CenterLine: 0
-    SuperscriptOffset: 0
-    SubscriptOffset: 0
-    SubSize: 0
-    Underline: 0
-    UnderlineThickness: 0
-    strikethrough: 0
-    strikethroughThickness: 0
-    TabWidth: 0
-    Padding: 0
-    AtlasWidth: 0
-    AtlasHeight: 0
-  atlas: {fileID: 0}
-  m_AtlasWidth: 1024
-  m_AtlasHeight: 1024
-  m_AtlasPadding: 9
-  m_AtlasRenderMode: 4165
-  m_glyphInfoList: []
-  m_KerningTable:
-    kerningPairs: []
   m_FontFeatureTable:
+    m_MultipleSubstitutionRecords: []
+    m_LigatureSubstitutionRecords: []
     m_GlyphPairAdjustmentRecords: []
-  fallbackFontAssets: []
+    m_MarkToBaseAdjustmentRecords: []
+    m_MarkToMarkAdjustmentRecords: []
+  m_ShouldReimportFontFeatures: 0
   m_FallbackFontAssetTable: []
-  m_CreationSettings:
-    sourceFontFileName: 
-    sourceFontFileGUID: 6e1a297ca3b43ae4b9c4136147a1700d
-    pointSizeSamplingMode: 0
-    pointSize: 26
-    padding: 9
-    packingMode: 0
-    atlasWidth: 1024
-    atlasHeight: 1024
-    characterSetSelectionMode: 6
-    characterSequence: 20-7E,A0,2026,25A1,3131,3137,3139,313C,3142,3147-3148,314C,314E-3151,3155,3157,315C,3160-3161,3163,AC00-AC01,AC04,AC10-AC12,AC15,AC19,AC1C,AC2F,AC70,AC74,AC78,AC80,AC8C,AC9F-ACA0,ACA8-ACA9,ACAB-ACAC,ACB0,ACBD,ACC4,ACE0-ACE1,ACE4,ACE8,ACF3,ACF5,ACFC,AD00,AD11,AD2D,AD34,AD49,AD50,AD6C,AD74,AD8C,ADC0,ADDC,ADF8,AE00,AE08-AE09,AE30,AE40,AE43,AE4C,AE68,AF43,AFBC,B04A,B098,B09C,B0A0-B0A1,B0A8,B0AD-B0AE,B0B4,B0E5,B113,B11B,B123-B124,B137,B140,B144,B178-B179,B192,B208,B294,B2A5,B2C8,B2E4,B2E8,B2EC,B2F4,B2F9,B300,B354,B358,B369,B370,B374,B3C4-B3C5,B3C8,B3CC,B3D9,B41C,B429,B450-B451,B460,B465,B4DC-B4DD,B4E0,B4E4,B4F1,B514,B530,B545,B610-B611,B625,B77C-B77D,B780,B78D,B798-B799,B7C9,B7EC,B808,B81D,B824-B825,B828,B834,B839,B840,B85C-B85D,B860,B864,B86D,B8CC,B8E1,B8E8,B8EC,B958,B960,B974,B978,B97C,B985,B9AC-B9AD,B9B0,B9BC-B9BD,B9BF,B9C1,B9C8,B9CC,B9CE,B9DD,B9E4-B9E5,B9F5,BA38,BA4D,BA54,BA70,BA74,BA85,BAA8-BAA9,BAAC,BB18,BB34,BB3C,BB47,BBF8,BC0F,BC14,BC18,BC1B-BC1C,BC25,BC29,BC40,BC84,BC88,BC94-BC95,BCA0,BCA8,BCBC,BCC0,BCF4-BCF5,BCF8,BD80,BD84,BD88-BD89,BD99,BE0C,BE14,BE21,BE44,BE5B,BF08,BF51,BFD4,C0AC,C0B0,C0BC,C0C1,C0C8-C0C9,C0DD,C0E4,C11C-C11D,C120,C124,C12C,C12F,C131,C138,C13C,C18C-C18D,C190,C193,C1A1,C1A8,C218-C219,C220,C232,C27D,C2A4,C2A8,C2AC,C2B5,C2B9,C2BD,C2C0,C2DC-C2DD,C2E0,C2E4,C2EC,C2F8,C528-C529,C544-C545,C548,C54C,C555,C557,C560,C57C-C57D,C591,C5B4,C5BB-C5BC,C5C4-C5C5,C5D0,C5EC-C5ED,C5F0,C5FC,C601,C608,C624-C625,C628,C62C,C637,C640,C644,C655,C678,C694,C6A9,C6B0-C6B1,C6B4,C6C3,C6C5,C6CC,C6D0,C6D4,C704,C720,C728,C73C,C740,C744,C74C,C758,C774,C778,C77C,C77F,C784-C785,C788,C78E,C790-C791,C7A0,C7A5,C7AC,C800-C801,C804,C810-C811,C815,C81C,C838,C84C,C870-C871,C874,C885,C8FC-C8FD,C900,C911,C988,C99D,C9C0-C9C1,C9C4,C9C8,C9D1,C9DC,C9F8,CC22,CC28-CC29,CC3D,CC44,CC98,CC9C,CCA0,CCA8,CCAB,CCAD,CCB4,CD08,CD1D,CD5C,CD94-CD95,CD9C,CDE8,CDFB,CE58,CE74,CE7C,CE90,CE94,CEE4,CF00,CF13,CF58,D018,D034,D050,D06C,D074,D0A4,D0AC,D0C0,D0C4,D0D0-D0D1,D0DC-D0DD,D0EF,D130,D134,D14C,D15C,D1A0,D1B5,D22C,D280,D290,D295,D2B8-D2B9,D2F0,D30C,D310,D314,D31C,D328,D32C,D37C,D398,D3B8,D3C9,D3EC-D3ED,D3F0,D3F4,D45C,D478,D488,D504,D50C,D53C-D53D,D540,D54F,D558-D559,D55C,D560,D569,D56B,D56D,D574,D589,D5C8,D5D8,D5E4,D604,D608,D615,D61C,D638,D63C,D640,D654-D655,D658,D669,D68C-D68D,D693,D69F,D6A8,D6C4,D718,D754,D759,D761,D788,D798
-    referencedFontAssetGUID: f6456fe8c11939e40a6252f201b7ddfc
-    referencedTextAssetGUID: 
-    fontStyle: 0
-    fontStyleModifier: 0
-    renderMode: 4165
-    includeFontFeatures: 0
   m_FontWeightTable:
   - regularTypeface: {fileID: 0}
     italicTypeface: {fileID: 0}
@@ -14096,6 +14077,33 @@ MonoBehaviour:
   boldSpacing: 7
   italicStyle: 35
   tabSize: 10
+  m_fontInfo:
+    Name: 
+    PointSize: 0
+    Scale: 0
+    CharacterCount: 0
+    LineHeight: 0
+    Baseline: 0
+    Ascender: 0
+    CapHeight: 0
+    Descender: 0
+    CenterLine: 0
+    SuperscriptOffset: 0
+    SubscriptOffset: 0
+    SubSize: 0
+    Underline: 0
+    UnderlineThickness: 0
+    strikethrough: 0
+    strikethroughThickness: 0
+    TabWidth: 0
+    Padding: 0
+    AtlasWidth: 0
+    AtlasHeight: 0
+  m_glyphInfoList: []
+  m_KerningTable:
+    kerningPairs: []
+  fallbackFontAssets: []
+  atlas: {fileID: 0}
 --- !u!28 &6393353424193378108
 Texture2D:
   m_ObjectHideFlags: 0
@@ -14106,10 +14114,8 @@ Texture2D:
   m_ImageContentsHash:
     serializedVersion: 2
     Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
   m_IsAlphaChannelOptional: 0
-  serializedVersion: 2
+  serializedVersion: 4
   m_Width: 1024
   m_Height: 1024
   m_CompleteImageSize: 1048576

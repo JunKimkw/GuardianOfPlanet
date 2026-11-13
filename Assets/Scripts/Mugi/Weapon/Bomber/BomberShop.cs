@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ public class BomberShop : MonoBehaviour
     [HideInInspector]
     public Bomber bomber;
 
-    [Header("UI ¹Ù²Ù±â")]
+    [Header("UI ë°”ê¾¸ê¸°")]
     public TextMeshProUGUI LevelText;
     public TextMeshProUGUI WeaponStat;
     public TextMeshProUGUI priceText;
@@ -19,7 +19,7 @@ public class BomberShop : MonoBehaviour
     public int purchaseSize;
     long TotalPrice;
 
-    [Header("#-----Àá±İ")]
+    [Header("#-----ì ê¸ˆ")]
     public GameObject LockCover;
     public TextMeshProUGUI LockText;
 
@@ -37,16 +37,16 @@ public class BomberShop : MonoBehaviour
 
         //Check Lock
         LockCover.SetActive(!StageManager.instance.planets[2].PlanetCleared);
-        LockText.text = StageManager.instance.planets[2].PlanetName + " Çà¼º Å¬¸®¾î";
+        LockText.text = StageManager.instance.planets[2].PlanetName + " í–‰ì„± í´ë¦¬ì–´";
     }
 
     // Update is called once per frame
     void Update()
     {
         if(bomber.UpgradeLevel > 0)
-            WeaponStat.text = "Æø°İ±â µ¥¹ÌÁöÀÇ " + ((1 + bomber.ExploseDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.Bomber, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%·Î °ø°İ\n" + "ÇöÀç µ¥¹ÌÁö: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + ((bomber.Damage + bomber.ExploseDamage) * (1 + bomber.ExploseDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.Bomber, TraitsData.TraitsType.DamagePercent)))));
+            WeaponStat.text = "í­ê²©ê¸° ë°ë¯¸ì§€ì˜ " + ((1 + bomber.ExploseDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.Bomber, TraitsData.TraitsType.DamagePercent)) * 100).ToString("F0") + "%ë¡œ ê³µê²©\n" + "í˜„ì¬ ë°ë¯¸ì§€: " + (long)Mathf.RoundToInt((int)(Player.instance.FinalAttack_Damage + ((bomber.Damage + bomber.ExploseDamage) * (1 + bomber.ExploseDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.Bomber, TraitsData.TraitsType.DamagePercent)))));
         else
-            WeaponStat.text = "ÆøÅºÀ¸·Î ¹üÀ§ °ø°İÀ» ÇÏ´Â Æø°İ±â";
+            WeaponStat.text = "í­íƒ„ìœ¼ë¡œ ë²”ìœ„ ê³µê²©ì„ í•˜ëŠ” í­ê²©ê¸°";
         LevelText.text = "Lv." + bomber.UpgradeLevel.ToString();
         TotalPrice = getTotalMoney(bomber.UpgradeLevel, purchaseSize);
         priceText.text = GameManager.MoneyString(TotalPrice);
@@ -107,7 +107,7 @@ public class BomberShop : MonoBehaviour
 
     public void setPassiveValues()
     {
-        //°ãÄ¡¸é
+        //ê²¹ì¹˜ë©´
         bomber.ExploseDamagePercent = 0;
 
         //Passive 1

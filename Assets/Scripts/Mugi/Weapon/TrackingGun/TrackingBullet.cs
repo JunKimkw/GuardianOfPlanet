@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,13 +8,13 @@ public class TrackingBullet : MonoBehaviour
     public bool isCritical;
     [HideInInspector]
     public bool isStunning;
-    [Header("#-----ÃÑ¾Ë Á¤º¸")]
+    [Header("#-----ì´ì•Œ ì •ë³´")]
     public float BulletSpeed;
 
-    [Header("#-----ÃÑ¾Ë ÇÊ¿ä ¿ä¼Ò")]
-    //ÃßÀû ¹Ì»çÀÏ Àü¿ë
+    [Header("#-----ì´ì•Œ í•„ìš” ìš”ì†Œ")]
+    //ì¶”ì  ë¯¸ì‚¬ì¼ ì „ìš©
     private Rigidbody2D rb;
-    [Header("ÃßÀû ¹Ì»çÀÏ Àü¿ë")]
+    [Header("ì¶”ì  ë¯¸ì‚¬ì¼ ì „ìš©")]
     public float RotationControl;
 
     [Header("#----Stats")]
@@ -40,7 +40,7 @@ public class TrackingBullet : MonoBehaviour
 
             rb.angularVelocity = -rotateAmount * RotationControl * 15;
 
-            rb.velocity = 50 * transform.up * BulletSpeed * (1 + Player.instance.FinalAttack_Bullet_SpeedPercent) * (1 + TraitsManager.instance.GetStats(TraitsData.WeaponType.TrackingMissile, TraitsData.TraitsType.BulletSpeed)) * (1 + missileSpeedScale ) * Time.deltaTime;
+            rb.linearVelocity = 50 * transform.up * BulletSpeed * (1 + Player.instance.FinalAttack_Bullet_SpeedPercent) * (1 + TraitsManager.instance.GetStats(TraitsData.WeaponType.TrackingMissile, TraitsData.TraitsType.BulletSpeed)) * (1 + missileSpeedScale ) * Time.deltaTime;
 
         } else {
             transform.Translate(Vector3.up * 3f * Time.deltaTime);

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -28,7 +28,7 @@ public class Dummy : MonoBehaviour
         }
 
         if(DamagerPS != 0 && count > 0) {
-            DPSText.text = "DPS: " + (int)(DamagerPS / Mathf.Max(1, Mathf.CeilToInt(time))) + "\n�ִ�: " + MAX;
+            DPSText.text = "DPS: " + (int)(DamagerPS / Mathf.Max(1, Mathf.CeilToInt(time))) + "\n최대: " + MAX;
         } else
             DPSText.text = "";
 

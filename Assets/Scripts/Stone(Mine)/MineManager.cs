@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,7 +17,7 @@ public class MineManager : MonoBehaviour, IDataPersistence
     public IEnumerator MoveToMine()
     {
         TransformTab.instance.gameObject.SetActive(true);
-        TransformTab.instance.startFading("±§ªÍ");
+        TransformTab.instance.startFading("Í¥ëÏÇ∞");
 
         InfiniteStage.Instance.PauseInfiniteStage();
 
@@ -112,7 +112,7 @@ public class MineManager : MonoBehaviour, IDataPersistence
         //UI
         //Text
         ClickPriceText.text = GameManager.MoneyString(GetClickPrice());
-        clickText.text = "»≠∏È ≈¨∏Ø Ω√ ±§ºÆ " + GameManager.MoneyString(clickPower) + "∞≥ »πµÊ";
+        clickText.text = "ÌôîÎ©¥ ÌÅ¥Î¶≠ Ïãú Í¥ëÏÑù " + GameManager.MoneyString(clickPower) + "Í∞ú ÌöçÎìù";
         ClickLevelText.text = "Lv." + ClickLevel;
     }
 

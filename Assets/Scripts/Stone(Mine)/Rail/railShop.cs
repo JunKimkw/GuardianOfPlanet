@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -54,8 +54,8 @@ public class railShop : MonoBehaviour
         finalStoneValue = getStoneValue();
         SpawnTime = getSpawnTime();
         LvlText.text = "Lv. " + ShopLevel;
-        StoneInfoText.text = "∞™æÓƒ°: ±§ºÆ " + GameManager.MoneyString(finalStoneValue) + "∞≥";
-        SpawnTimeText.text = "ª˝º∫ Ω√∞£: " + SpawnTime.ToString("F1") + "√ ";
+        StoneInfoText.text = "Í∞íÏñ¥Ïπò: Í¥ëÏÑù " + GameManager.MoneyString(finalStoneValue) + "Í∞ú";
+        SpawnTimeText.text = "ÏÉùÏÑ± ÏãúÍ∞Ñ: " + SpawnTime.ToString("F1") + "Ï¥à";
         TotalMoney = GetTotalPrice();
         PriceText.text = GameManager.MoneyString(TotalMoney);
 

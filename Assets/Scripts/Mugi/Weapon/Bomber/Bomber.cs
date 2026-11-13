@@ -81,6 +81,7 @@ public class Bomber : MonoBehaviour
             TimerAs += Time.deltaTime;
             if(TimerAs >= getAttackSpeed()) {
                 CreateBullet();
+                if(AugmentManager.RollMultiShot()) CreateBullet();
                 TimerAs = 0;
             }
         }
@@ -98,11 +99,27 @@ public class Bomber : MonoBehaviour
 
     public void CreateBullet()
     {
+        SpawnBomb(Vector3.zero);
+
+        //리마스터: 융단 폭격 - 진행 방향과 수직으로 폭탄을 일렬 추가
+        int extra = AugmentManager.Instance != null ? AugmentManager.Instance.CarpetBombCount : 0;
+        if(extra > 0) {
+            Vector3 side = rotate * Vector3.right;
+            for(int i = 0; i < extra; i++) {
+                int step = i / 2 + 1;
+                float sign = (i % 2 == 0) ? 1f : -1f;
+                SpawnBomb(side * (0.7f * step * sign));
+            }
+        }
+    }
+
+    void SpawnBomb(Vector3 offset)
+    {
         BomberBullet bullet_A = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Bomber).GetComponent<BomberBullet>();
         bullet_A.setBulletStats((int)(Player.instance.FinalAttack_Damage + ((Damage + ExploseDamage) * (1 + ExploseDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.Bomber, TraitsData.TraitsType.DamagePercent)))));
         bullet_A.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
         bullet_A.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
-        bullet_A.transform.position = ShootingPoint.position;
+        bullet_A.transform.position = ShootingPoint.position + offset;
         bullet_A.transform.rotation = rotate;
         bullet_A.gameObject.SetActive(true);
     }

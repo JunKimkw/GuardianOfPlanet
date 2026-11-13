@@ -92,10 +92,12 @@ public class SniperGun : MonoBehaviour
 
                 if(!DoubleAttack) {
                     CreateBullet();
+                    if(AugmentManager.RollMultiShot()) CreateBullet();
                     TimerAs = 0;
                 }
                 else {
                     CreateBullet();
+                    if(AugmentManager.RollMultiShot()) CreateBullet();
                     StartCoroutine(DelayedAttack());
                     TimerAs = 0;
                 }

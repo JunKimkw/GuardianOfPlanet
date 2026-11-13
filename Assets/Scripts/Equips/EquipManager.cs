@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,7 +12,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
 
     public EquipFrame equipFrame_pfb;
 
-    [Header("¾ÆÀÌÅÛ µî±Şº°")]
+    [Header("ì•„ì´í…œ ë“±ê¸‰ë³„")]
     public EquipSorting Sorting_Ring;
     public EquipSorting Sorting_Necklace;
     public EquipSorting Sorting_Book;
@@ -26,7 +26,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     [HideInInspector]
     public UpgradeStone SelectedStone;
 
-    [Header("Á¤º¸Ã¢")]
+    [Header("ì •ë³´ì°½")]
     [Space(5)]
     public Image Background;
     public Image Background_BG;
@@ -41,7 +41,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     public List<GameObject> equipStats_obj;
     public TextMeshProUGUI EquipNameText;
 
-    //¹öÆ°
+    //ë²„íŠ¼
     public GameObject EquipButton;
     public GameObject unEquipButton;
     public GameObject UpgradeButton;
@@ -59,7 +59,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     [HideInInspector]
     public List<SetScript> setDatas;
 
-    [Header("#----1¼¼Æ®2¼¼Æ®")]
+    [Header("#----1ì„¸íŠ¸2ì„¸íŠ¸")]
     public int CurrentSet;
     public List<EquipSet> Equip_Sets;
     public TabGroup tabGroup;
@@ -107,27 +107,27 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     //Create Methods
     public void createAllItems()
     {
-        //¹İÁö
+        //ë°˜ì§€
         for(int i = 0; i < Sorting_Ring.allItems.Count; i++) {
             CreateEquip(Sorting_Ring.allItems[i]);
         }
 
-        //¸ñ°ÉÀÌ
+        //ëª©ê±¸ì´
         for(int i = 0; i < Sorting_Necklace.allItems.Count; i++) {
             CreateEquip(Sorting_Necklace.allItems[i]);
         }
 
-        //Ã¥
+        //ì±…
         for(int i = 0; i < Sorting_Book.allItems.Count; i++) {
             CreateEquip(Sorting_Book.allItems[i]);
         }
 
-        //Àå½Å±¸
+        //ì¥ì‹ êµ¬
         for(int i = 0; i < Sorting_Accessory.allItems.Count; i++) {
             CreateEquip(Sorting_Accessory.allItems[i]);
         }
 
-        //Àå½Å±¸
+        //ì¥ì‹ êµ¬
         for(int i = 0; i < Sorting_Relics.allItems.Count; i++) {
             CreateEquip(Sorting_Relics.allItems[i]);
         }
@@ -165,27 +165,27 @@ public class EquipManager : MonoBehaviour, IDataPersistence
 
     public void setEquipAvailablilty()
     {
-        //¹İÁö
+        //ë°˜ì§€
         for(int i = 0; i < Sorting_Ring.Have_Items.Count; i++) {
             Sorting_Ring.Have_Items[i].gameObject.SetActive(Sorting_Ring.Have_Items[i].equipData.AmountOfEquip > 0);
         }
 
-        //¸ñ°ÉÀÌ
+        //ëª©ê±¸ì´
         for(int i = 0; i < Sorting_Necklace.Have_Items.Count; i++) {
             Sorting_Necklace.Have_Items[i].gameObject.SetActive(Sorting_Necklace.Have_Items[i].equipData.AmountOfEquip > 0);
         }
 
-        //À¯¹°
+        //ìœ ë¬¼
         for(int i = 0; i < Sorting_Relics.Have_Items.Count; i++) {
             Sorting_Relics.Have_Items[i].gameObject.SetActive(Sorting_Relics.Have_Items[i].equipData.AmountOfEquip > 0);
         }
 
-        //Àå½Å±¸
+        //ì¥ì‹ êµ¬
         for(int i = 0; i < Sorting_Accessory.Have_Items.Count; i++) {
             Sorting_Accessory.Have_Items[i].gameObject.SetActive(Sorting_Accessory.Have_Items[i].equipData.AmountOfEquip > 0);
         }
 
-        //Ã¥
+        //ì±…
         for(int i = 0; i < Sorting_Book.Have_Items.Count; i++) {
             Sorting_Book.Have_Items[i].gameObject.SetActive(Sorting_Book.Have_Items[i].equipData.AmountOfEquip > 0);
         }
@@ -525,69 +525,69 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     {
         switch(type) {
             case Equips.SetType.Aphrodite_Set:
-                return "¾ÆÇÁ·ÎµğÅ× ¼¼Æ®";
+                return "ì•„í”„ë¡œë””í…Œ ì„¸íŠ¸";
             case Equips.SetType.Ares_Set:
-                return "¾Æ·¹½º ¼¼Æ®";
+                return "ì•„ë ˆìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Argos_Set:
-                return "¾Æ¸£°í½º ¼¼Æ®";
+                return "ì•„ë¥´ê³ ìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Artemis_Set:
-                return "¾Æ¸£Å×¹Ì½º ¼¼Æ®";
+                return "ì•„ë¥´í…Œë¯¸ìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Atena_Set:
-                return "¾ÆÅ×³ª ¼¼Æ®";
+                return "ì•„í…Œë‚˜ ì„¸íŠ¸";
             case Equips.SetType.Beginner_Set:
-                return "ÃÊº¸ÀÚ ¼¼Æ®";
+                return "ì´ˆë³´ì ì„¸íŠ¸";
             case Equips.SetType.Blood_Set:
-                return "Ç÷ÀÇ ¼¼Æ®";
+                return "í˜ˆì˜ ì„¸íŠ¸";
             case Equips.SetType.Cerberus_Set:
-                return "ÄÉ¸£º£·Î½º ¼¼Æ®";
+                return "ì¼€ë¥´ë² ë¡œìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Dark_Set:
-                return "¾îµÒ ¼¼Æ®";
+                return "ì–´ë‘  ì„¸íŠ¸";
             case Equips.SetType.Demeter_Set:
-                return "****** ¼¼Æ®";
+                return "****** ì„¸íŠ¸";
             case Equips.SetType.Devil_Set:
-                return "¾Ç¸¶ ¼¼Æ®";
+                return "ì•…ë§ˆ ì„¸íŠ¸";
             case Equips.SetType.Evil_Set:
-                return "¾ÇÀÇ ¼¼Æ®";
+                return "ì•…ì˜ ì„¸íŠ¸";
             case Equips.SetType.Gaea_Set:
-                return "°¡ÀÌ¾Æ ¼¼Æ®";
+                return "ê°€ì´ì•„ ì„¸íŠ¸";
             case Equips.SetType.Gold_Set:
-                return "È²±İ ¼¼Æ®";
+                return "í™©ê¸ˆ ì„¸íŠ¸";
             case Equips.SetType.Hades_Set:
-                return "ÇÏµ¥½º ¼¼Æ®";
+                return "í•˜ë°ìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Hephaistus_Set:
-                return "ÇìÆÄÀÌ½ºÅä½º ¼¼Æ®";
+                return "í—¤íŒŒì´ìŠ¤í† ìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Hercules_Set:
-                return "Çì¶óÅ¬·¹½º ¼¼Æ®";
+                return "í—¤ë¼í´ë ˆìŠ¤ ì„¸íŠ¸";
             case Equips.SetType.Hestia_Set:
-                return "Çì½ºÆ¼¾Æ ¼¼Æ®";
+                return "í—¤ìŠ¤í‹°ì•„ ì„¸íŠ¸";
             case Equips.SetType.Honor_Set:
-                return "Á¤º¹ÀÚ ¼¼Æ®";
+                return "ì •ë³µì ì„¸íŠ¸";
             case Equips.SetType.Hunter_Set:
-                return "»ç³É²Û ¼¼Æ®";
+                return "ì‚¬ëƒ¥ê¾¼ ì„¸íŠ¸";
             case Equips.SetType.Hydra_Set:
-                return "È÷µå¶ó ¼¼Æ®";
+                return "íˆë“œë¼ ì„¸íŠ¸";
             case Equips.SetType.Ice_Set:
-                return "¼­¸® ¼¼Æ®";
+                return "ì„œë¦¬ ì„¸íŠ¸";
             case Equips.SetType.Iron_Set:
-                return "Ã¶ ¼¼Æ®";
+                return "ì²  ì„¸íŠ¸";
             case Equips.SetType.Jungle_Set:
-                return "Á¤±Û ¼¼Æ®";
+                return "ì •ê¸€ ì„¸íŠ¸";
             case Equips.SetType.Magician_Set:
-                return "¸¶¹ı»ç ¼¼Æ®";
+                return "ë§ˆë²•ì‚¬ ì„¸íŠ¸";
             case Equips.SetType.ME_Set:
-                return "ME ¼¼Æ®";
+                return "ME ì„¸íŠ¸";
             case Equips.SetType.Pan_Set:
-                return "ÆÇ ¼¼Æ®";
+                return "íŒ ì„¸íŠ¸";
             case Equips.SetType.Poseidon_Set:
-                return "Æ÷¼¼ÀÌµ· ¼¼Æ®";
+                return "í¬ì„¸ì´ëˆ ì„¸íŠ¸";
             case Equips.SetType.Sea_Set:
-                return "¹Ù´Ù ¼¼Æ®";
+                return "ë°”ë‹¤ ì„¸íŠ¸";
             case Equips.SetType.Warrior_Set:
-                return "Àü»ç ¼¼Æ®";
+                return "ì „ì‚¬ ì„¸íŠ¸";
             case Equips.SetType.Wood_Set:
-                return "³ª¹« ¼¼Æ®";
+                return "ë‚˜ë¬´ ì„¸íŠ¸";
             case Equips.SetType.Zeus_Set:
-                return "Á¦¿ì½º ¼¼Æ®";
+                return "ì œìš°ìŠ¤ ì„¸íŠ¸";
         }
         return "";
     }
@@ -746,7 +746,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             }
         }
 
-        //·¹º§
+        //ë ˆë²¨
         for(int i = 0; i < All_Equips.Count; i++) {
             data.Equip_Level.TryGetValue(All_Equips[i].equipData.id, out int level);
             All_Equips[i].equipData.Level = level;
@@ -760,7 +760,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             }
         }
 
-        //½ºÅÈ
+        //ìŠ¤íƒ¯
         for(int i = 0; i < All_Equips.Count; i++) {
             for(int j = 0; j < 20; j++) {
                 data.Equip_UpgradeIndex.TryGetValue(All_Equips[i].equipData.id + "UpgradeIndex" + j, out string value);
@@ -788,7 +788,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     }
     public void SaveData(GameData data)
     {
-        //·¹º§
+        //ë ˆë²¨
         for(int i = 0; i < All_Equips.Count; i++) {
             if(data.Equip_Level.ContainsKey(All_Equips[i].equipData.id))
                 data.Equip_Level.Remove(All_Equips[i].equipData.id);
@@ -802,7 +802,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             data.Equip_Amount.Add(All_Equips[i].equipData.id, All_Equips[i].equipData.AmountOfEquip);
         }
 
-        //ÀåÂøÇß´ÂÁö
+        //ì¥ì°©í–ˆëŠ”ì§€
         for(int i = 0; i < All_Equips.Count; i++) {
             if(data.Equip_IsEquiped.ContainsKey(All_Equips[i].equipData.id))
                 data.Equip_IsEquiped.Remove(All_Equips[i].equipData.id);
@@ -810,7 +810,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             data.Equip_IsEquiped.Add(All_Equips[i].equipData.id, All_Equips[i].isEquiped);
         }
 
-        //½ºÅÈ
+        //ìŠ¤íƒ¯
         for(int i = 0; i < All_Equips.Count; i++) {
             for(int j = 0; j < 20; j++) {
                 if(data.Equip_UpgradeIndex.ContainsKey(All_Equips[i].equipData.id + "UpgradeIndex" + j))

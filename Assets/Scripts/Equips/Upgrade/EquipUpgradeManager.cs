@@ -1012,7 +1012,7 @@ public class EquipUpgradeManager : MonoBehaviour
 
     public void UpgradeEquip()
     {
-        float random = Random.Range(0.0f, 101.0f);
+        float random = Random.Range(0.0f, 100.0f);
         UpgradeResultTab.SetActive(true);
         if(random <= SuccessPercent) {
             UpgradeSuccessed();

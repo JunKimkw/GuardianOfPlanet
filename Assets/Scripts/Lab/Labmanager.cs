@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -204,7 +204,7 @@ public class Labmanager : MonoBehaviour
     {
         WeaponManager.instance.shootType = WeaponManager.ShootType.NormalShoot;
         TransformTab.instance.gameObject.SetActive(true);
-        TransformTab.instance.startFading("Ω««ËΩ«");
+        TransformTab.instance.startFading("Ïã§ÌóòÏã§");
         await Task.Delay(1500);
         GridManager.instance.ToLab();
     }
@@ -218,7 +218,7 @@ public class Labmanager : MonoBehaviour
     public IEnumerator ToVillage()
     {
         TransformTab.instance.gameObject.SetActive(true);
-        TransformTab.instance.startFading("∏∂¿ª");
+        TransformTab.instance.startFading("ÎßàÏùÑ");
         yield return new WaitForSecondsRealtime(1.5f);
         GridManager.instance.ToVillage();
     }

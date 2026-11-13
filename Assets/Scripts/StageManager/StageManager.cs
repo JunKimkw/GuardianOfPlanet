@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -245,9 +245,9 @@ public class StageManager : MonoBehaviour
         SoundManager.Instance.playMainTitleMusic();
 
         TransformTab.instance.gameObject.SetActive(true);
-        TransformTab.instance.startFading("Áö±¸");
+        TransformTab.instance.startFading("ì§€êµ¬");
 
-        //°ÔÀÓ ¼Óµµ
+        //ê²Œì„ ì†ë„
         Time.timeScale = 1;
 
         await Task.Delay(2000);

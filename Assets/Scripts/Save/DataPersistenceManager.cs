@@ -34,10 +34,32 @@ public class DataPersistenceManager : MonoBehaviour
         instance = this;
     }
 
+    // 런타임에 만들어지는 매니저(리마스터 시스템)는 여기로 등록해요. 항상 목록 맨 뒤에서 불러오고 저장해요.
+    private static readonly List<IDataPersistence> lateRegistered = new List<IDataPersistence>();
+
+    public static void Register(IDataPersistence obj)
+    {
+        if(obj == null || lateRegistered.Contains(obj))
+            return;
+        lateRegistered.Add(obj);
+        if(instance != null && instance.dataPersistenceObjects != null) {
+            instance.dataPersistenceObjects.Remove(obj);
+            instance.dataPersistenceObjects.Add(obj);
+            if(instance.isDataLoaded && instance.gameData != null)
+                obj.LoadData(instance.gameData);
+        }
+    }
+
+    public bool IsDataLoaded => isDataLoaded && !isLoadFailed;
+
     private void Start()
     {
         dataPersistenceObjects = FindAllDataPersistenceObjects();
         ReorderPersistenceObjects();
+        foreach(IDataPersistence obj in lateRegistered) {
+            dataPersistenceObjects.Remove(obj);
+            dataPersistenceObjects.Add(obj);
+        }
     }
 
     public async void LoadGame()
@@ -257,6 +279,10 @@ public class DataPersistenceManager : MonoBehaviour
         gameData.Shop_leftTime ??= new SerializableDictionary<string, string>();
         gameData.notification_Bool ??= new SerializableDictionary<string, bool>();
         gameData.autoSelectedRailBool ??= new SerializableDictionary<string, bool>();
+        gameData.augIds ??= new List<string>();
+        gameData.augLevels ??= new List<int>();
+        gameData.rebirthTree ??= new List<int>();
+        gameData.freeRerollDate ??= "";
 
         if(gameData.lvl <= 0) gameData.lvl = 1;
         if(gameData.maxMoney <= 0) gameData.maxMoney = 500;

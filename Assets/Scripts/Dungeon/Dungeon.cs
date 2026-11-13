@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class Dungeon : MonoBehaviour
 {
-    [Header("�׽�Ʈ")]
+    [Header("테스트")]
     [SerializeField]
     public DungeonManager dungeonManager;
     [SerializeField]
@@ -23,7 +23,7 @@ public class Dungeon : MonoBehaviour
     public Text Cooldown;
 
     [Space(10)]
-    [Header("��Ÿ��")] 
+    [Header("쿨타임")] 
     public float coolTime;
 
     float coolTimeStartTime;
@@ -44,15 +44,15 @@ public class Dungeon : MonoBehaviour
     {
         switch(bo) {
             case BossLvl.lvl1:
-                return "��";
+                return "★";
             case BossLvl.lvl2:
-                return "�ڡ�";
+                return "★★";
             case BossLvl.lvl3:
-                return "�ڡڡ�";
+                return "★★★";
             case BossLvl.lvl4:
-                return "�ڡڡڡ�";
+                return "★★★★";
             case BossLvl.lvl5:
-                return "�ڡڡڡڡ�";
+                return "★★★★★";
             default:
                 Debug.Log("Error: this bo enum value is invalid");
                 return null;
@@ -86,7 +86,7 @@ public class Dungeon : MonoBehaviour
             if(coolTime <= 0) {
                 coolTimeStart = false;
                 Cooldown.transform.parent.GetComponent<Button>().interactable = true;
-                Cooldown.text = "��ȯ";
+                Cooldown.text = "소환";
                 coolTime = coolTimeStartTime;
             }
         }

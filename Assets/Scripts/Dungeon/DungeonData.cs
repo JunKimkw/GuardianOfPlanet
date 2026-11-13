@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -38,8 +38,8 @@ public class DungeonData : MonoBehaviour
     private void Start()
     {
         dungeonName.text = DungeonName;
-        dungeonDifficulty.text = "≥≠¿Ãµµ: " + DungeonDifficulty;
-        dungeonRequiredDPS.text = "±«¿Â DPS: " + string.Format("{0:#,###}", RequiredDPS);
+        dungeonDifficulty.text = "ÎÇúÏù¥ÎèÑ: " + DungeonDifficulty;
+        dungeonRequiredDPS.text = "Í∂åÏû• DPS: " + string.Format("{0:#,###}", RequiredDPS);
         dungeonGoldPrice.text = GameManager.MoneyStringForShop(PriceGold);
         dungeonEXPPrice.text = GameManager.MoneyStringForShop(PriceEXP);
 

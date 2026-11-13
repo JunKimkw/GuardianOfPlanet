@@ -207,6 +207,10 @@ public class Enemy : MonoBehaviour
     }
     public void OnHit(long DealtDamage, bool Stunned, bool Critical, float CritDamage)
     {
+        // 이미 죽었거나(사라지는 중) 비활성인 적은 무시 (비활성 오브젝트에서 코루틴 시작 오류 방지)
+        if(_state == EnemyState.dead || !gameObject.activeInHierarchy)
+            return;
+
         long totalDamage = 0;
         if(Critical) 
             totalDamage = (long)(DealtDamage * (2 + CritDamage));
@@ -222,6 +226,11 @@ public class Enemy : MonoBehaviour
 
         DamagePopup.Create(this.transform.position, totalDamage, Critical);
         SoundManager.Instance.playEnemyHit();
+
+        //리마스터: 적중 증강 효과(분열 등)
+        if(AugmentManager.Instance != null)
+            AugmentManager.Instance.OnEnemyHit(this, totalDamage);
+
         //Dead
         if(CurrentHealth - totalDamage > 0) {
             CurrentHealth -= totalDamage;

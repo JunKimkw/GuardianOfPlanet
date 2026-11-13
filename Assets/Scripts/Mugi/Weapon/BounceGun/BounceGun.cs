@@ -86,9 +86,11 @@ public class BounceGun : MonoBehaviour
 
                 if(!ExtraBullet) {
                     CreateBullet(be);
+                    if(AugmentManager.RollMultiShot()) CreateBullet(be);
                 } else {
                     CreateBullet(be);
                     CreateBullet(be);
+                    if(AugmentManager.RollMultiShot()) CreateBullet(be);
                 }
                 TimerAs = 0;
             }

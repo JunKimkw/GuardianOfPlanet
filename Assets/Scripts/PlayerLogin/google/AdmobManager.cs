@@ -1,8 +1,14 @@
 using UnityEngine;
 using GoogleMobileAds.Api;
-using UnityEngine.UI;
+using GoogleMobileAds.Ump.Api;
 using System;
+using System.Collections.Generic;
 
+// 보상형 광고 (리마스터 정리)
+// - 씬 버튼이 부르는 함수 이름(Show...)은 그대로 유지
+// - 광고/동의 콜백은 Android Java 스레드에서 올 수 있어서 Unity API는 Update()에서 실행
+// - 광고 동의(UMP): EEA/영국 등 동의가 필요한 지역에서만 동의 창이 떠요
+// - 에디터/개발 빌드에서는 Google 테스트 광고 (자기 광고 노출·클릭은 AdMob 정책 위반)
 public class AdmobManager : MonoBehaviour
 {
     [Header("Loading Ads Screen")]
@@ -11,247 +17,224 @@ public class AdmobManager : MonoBehaviour
     public GameObject LoadingAdsError;
     public GameObject NoAdsTab;
 
-
-#if UNITY_ANDROID
-    private string rewardedId = "ca-app-pub-1864928959429416/5359044322";
-#elif UNITY_IPHONE
-  private string rewardedId = "ca-app-pub-1864928959429416/8545542497";
-#else
-  private string rewardedId = "unused";
-#endif
+    public static AdmobManager Instance { get; private set; }
 
     RewardedAd rewardedAd;
+    bool isAdsInitialized;
+    bool isLoading;
+    readonly List<Action> loadWaiters = new List<Action>();
+    readonly Queue<Action> mainThreadActions = new Queue<Action>();
+
+    string RewardedId {
+        get {
+            bool test = Debug.isDebugBuild;
+#if UNITY_ANDROID
+            return test ? "ca-app-pub-3940256099942544/5224354917" : "ca-app-pub-1864928959429416/5359044322";
+#elif UNITY_IPHONE
+            return test ? "ca-app-pub-3940256099942544/1712485313" : "ca-app-pub-1864928959429416/8545542497";
+#else
+            return "unused";
+#endif
+        }
+    }
+
+    void RunOnMainThread(Action action)
+    {
+        lock(mainThreadActions) {
+            mainThreadActions.Enqueue(action);
+        }
+    }
+
+    private void Awake()
+    {
+        Instance = this;
+    }
 
     private void Start()
     {
-        MobileAds.RaiseAdEventsOnUnityMainThread = true;
-        MobileAds.Initialize(initStatus => {
+        ConsentRequestParameters request = new ConsentRequestParameters();
+        ConsentInformation.Update(request, (FormError updateError) => RunOnMainThread(() => {
+            if(updateError != null)
+                Debug.LogWarning("UMP: consent info update failed: " + updateError.Message);
+            ConsentForm.LoadAndShowConsentFormIfRequired((FormError formError) => RunOnMainThread(() => {
+                if(formError != null)
+                    Debug.LogWarning("UMP: consent form error: " + formError.Message);
+                if(ConsentInformation.CanRequestAds())
+                    InitializeAds();
+            }));
+        }));
 
-            print("Ads Initialised !!");
-            LoadRewardedAd();
-        });
+        // 이전 실행에서 이미 동의를 받았으면 바로 초기화
+        if(ConsentInformation.CanRequestAds())
+            InitializeAds();
     }
+
+    void InitializeAds()
+    {
+        if(isAdsInitialized)
+            return;
+        isAdsInitialized = true;
+        MobileAds.Initialize(initStatus => RunOnMainThread(() => {
+            Debug.Log("Ads Initialised !!");
+            LoadRewardedAd();
+        }));
+    }
+
+    // 설정 화면의 "개인정보 설정" 버튼용 (동의 지역 유저가 동의를 바꿀 수 있어야 함)
+    public bool IsPrivacyOptionsRequired()
+    {
+        return ConsentInformation.PrivacyOptionsRequirementStatus == PrivacyOptionsRequirementStatus.Required;
+    }
+
+    public void ShowPrivacyOptionsForm()
+    {
+        ConsentForm.ShowPrivacyOptionsForm((FormError error) => RunOnMainThread(() => {
+            if(error != null)
+                Debug.LogWarning("UMP: privacy options form error: " + error.Message);
+            if(ConsentInformation.CanRequestAds())
+                InitializeAds();
+        }));
+    }
+
     #region Rewarded
 
+    // 광고를 불러오고, 끝나면(성공/실패 모두) callback 호출
     public void LoadRewardedAd(Action callback = null)
     {
+        if(callback != null)
+            loadWaiters.Add(callback);
+        if(rewardedAd != null && rewardedAd.CanShowAd()) {
+            FlushWaiters();
+            return;
+        }
+        if(isLoading)
+            return;
+        if(!ConsentInformation.CanRequestAds()) {
+            Debug.LogWarning("UMP: ads cannot be requested without consent.");
+            FlushWaiters();
+            return;
+        }
+
         if(rewardedAd != null) {
             rewardedAd.Destroy();
             rewardedAd = null;
         }
-        var adRequest = new AdRequest();
-        adRequest.Keywords.Add("unity-admob-sample");
-
-        RewardedAd.Load(rewardedId, adRequest, (RewardedAd ad, LoadAdError error) => {
+        isLoading = true;
+        RewardedAd.Load(RewardedId, new AdRequest(), (RewardedAd ad, LoadAdError error) => RunOnMainThread(() => {
+            isLoading = false;
             if(error != null || ad == null) {
-                print("Rewarded failed to load" + error);
-                return;
+                Debug.LogWarning("Rewarded failed to load " + error);
+            } else {
+                rewardedAd = ad;
+                RewardedAdEvents(rewardedAd);
             }
+            FlushWaiters();
+        }));
+    }
 
-            print("Rewarded ad loaded !!");
-            rewardedAd = ad;
-            RewardedAdEvents(rewardedAd);
+    void FlushWaiters()
+    {
+        var list = new List<Action>(loadWaiters);
+        loadWaiters.Clear();
+        foreach(var a in list)
+            a?.Invoke();
+    }
 
-            // Call the callback function if provided
-            callback?.Invoke();
+    // 공용: 광고를 보여 주고 보상. 광고 제거 구매자는 noAdsTab 안내 후 바로 보상
+    void ShowRewarded(Action onReward, bool showNoAdsTab)
+    {
+        if(GameManager.instance.noAdsBought) {
+            if(showNoAdsTab && NoAdsTab != null)
+                NoAdsTab.SetActive(true);
+            onReward?.Invoke();
+            return;
+        }
+        LoadingAdsScreen.SetActive(true);
+        LoadRewardedAd(() => {
+            if(rewardedAd != null && rewardedAd.CanShowAd()) {
+                var ad = rewardedAd;
+                rewardedAd = null; // 한 번 보여 준 광고는 다시 못 씀
+                ad.Show((Reward reward) => RunOnMainThread(() => {
+                    LoadingAdsScreen.SetActive(false);
+                    onReward?.Invoke();
+                }));
+            } else {
+                LoadingAdsScreen.SetActive(false);
+                LoadingAdsError.SetActive(true);
+                Debug.Log("Rewarded ad not ready");
+            }
         });
+    }
+
+    // 리마스터: 증강 리롤 등에서 쓰는 공용 함수
+    public void ShowRewardedAdGeneric(Action onReward)
+    {
+        ShowRewarded(onReward, false);
     }
 
     public void ShowRewardedAdDailyGachaTicket()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-            DailyRewardManager.instance.adWatched();
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                        DailyRewardManager.instance.adWatched();
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(() => DailyRewardManager.instance.adWatched(), true);
     }
-
 
     public void ShowRewardedAdDungeonTicket()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-            DungeonManager.instance.RewardByAds();
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                        DungeonManager.instance.RewardByAds();
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(() => DungeonManager.instance.RewardByAds(), true);
     }
 
     public void ShowRewardedAdRewardDouble()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-            StageManager.instance.RewardDoubleAd();
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                        StageManager.instance.RewardDoubleAd();
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(() => StageManager.instance.RewardDoubleAd(), true);
     }
 
     public void showRewardedAdRewardTower()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-            TowerManager.Instance.ReduceTimeByAds();
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                        TowerManager.Instance.ReduceTimeByAds();
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(() => TowerManager.Instance.ReduceTimeByAds(), true);
     }
 
     public void showRewardedAdRewardTowerReward()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-            TowerManager.Instance.DoubleTowerRewardAds();
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                        TowerManager.Instance.DoubleTowerRewardAds();
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(() => TowerManager.Instance.DoubleTowerRewardAds(), true);
     }
 
     public void showRewardedAdAttendance()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-            AttendanceCheck.Instance.playerRewardAds();
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                        AttendanceCheck.Instance.playerRewardAds();
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(() => AttendanceCheck.Instance.playerRewardAds(), true);
     }
 
     public void showRewardedAdAchievement()
     {
-        if(GameManager.instance.noAdsBought) {
-            NoAdsTab.SetActive(true);
-        } else {
-            LoadingAdsScreen.SetActive(true);
-            LoadRewardedAd(() => {
-                if(rewardedAd != null && rewardedAd.CanShowAd()) {
-                    rewardedAd.Show((Reward reward) => {
-                        LoadingAdsScreen.SetActive(false);
-                    });
-                } else {
-                    LoadingAdsScreen.SetActive(false);
-                    LoadingAdsError.SetActive(true);
-                    print("Rewarded ad not ready");
-                }
-            });
-            LoadRewardedAd();
-        }
+        ShowRewarded(null, true);
     }
+
     public void RewardedAdEvents(RewardedAd ad)
     {
-        // Raised when the ad is estimated to have earned money.
-        ad.OnAdPaid += (AdValue adValue) => {
-            Debug.Log("Rewarded ad paid {0} {1}." +
-                adValue.Value +
-                adValue.CurrencyCode);
-        };
-        // Raised when an impression is recorded for an ad.
-        ad.OnAdImpressionRecorded += () => {
-            Debug.Log("Rewarded ad recorded an impression.");
-        };
-        // Raised when a click is recorded for an ad.
-        ad.OnAdClicked += () => {
-            Debug.Log("Rewarded ad was clicked.");
-        };
-        // Raised when an ad opened full screen content.
-        ad.OnAdFullScreenContentOpened += () => {
-            Debug.Log("Rewarded ad full screen content opened.");
-        };
-        // Raised when the ad closed full screen content.
-        ad.OnAdFullScreenContentClosed += () => {
-            Debug.Log("Rewarded ad full screen content closed.");
-        };
-        // Raised when the ad failed to open full screen content.
-        ad.OnAdFullScreenContentFailed += (AdError error) => {
-            Debug.LogError("Rewarded ad failed to open full screen content " +
-                           "with error : " + error);
-        };
+        ad.OnAdFullScreenContentClosed += () => RunOnMainThread(() => {
+            // 다음 광고 미리 불러오기
+            LoadRewardedAd();
+        });
+        ad.OnAdFullScreenContentFailed += (AdError error) => RunOnMainThread(() => {
+            Debug.LogError("Rewarded ad failed to open full screen content with error : " + error);
+            LoadingAdsScreen.SetActive(false);
+            LoadRewardedAd();
+        });
     }
 
     #endregion
 
     void Update()
     {
-        if(LoadingAdsScreen.gameObject.activeSelf) {
+        while(true) {
+            Action action;
+            lock(mainThreadActions) {
+                if(mainThreadActions.Count == 0)
+                    break;
+                action = mainThreadActions.Dequeue();
+            }
+            action();
+        }
+
+        if(LoadingAdsScreen != null && LoadingAdsScreen.gameObject.activeSelf && LoadingCircle != null) {
             LoadingCircle.transform.Rotate(new Vector3(0, 0, 2f));
         }
     }

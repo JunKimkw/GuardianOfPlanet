@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.EventSystems;
 using UnityEngine;
@@ -19,10 +19,10 @@ public class Rail : MonoBehaviour
     //MineAmount
     public long minedStoneAmount;
 
-    [Header("#---º¸À¯ÇÑ ±¤¼®")]
+    [Header("#---ë³´ìœ í•œ ê´‘ì„")]
     public long possessedOre;
 
-    [Header("#---¹ÌÈ®ÀÎ ±¤¼®")]
+    [Header("#---ë¯¸í™•ì¸ ê´‘ì„")]
     public long unMinedOre;
 
     float TimerAs;

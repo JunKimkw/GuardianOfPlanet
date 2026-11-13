@@ -1,0 +1,980 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+// 리마스터 핵심: 원정(무한 스테이지) 증강 / 축복 / 리롤 / 출격 무기 / 환생 / 기존 유저 보상
+// 씬을 건드리지 않도록 게임 시작 시 코드로 생성돼요(Boot).
+public class AugmentManager : MonoBehaviour, IDataPersistence
+{
+    public static AugmentManager Instance { get; private set; }
+
+    public const int PullInterval = 5;
+    public const int FreeRerollsPerDay = 3;
+    public const int AdRerollsPerDay = 5;
+    public const int DiamondRerollCost = 30;
+    const float TreasureShare = 0.15f;
+    const int PityLimit = 8;
+
+    // 환생 트리: 0 행운, 1 출발 가속, 2 첫 선물
+    public static readonly string[] TreeNames = { "행운", "출발 가속", "첫 선물" };
+    public static readonly int[] TreeMax = { 10, 5, 3 };
+    static readonly int[] TreeBaseCost = { 5, 20, 40 };
+
+    RemasterUI ui;
+    bool loaded;
+    bool pendingMigrationJump;
+    long migrationGift;
+    bool pendingRebirthStart;
+    int rebirthStartStage;
+    bool debugAllBlessings;
+
+    // ---- 원정 상태 (저장)
+    readonly Dictionary<string, int> levels = new Dictionary<string, int>();
+    readonly List<string> order = new List<string>();
+    long expKills;
+    int expBossKills;
+    float soulStack, slaughterStack, wraithStack, stardustSizeStack;
+    int blessing = -1;
+    int rerollBag;
+    int pity;
+    SideWeapon extraWeapon = SideWeapon.None;
+    SideWeapon supplyWeapon = SideWeapon.None;
+    int supplyUntil;
+    bool loadoutSet;
+    SideWeapon loadoutLeft = SideWeapon.None, loadoutRight = SideWeapon.None;
+    bool pendingSetup;
+    string freeRerollDate = "";
+    int freeRerollsUsed, adRerollsUsed;
+
+    // ---- 영구 상태 (저장)
+    long stardust;
+    int[] tree = new int[3];
+    int bestStage;
+    int rebirthCount;
+
+    // ---- 뽑기 진행
+    int pendingPulls;
+    bool pullShowing;
+    AugmentDef shownAug;
+    AugGrade shownGrade;
+
+    // ---- 폭발 처리
+    struct PendingExplosion { public Vector3 pos; public int depth; public long damage; public float radius; public float time; }
+    readonly List<PendingExplosion> explosions = new List<PendingExplosion>();
+    int effectDepth;            // 폭발/파편으로 준 피해 처리 중이면 >0
+    bool inSplit;
+    float hammerReadyTime;
+
+    // ---- 화면 일시정지 (UI용)
+    int pauseCount;
+    float pausedScale = 1f;
+
+    #region 생성 / 등록
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Boot()
+    {
+        if(Instance != null)
+            return;
+        if(FindAnyObjectByType<DataPersistenceManager>() == null)
+            return; // 게임 씬이 아니면 만들지 않음
+        var go = new GameObject("RemasterSystems");
+        go.AddComponent<AugmentManager>();
+    }
+
+    void Awake()
+    {
+        if(Instance != null && Instance != this) {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        ui = gameObject.AddComponent<RemasterUI>();
+        DataPersistenceManager.Register(this);
+    }
+    #endregion
+
+    #region 조회용 값
+    public bool Loaded => loaded;
+    public long Stardust => stardust;
+    public int BestStage => bestStage;
+    public int RebirthCount => rebirthCount;
+    public int Blessing => blessing;
+    public SideWeapon LoadoutLeft => loadoutLeft;
+    public SideWeapon LoadoutRight => loadoutRight;
+    public SideWeapon ExtraWeapon => extraWeapon;
+    public SideWeapon SupplyWeapon => supplyWeapon;
+    public int SupplyUntil => supplyUntil;
+    public long ExpeditionKills => expKills;
+    public IReadOnlyList<string> OwnedOrder => order;
+    public int TreeLevel(int node) => tree[node];
+
+    public int Level(string id) => levels.TryGetValue(id, out int l) ? l : 0;
+
+    int CurrentStage => InfiniteStage.Instance != null ? InfiniteStage.Instance.CurrentStage : 1;
+
+    public bool EffectsActive {
+        get {
+            if(!loaded || InfiniteStage.Instance == null || !InfiniteStage.Instance.IsRunning)
+                return false;
+            if(StageManager.instance != null && StageManager.instance.isInStage)
+                return false;
+            return true;
+        }
+    }
+
+    public int TagCount(AugTag tag)
+    {
+        int n = 0;
+        foreach(var id in order) {
+            var d = AugmentDefs.Get(id);
+            if(d != null && d.tag == tag) n++;
+        }
+        return n;
+    }
+
+    public bool Synergy(AugTag tag, int tier) => TagCount(tag) >= tier;
+
+    float CurseGain => Synergy(AugTag.Curse, 2) ? 1.2f : 1f;
+
+    public float CurseStackTotal {
+        get {
+            float s = soulStack + slaughterStack + wraithStack;
+            if(Synergy(AugTag.Curse, 6)) s *= 1.5f;
+            int tl = Level("tartarus");
+            if(tl > 0 && InfiniteStage.Instance != null && InfiniteStage.Instance.playerHealth == 1)
+                s *= AugmentDefs.TartarusMult(tl);
+            return s;
+        }
+    }
+
+    public float DamageMultiplier {
+        get {
+            if(!EffectsActive) return 1f;
+            float blood = Level("bloodprice") > 0 ? AugmentDefs.BloodDamage(Level("bloodprice")) : 0f;
+            return (1f + blood) * (1f + CurseStackTotal);
+        }
+    }
+
+    public float BulletScaleMultiplier {
+        get {
+            if(!EffectsActive) return 1f;
+            float s = 1f + stardustSizeStack;
+            if(Level("bigshot") > 0) s += AugmentDefs.BigShotSize(Level("bigshot"));
+            if(Synergy(AugTag.Split, 2)) s += 0.1f;
+            return Mathf.Min(s, 3f);
+        }
+    }
+
+    public float EnemySpeedMultiplier {
+        get {
+            if(!EffectsActive || Level("slaughter") <= 0) return 1f;
+            float per = Synergy(AugTag.Curse, 4) ? 0.005f : 0.01f;
+            return 1f + Mathf.Min(0.5f, (expKills / 1000) * per);
+        }
+    }
+
+    public int ShieldBonus {
+        get {
+            if(!loaded) return 0;
+            int b = Level("spareshield");
+            if(Level("bloodprice") > 0) b -= 1;
+            return b;
+        }
+    }
+
+    public int CarpetBombCount => EffectsActive && Level("carpet") > 0 && IsEquipped(SideWeapon.Bomber) ? AugmentDefs.CarpetBombs(Level("carpet")) : 0;
+    public int BounceExtraCount => EffectsActive && Level("bouncegrow") > 0 && IsEquipped(SideWeapon.BounceGun) ? AugmentDefs.BounceExtra(Level("bouncegrow")) : 0;
+
+    public static bool RollMultiShot()
+    {
+        var m = Instance;
+        if(m == null || !m.EffectsActive) return false;
+        int l = m.Level("multishot");
+        float chance = l > 0 ? AugmentDefs.MultiShotChance(l) : 0f;
+        if(m.Synergy(AugTag.Split, 6)) chance += 1f;
+        return chance > 0 && UnityEngine.Random.value < chance;
+    }
+
+    float ExplosionRadius {
+        get {
+            float r = 1.3f;
+            if(Level("gunpowder") > 0) r *= 1f + AugmentDefs.GunpowderRadius(Level("gunpowder"));
+            if(Synergy(AugTag.Chain, 2)) r *= 1.1f;
+            return r;
+        }
+    }
+
+    int MaxChainDepth {
+        get {
+            int l = Level("chain");
+            if(l <= 0) return 1;
+            return AugmentDefs.ChainDepth(l) + (Synergy(AugTag.Chain, 4) ? 2 : 0);
+        }
+    }
+    #endregion
+
+    #region 무기 / 출격
+    public int WeaponLevel(SideWeapon w)
+    {
+        var wm = WeaponManager.instance;
+        if(wm == null) return 0;
+        switch(w) {
+            case SideWeapon.DoubleGun: return wm.doubleGun != null ? wm.doubleGun.UpgradeLevel : 0;
+            case SideWeapon.Bomber: return wm.BomberGun != null ? wm.BomberGun.UpgradeLevel : 0;
+            case SideWeapon.TrackingGun: return wm.trackingGun != null ? wm.trackingGun.UpgradeLevel : 0;
+            case SideWeapon.Poison: return wm.poison != null ? wm.poison.UpgradeLevel : 0;
+            case SideWeapon.Orbital: return wm.orbital != null ? wm.orbital.UpgradeLevel : 0;
+            case SideWeapon.Lazer: return wm.lazer != null ? wm.lazer.UpgradeLevel : 0;
+            case SideWeapon.StrLaser: return wm.strLaser != null ? wm.strLaser.UpgradeLevel : 0;
+            case SideWeapon.Sniper: return wm.sniperGun != null ? wm.sniperGun.UpgradeLevel : 0;
+            case SideWeapon.BounceGun: return wm.bounceGun != null ? wm.bounceGun.UpgradeLevel : 0;
+        }
+        return 0;
+    }
+
+    GameObject WeaponObject(SideWeapon w)
+    {
+        var wm = WeaponManager.instance;
+        if(wm == null) return null;
+        switch(w) {
+            case SideWeapon.DoubleGun: return wm.doubleGun ? wm.doubleGun.gameObject : null;
+            case SideWeapon.Bomber: return wm.BomberGun ? wm.BomberGun.gameObject : null;
+            case SideWeapon.TrackingGun: return wm.trackingGun ? wm.trackingGun.gameObject : null;
+            case SideWeapon.Poison: return wm.poison ? wm.poison.gameObject : null;
+            case SideWeapon.Orbital: return wm.orbital ? wm.orbital.gameObject : null;
+            case SideWeapon.Lazer: return wm.lazer ? wm.lazer.gameObject : null;
+            case SideWeapon.StrLaser: return wm.strLaser ? wm.strLaser.gameObject : null;
+            case SideWeapon.Sniper: return wm.sniperGun ? wm.sniperGun.gameObject : null;
+            case SideWeapon.BounceGun: return wm.bounceGun ? wm.bounceGun.gameObject : null;
+        }
+        return null;
+    }
+
+    public bool Owned(SideWeapon w) => w != SideWeapon.None && WeaponLevel(w) > 0;
+
+    public bool IsEquipped(SideWeapon w)
+    {
+        if(w == SideWeapon.None) return false;
+        return w == loadoutLeft || w == loadoutRight || w == extraWeapon || w == supplyWeapon;
+    }
+
+    public List<SideWeapon> OwnedWeapons()
+    {
+        var list = new List<SideWeapon>();
+        foreach(SideWeapon w in Enum.GetValues(typeof(SideWeapon)))
+            if(Owned(w)) list.Add(w);
+        list.Sort((a, b) => WeaponLevel(b).CompareTo(WeaponLevel(a)));
+        return list;
+    }
+
+    // 빈 칸은 가진 무기로 자동으로 채워요(새로 산 무기가 바로 보이게).
+    void EnsureLoadout()
+    {
+        if(!Owned(loadoutLeft)) loadoutLeft = SideWeapon.None;
+        if(!Owned(loadoutRight)) loadoutRight = SideWeapon.None;
+        if(loadoutLeft == loadoutRight) loadoutRight = SideWeapon.None;
+        if(loadoutLeft != SideWeapon.None && loadoutRight != SideWeapon.None)
+            return;
+        foreach(var w in OwnedWeapons()) {
+            if(w == loadoutLeft || w == loadoutRight || w == extraWeapon || w == supplyWeapon) continue;
+            if(loadoutLeft == SideWeapon.None) loadoutLeft = w;
+            else if(loadoutRight == SideWeapon.None) loadoutRight = w;
+            if(loadoutLeft != SideWeapon.None && loadoutRight != SideWeapon.None) break;
+        }
+        loadoutSet = true;
+    }
+
+    public void SetLoadout(SideWeapon left, SideWeapon right)
+    {
+        loadoutLeft = left;
+        loadoutRight = right == left ? SideWeapon.None : right;
+        loadoutSet = true;
+    }
+
+    float loadoutCheckTimer;
+    void LateUpdate()
+    {
+        if(!loaded || WeaponManager.instance == null)
+            return;
+        loadoutCheckTimer -= Time.unscaledDeltaTime;
+        if(loadoutCheckTimer <= 0f) {
+            loadoutCheckTimer = 0.5f;
+            EnsureLoadout();
+        }
+        foreach(SideWeapon w in Enum.GetValues(typeof(SideWeapon))) {
+            if(w == SideWeapon.None) continue;
+            var go = WeaponObject(w);
+            if(go == null) continue;
+            bool active = Owned(w) && IsEquipped(w);
+            if(go.activeSelf != active)
+                go.SetActive(active);
+        }
+    }
+    #endregion
+
+    #region 축복
+    static int BlessingPlanetIndex(AugTag t)
+    {
+        // 정렬된 행성 목록 기준: 4 헤파이스토스, 8 타르타로스, 10 아스테리아
+        switch(t) {
+            case AugTag.Chain: return 3;
+            case AugTag.Curse: return 7;
+            case AugTag.Split: return 9;
+        }
+        return -1;
+    }
+
+    public static string BlessingPlanetName(AugTag t)
+    {
+        switch(t) {
+            case AugTag.Chain: return "헤파이스토스(4번째)";
+            case AugTag.Curse: return "타르타로스(8번째)";
+            case AugTag.Split: return "아스테리아(10번째)";
+        }
+        return "";
+    }
+
+    public bool BlessingUnlocked(AugTag t)
+    {
+        if(debugAllBlessings) return true;
+        int idx = BlessingPlanetIndex(t);
+        var sm = StageManager.instance;
+        if(sm == null || sm.planets == null || idx < 0 || idx >= sm.planets.Count) return false;
+        return sm.planets[idx].PlanetCleared;
+    }
+
+    public void SetBlessing(int tagIndex) => blessing = tagIndex;
+    #endregion
+
+    #region 일시정지 (팝업용)
+    public void PauseForUI()
+    {
+        if(pauseCount == 0) {
+            pausedScale = Time.timeScale > 0.01f ? Time.timeScale : 1f;
+            Time.timeScale = 0.0000001f;
+        }
+        pauseCount++;
+    }
+
+    public void ResumeFromUI()
+    {
+        if(pauseCount <= 0) return;
+        pauseCount--;
+        if(pauseCount == 0)
+            Time.timeScale = pausedScale;
+    }
+    #endregion
+
+    #region 스테이지 / 처치 / 적중
+    public void OnStageCleared(int clearedStage)
+    {
+        if(!loaded) return;
+        if(clearedStage + 1 > bestStage) bestStage = clearedStage + 1;
+        if(supplyWeapon != SideWeapon.None && clearedStage >= supplyUntil) {
+            ui.Toast($"보급 무기 {AugmentDefs.WeaponName(supplyWeapon)}가 돌아갔어요", AugmentDefs.TagColor(AugTag.Treasure));
+            supplyWeapon = SideWeapon.None;
+        }
+        if(clearedStage > 0 && clearedStage % PullInterval == 0)
+            QueuePull(1);
+        ui.RefreshHUD();
+    }
+
+    public void OnEnemyKilled(Enemy enemy)
+    {
+        if(!EffectsActive || enemy == null) return;
+        bool isBoss = enemy._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss;
+        if(enemy._typeofEnemy != Enemy.typeofEnemy.InfiniteStage && !isBoss) return;
+
+        expKills++;
+        float gain = CurseGain;
+        if(Level("soul") > 0) soulStack += AugmentDefs.SoulPerKill(Level("soul")) * gain;
+        if(Level("slaughter") > 0) slaughterStack += AugmentDefs.SlaughterPerKill(Level("slaughter")) * gain;
+        if(isBoss) {
+            expBossKills++;
+            if(Level("wraith") > 0) wraithStack += AugmentDefs.WraithPerBoss(Level("wraith")) * gain;
+        }
+        if(Level("stardustshot") > 0 && expKills % 100 == 0)
+            stardustSizeStack = Mathf.Min(2f, stardustSizeStack + AugmentDefs.StardustShotPer100(Level("stardustshot")));
+
+        // 폭발: 총으로 잡으면 점화탄, 폭발로 잡으면 연쇄 폭발이 있을 때만 이어짐
+        bool igniteOn = Level("ignite") > 0 || Synergy(AugTag.Chain, 6);
+        if(!igniteOn) return;
+        int depth = effectDepth;
+        if(depth > 0 && depth >= MaxChainDepth) return;
+        float mult = Level("ignite") > 0 ? AugmentDefs.IgniteDamage(Level("ignite")) : 0.5f;
+        long dmg = (long)Mathf.Max(1, Player.instance.FinalAttack_Damage * mult);
+        explosions.Add(new PendingExplosion {
+            pos = enemy.transform.position,
+            depth = depth + 1,
+            damage = dmg,
+            radius = ExplosionRadius,
+            time = Time.time + (depth == 0 ? 0f : 0.08f)
+        });
+
+        if(depth + 1 >= 10 && Level("hammer") > 0 && Time.time >= hammerReadyTime) {
+            hammerReadyTime = Time.time + 3f;
+            Shockwave();
+        }
+    }
+
+    public void OnEnemyHit(Enemy enemy, long damage)
+    {
+        if(effectDepth > 0 || inSplit || !EffectsActive) return;
+        int l = Level("split");
+        if(l <= 0 || UnityEngine.Random.value >= AugmentDefs.SplitChance(l)) return;
+        long shard = Synergy(AugTag.Split, 4) ? damage : damage / 2;
+        if(shard <= 0) return;
+        var targets = NearestEnemies(enemy.transform.position, 3f, 2, enemy);
+        inSplit = true;
+        try {
+            foreach(var t in targets) {
+                RemasterFx.Line(enemy.transform.position, t.transform.position, AugmentDefs.TagColor(AugTag.Split));
+                t.OnHit(shard, false, false, 0);
+            }
+        } finally {
+            inSplit = false;
+        }
+    }
+
+    void Update()
+    {
+        if(explosions.Count > 0) {
+            if(!EffectsActive) {
+                explosions.Clear();
+            } else {
+                for(int i = 0; i < explosions.Count; i++) {
+                    if(explosions[i].time > Time.time) continue;
+                    var e = explosions[i];
+                    explosions.RemoveAt(i);
+                    i--;
+                    Explode(e);
+                    if(explosions.Count > 200) { explosions.Clear(); break; }
+                }
+            }
+        }
+
+        if(loaded) {
+            // 기존 유저 보상 후: 원정이 시작되면 1스테이지로 확실히 다시 시작(스폰 정보까지 초기화)
+            if(pendingMigrationJump && InfiniteStage.Instance != null && InfiniteStage.Instance.IsRunning) {
+                pendingMigrationJump = false;
+                InfiniteStage.Instance.JumpToStage(1);
+            }
+            TryShowSetup();
+        }
+
+        DebugKeys();
+    }
+
+    void Explode(PendingExplosion e)
+    {
+        RemasterFx.Burst(e.pos, e.radius, AugmentDefs.TagColor(AugTag.Chain));
+        var targets = EnemiesInRadius(e.pos, e.radius);
+        int prev = effectDepth;
+        effectDepth = e.depth;
+        try {
+            foreach(var t in targets)
+                t.OnHit(e.damage, false, false, 0);
+        } finally {
+            effectDepth = prev;
+        }
+    }
+
+    void Shockwave()
+    {
+        long dmg = (long)Mathf.Max(1, Player.instance.FinalAttack_Damage * AugmentDefs.HammerDamage(Level("hammer")));
+        RemasterFx.Shockwave(WeaponManager.instance != null && WeaponManager.instance.mainWeapon != null ? WeaponManager.instance.mainWeapon.transform.position : Vector3.zero);
+        var targets = EnemiesInRadius(Vector3.zero, 999f);
+        int prev = effectDepth;
+        effectDepth = 99; // 충격파로 죽은 적은 다시 폭발하지 않음
+        try {
+            foreach(var t in targets)
+                t.OnHit(dmg, false, false, 0);
+        } finally {
+            effectDepth = prev;
+        }
+        ui.Toast("대장장이의 망치!", AugmentDefs.TagColor(AugTag.Chain));
+    }
+
+    static List<Enemy> EnemiesInRadius(Vector3 pos, float radius)
+    {
+        var result = new List<Enemy>();
+        var em = EnemyManager.Instance;
+        if(em == null) return result;
+        float r2 = radius * radius;
+        foreach(var list in new[] { em.enemyData, em.bossData }) {
+            foreach(var e in list) {
+                if(e == null || e._state == Enemy.EnemyState.dead || !e.gameObject.activeInHierarchy) continue;
+                if((e.transform.position - pos).sqrMagnitude <= r2) result.Add(e);
+            }
+        }
+        return result;
+    }
+
+    static List<Enemy> NearestEnemies(Vector3 pos, float radius, int count, Enemy exclude)
+    {
+        var all = EnemiesInRadius(pos, radius);
+        all.Remove(exclude);
+        all.Sort((a, b) => (a.transform.position - pos).sqrMagnitude.CompareTo((b.transform.position - pos).sqrMagnitude));
+        if(all.Count > count) all.RemoveRange(count, all.Count - count);
+        return all;
+    }
+    #endregion
+
+    #region 뽑기
+    public void QueuePull(int n)
+    {
+        pendingPulls += n;
+        if(!pullShowing) ShowNextPull();
+    }
+
+    void ShowNextPull()
+    {
+        if(pendingPulls <= 0) return;
+        var def = Roll(out AugGrade grade, -1);
+        if(def == null) {
+            // 모든 증강이 최대 레벨이면 별의 먼지로 대신 지급
+            pendingPulls = 0;
+            stardust += 5;
+            ui.Toast("모든 증강이 최대 레벨이에요! 별의 먼지 +5", AugmentDefs.TagColor(AugTag.Treasure));
+            return;
+        }
+        pendingPulls--;
+        pullShowing = true;
+        shownAug = def;
+        shownGrade = grade;
+        PauseForUI();
+        ui.ShowPull(def, Level(def.id) + 1, RerollLabel(), AcceptShown, RequestReroll);
+    }
+
+    void AcceptShown()
+    {
+        var def = shownAug;
+        shownAug = null;
+        pullShowing = false;
+        ResumeFromUI();
+        if(def != null) Apply(def, true);
+        if(pendingPulls > 0) ShowNextPull();
+        ui.RefreshHUD();
+    }
+
+    // minGrade: -1 이면 일반 뽑기, 0~2 이면 그 등급 이상
+    AugmentDef Roll(out AugGrade grade, int minGrade)
+    {
+        float luck = tree[0];
+        float prism = 0.03f + luck * 0.004f;
+        float gold = 0.22f + luck * 0.02f;
+        float r = UnityEngine.Random.value;
+        grade = r < prism ? AugGrade.Prism : r < prism + gold ? AugGrade.Gold : AugGrade.Silver;
+        if(minGrade < 0) {
+            if(grade == AugGrade.Silver && pity >= PityLimit) grade = AugGrade.Gold;
+            pity = grade == AugGrade.Silver ? pity + 1 : 0;
+        } else if((int)grade < minGrade) {
+            grade = (AugGrade)minGrade;
+        }
+
+        bool treasure = UnityEngine.Random.value < TreasureShare;
+        var def = Pick(treasure, grade);
+        if(def == null) def = Pick(treasure, null);
+        if(def == null) def = Pick(!treasure, grade);
+        if(def == null) def = Pick(!treasure, null);
+        if(def != null) grade = def.grade;
+        return def;
+    }
+
+    AugmentDef Pick(bool treasure, AugGrade? grade)
+    {
+        var cands = new List<AugmentDef>();
+        var weights = new List<float>();
+        float total = 0;
+        foreach(var d in AugmentDefs.All) {
+            if((d.tag == AugTag.Treasure) != treasure) continue;
+            if(grade.HasValue && d.grade != grade.Value) continue;
+            if(Level(d.id) >= d.maxLevel) continue;
+            if(d.requiredWeapon != SideWeapon.None && !IsEquipped(d.requiredWeapon)) continue;
+            if(d.id == "extraarms" && FreeWeaponsForExtra().Count == 0) continue;
+            if(d.id == "supply" && (supplyWeapon != SideWeapon.None || FreeWeaponsForExtra().Count == 0)) continue;
+            float w = 1f;
+            if(blessing >= 0 && (int)d.tag == blessing) w = 2f;
+            cands.Add(d); weights.Add(w); total += w;
+        }
+        if(cands.Count == 0) return null;
+        float x = UnityEngine.Random.value * total;
+        for(int i = 0; i < cands.Count; i++) {
+            x -= weights[i];
+            if(x <= 0) return cands[i];
+        }
+        return cands[cands.Count - 1];
+    }
+
+    List<SideWeapon> FreeWeaponsForExtra()
+    {
+        var list = new List<SideWeapon>();
+        foreach(var w in OwnedWeapons())
+            if(!IsEquipped(w)) list.Add(w);
+        return list;
+    }
+
+    void Apply(AugmentDef def, bool announce)
+    {
+        int before = Level(def.id);
+        var tagTierBefore = SynergyTier(def.tag);
+        levels[def.id] = before + 1;
+        if(before == 0) order.Add(def.id);
+
+        switch(def.id) {
+            case "bloodprice":
+                if(before == 0 && InfiniteStage.Instance != null) InfiniteStage.Instance.AddShieldNow(-1);
+                break;
+            case "spareshield":
+                if(InfiniteStage.Instance != null) InfiniteStage.Instance.AddShieldNow(1);
+                break;
+            case "rerollbag":
+                rerollBag += 3;
+                break;
+            case "extraarms":
+                var free = FreeWeaponsForExtra();
+                if(free.Count == 1 || !announce) {
+                    if(free.Count > 0) extraWeapon = free[0];
+                } else if(free.Count > 1) {
+                    PauseForUI();
+                    ui.ShowWeaponChoice("추가 무장: 무기 선택", free, w => {
+                        extraWeapon = w;
+                        ResumeFromUI();
+                        ui.RefreshHUD();
+                    });
+                }
+                break;
+            case "supply":
+                var pool = FreeWeaponsForExtra();
+                if(pool.Count > 0) {
+                    supplyWeapon = pool[UnityEngine.Random.Range(0, pool.Count)];
+                    supplyUntil = CurrentStage + AugmentDefs.SupplyStages(Level("supply"));
+                    if(announce) ui.Toast($"보급 투하: {AugmentDefs.WeaponName(supplyWeapon)} 합류!", AugmentDefs.TagColor(AugTag.Treasure));
+                }
+                break;
+        }
+
+        int tierAfter = SynergyTier(def.tag);
+        if(announce && def.tag != AugTag.Treasure && tierAfter > tagTierBefore)
+            ui.Toast($"시너지 완성! {AugmentDefs.TagName(def.tag)} {tierAfter}단계: {AugmentDefs.SynergyText(def.tag, tierAfter)}", AugmentDefs.TagColor(def.tag), true);
+        ui.RefreshHUD();
+    }
+
+    int SynergyTier(AugTag t)
+    {
+        int c = TagCount(t);
+        return c >= 6 ? 6 : c >= 4 ? 4 : c >= 2 ? 2 : 0;
+    }
+
+    void RefreshRerollDay()
+    {
+        string today = DateTime.Now.ToString("yyyy-MM-dd");
+        if(freeRerollDate != today) {
+            freeRerollDate = today;
+            freeRerollsUsed = 0;
+            adRerollsUsed = 0;
+        }
+    }
+
+    public string RerollLabel()
+    {
+        RefreshRerollDay();
+        int free = FreeRerollsPerDay - freeRerollsUsed;
+        if(free > 0) return $"다시 뽑기 (무료 {free})";
+        if(rerollBag > 0) return $"다시 뽑기 (주머니 {rerollBag})";
+        if(adRerollsUsed < AdRerollsPerDay) return $"광고 보고 다시 뽑기 ({AdRerollsPerDay - adRerollsUsed})";
+        return $"다시 뽑기 (다이아 {DiamondRerollCost})";
+    }
+
+    void RequestReroll()
+    {
+        RefreshRerollDay();
+        if(FreeRerollsPerDay - freeRerollsUsed > 0) {
+            freeRerollsUsed++;
+            DoReroll();
+        } else if(rerollBag > 0) {
+            rerollBag--;
+            DoReroll();
+        } else if(adRerollsUsed < AdRerollsPerDay && AdmobManager.Instance != null) {
+            AdmobManager.Instance.ShowRewardedAdGeneric(() => {
+                adRerollsUsed++;
+                DoReroll();
+            });
+        } else if(GameManager.GetDiamond() >= DiamondRerollCost) {
+            GameManager.SetDiamond(-DiamondRerollCost);
+            DoReroll();
+        } else {
+            ui.Toast("다이아가 부족해요", Color.white);
+        }
+    }
+
+    void DoReroll()
+    {
+        if(shownAug == null) return;
+        var def = Roll(out AugGrade grade, -1);
+        if(def == null) return;
+        shownAug = def;
+        shownGrade = grade;
+        ui.ShowPull(def, Level(def.id) + 1, RerollLabel(), AcceptShown, RequestReroll);
+    }
+    #endregion
+
+    #region 원정 시작 / 환생
+    public int RebirthThreshold => rebirthCount == 0 ? 100 : Mathf.Max(50, bestStage / 2);
+    public bool CanRebirth => loaded && CurrentStage >= RebirthThreshold;
+
+    public static long StardustFor(int stage)
+    {
+        if(stage < 10) return 0;
+        return (long)Mathf.Floor(Mathf.Pow(stage / 10f, 1.5f));
+    }
+
+    public long RebirthGain {
+        get {
+            long g = StardustFor(CurrentStage);
+            int c = Level("collector");
+            if(c > 0) g = (long)(g * (1f + AugmentDefs.CollectorBonus(c)));
+            return g;
+        }
+    }
+
+    public int TreeCost(int node) => TreeBaseCost[node] * (tree[node] + 1);
+
+    public bool UpgradeTree(int node)
+    {
+        if(tree[node] >= TreeMax[node]) return false;
+        int cost = TreeCost(node);
+        if(stardust < cost) return false;
+        stardust -= cost;
+        tree[node]++;
+        ui.RefreshHUD();
+        return true;
+    }
+
+    public string TreeDesc(int node)
+    {
+        int l = tree[node];
+        switch(node) {
+            case 0: return $"골드 확률 +{l * 2}%p, 프리즘 확률 +{l * 0.4f:0.#}%p";
+            case 1: return l == 0 ? "원정 시작 시 최고 기록의 일부를 건너뛰어요" : $"최고 기록의 {l * 10}%부터 출발 (건너뛴 만큼 증강 지급)";
+            case 2: return l == 0 ? "원정 시작 시 증강 1개를 들고 출발" : $"{(l == 1 ? "실버" : l == 2 ? "골드" : "프리즘")} 이상 증강 1개를 들고 출발";
+        }
+        return "";
+    }
+
+    void ResetExpeditionState()
+    {
+        levels.Clear();
+        order.Clear();
+        expKills = 0;
+        expBossKills = 0;
+        soulStack = slaughterStack = wraithStack = stardustSizeStack = 0;
+        rerollBag = 0;
+        pity = 0;
+        extraWeapon = SideWeapon.None;
+        supplyWeapon = SideWeapon.None;
+        supplyUntil = 0;
+        explosions.Clear();
+    }
+
+    public void DoRebirth()
+    {
+        if(!CanRebirth) return;
+        long gain = RebirthGain;
+        stardust += gain;
+        rebirthCount++;
+        if(CurrentStage > bestStage) bestStage = CurrentStage;
+        ResetExpeditionState();
+
+        int start = 1;
+        if(tree[1] > 0) {
+            start = Mathf.FloorToInt(bestStage * 0.1f * tree[1] / PullInterval) * PullInterval + 1;
+            start = Mathf.Max(1, start);
+        }
+        rebirthStartStage = start;
+        pendingRebirthStart = true;
+        pendingSetup = true;
+        if(InfiniteStage.Instance != null) InfiniteStage.Instance.JumpToStage(1);
+        ui.Toast($"환생! 별의 먼지 +{gain:N0}", AugmentDefs.TagColor(AugTag.Treasure), true);
+        TryShowSetup();
+    }
+
+    void TryShowSetup()
+    {
+        if(!pendingSetup || ui.Busy) return;
+        if(InfiniteStage.Instance == null || !InfiniteStage.Instance.IsRunning) return;
+        if(StartScreenScript.Instance != null && StartScreenScript.Instance.gameObject.activeInHierarchy) return;
+        if(StageManager.instance != null && StageManager.instance.isInStage) return;
+
+        if(migrationGift > 0) {
+            long gift = migrationGift;
+            migrationGift = 0;
+            PauseForUI();
+            ui.ShowNotice("무한 스테이지가 '원정'으로 바뀌었어요",
+                $"5스테이지마다 증강을 뽑아 강해지고,\n벽에 막히면 환생해서 더 강하게 출발해요.\n\n지금까지의 기록 (최고 {bestStage:N0}스테이지)에 대한\n보상으로 별의 먼지 {gift:N0}개를 드려요.\n\n원정은 1스테이지부터 새로 시작해요.",
+                () => { ResumeFromUI(); });
+            return;
+        }
+
+        pendingSetup = false;
+        EnsureLoadout();
+        PauseForUI();
+        ui.ShowSetup(() => {
+            ResumeFromUI();
+            StartExpeditionAfterSetup();
+        });
+    }
+
+    void StartExpeditionAfterSetup()
+    {
+        var got = new List<string>();
+        if(pendingRebirthStart) {
+            pendingRebirthStart = false;
+            if(tree[2] > 0) {
+                var def = Roll(out _, tree[2] - 1);
+                if(def != null) { Apply(def, false); got.Add(def.name); }
+            }
+            int skippedPulls = (rebirthStartStage - 1) / PullInterval;
+            for(int i = 0; i < skippedPulls; i++) {
+                var def = Roll(out _, -1);
+                if(def == null) break;
+                Apply(def, false);
+                got.Add(def.name);
+            }
+            if(InfiniteStage.Instance != null && rebirthStartStage > 1)
+                InfiniteStage.Instance.JumpToStage(rebirthStartStage);
+        }
+        if(got.Count > 0) {
+            PauseForUI();
+            ui.ShowNotice("출발 보너스", $"증강 {got.Count}개를 얻었어요!\n\n{string.Join(", ", got)}", () => ResumeFromUI());
+        }
+        ui.RefreshHUD();
+    }
+    #endregion
+
+    #region 저장
+    public void LoadData(GameData data)
+    {
+        if(data.expeditionVersion < 1) {
+            // 예전 세이브(또는 새 게임): 원정 상태를 깨끗하게 초기화
+            ResetExpeditionState();
+            blessing = -1;
+            loadoutSet = false;
+            loadoutLeft = loadoutRight = SideWeapon.None;
+            freeRerollDate = "";
+            freeRerollsUsed = adRerollsUsed = 0;
+            stardust = 0;
+            tree = new int[3];
+            rebirthCount = 0;
+            int oldStage = data.StageIndex;
+            bestStage = Mathf.Max(1, oldStage);
+            pendingSetup = false;
+            migrationGift = 0;
+            if(oldStage > 1) {
+                migrationGift = StardustFor(oldStage);
+                stardust = migrationGift;
+                pendingSetup = true;
+                pendingMigrationJump = true;
+                data.StageIndex = 1;
+                if(InfiniteStage.Instance != null) InfiniteStage.Instance.CurrentStage = 1;
+            }
+            data.expeditionVersion = 1;
+        } else {
+            levels.Clear();
+            order.Clear();
+            if(data.augIds != null && data.augLevels != null) {
+                for(int i = 0; i < data.augIds.Count && i < data.augLevels.Count; i++) {
+                    if(AugmentDefs.Get(data.augIds[i]) == null) continue;
+                    levels[data.augIds[i]] = data.augLevels[i];
+                    order.Add(data.augIds[i]);
+                }
+            }
+            expKills = data.expKills;
+            expBossKills = data.expBossKills;
+            soulStack = data.expSoulStack;
+            slaughterStack = data.expSlaughterStack;
+            wraithStack = data.expWraithStack;
+            stardustSizeStack = Level("stardustshot") > 0 ? Mathf.Min(2f, (expKills / 100) * AugmentDefs.StardustShotPer100(Level("stardustshot"))) : 0f;
+            blessing = data.expBlessing;
+            rerollBag = data.expRerollBag;
+            pity = data.expPity;
+            extraWeapon = (SideWeapon)data.expExtraWeapon;
+            supplyWeapon = (SideWeapon)data.expSupplyWeapon;
+            supplyUntil = data.expSupplyUntil;
+            loadoutSet = data.expLoadoutSet;
+            loadoutLeft = (SideWeapon)data.expLoadoutLeft;
+            loadoutRight = (SideWeapon)data.expLoadoutRight;
+            pendingSetup = data.expPendingSetup;
+            freeRerollDate = data.freeRerollDate ?? "";
+            freeRerollsUsed = data.freeRerollsUsed;
+            adRerollsUsed = data.adRerollsUsed;
+            stardust = data.stardust;
+            tree = new int[3];
+            if(data.rebirthTree != null)
+                for(int i = 0; i < tree.Length && i < data.rebirthTree.Count; i++) tree[i] = Mathf.Clamp(data.rebirthTree[i], 0, TreeMax[i]);
+            bestStage = Mathf.Max(1, data.bestExpeditionStage);
+            rebirthCount = data.rebirthCount;
+            // 환생 직후 출발 전에 저장된 경우: 원정 준비 화면과 출발 보너스를 다시 이어서 진행
+            pendingRebirthStart = data.expPendingStartStage > 0;
+            rebirthStartStage = Mathf.Max(1, data.expPendingStartStage);
+            if(pendingRebirthStart) pendingSetup = true;
+        }
+        if(!loadoutSet) EnsureLoadout();
+        loaded = true;
+        ui.RefreshHUD();
+    }
+
+    public void SaveData(GameData data)
+    {
+        if(!loaded) return;
+        data.expeditionVersion = 1;
+        data.augIds = new List<string>(order);
+        data.augLevels = new List<int>();
+        foreach(var id in order) data.augLevels.Add(Level(id));
+        data.expKills = expKills;
+        data.expBossKills = expBossKills;
+        data.expSoulStack = soulStack;
+        data.expSlaughterStack = slaughterStack;
+        data.expWraithStack = wraithStack;
+        data.expBlessing = blessing;
+        data.expRerollBag = rerollBag;
+        data.expPity = pity;
+        data.expExtraWeapon = (int)extraWeapon;
+        data.expSupplyWeapon = (int)supplyWeapon;
+        data.expSupplyUntil = supplyUntil;
+        data.expLoadoutSet = loadoutSet;
+        data.expLoadoutLeft = (int)loadoutLeft;
+        data.expLoadoutRight = (int)loadoutRight;
+        data.expPendingSetup = pendingSetup || migrationGift > 0;
+        data.freeRerollDate = freeRerollDate;
+        data.freeRerollsUsed = freeRerollsUsed;
+        data.adRerollsUsed = adRerollsUsed;
+        data.stardust = stardust;
+        data.rebirthTree = new List<int>(tree);
+        data.bestExpeditionStage = bestStage;
+        data.rebirthCount = rebirthCount;
+        data.expPendingStartStage = pendingRebirthStart ? rebirthStartStage : 0;
+    }
+    #endregion
+
+    #region 개발용 키 (에디터 / 개발 빌드 전용)
+    void DebugKeys()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if(!loaded) return;
+        if(Input.GetKeyDown(KeyCode.F1)) QueuePull(1);
+        if(Input.GetKeyDown(KeyCode.F2) && InfiniteStage.Instance != null) {
+            InfiniteStage.Instance.JumpToStage(InfiniteStage.Instance.CurrentStage + 20);
+            ui.Toast($"[개발] {InfiniteStage.Instance.CurrentStage}스테이지로 이동", Color.white);
+        }
+        if(Input.GetKeyDown(KeyCode.F3)) {
+            debugAllBlessings = !debugAllBlessings;
+            ui.Toast("[개발] 모든 축복 해금: " + (debugAllBlessings ? "켜짐" : "꺼짐"), Color.white);
+        }
+        if(Input.GetKeyDown(KeyCode.F4)) { stardust += 100; ui.Toast("[개발] 별의 먼지 +100", Color.white); ui.RefreshHUD(); }
+        if(Input.GetKeyDown(KeyCode.F5)) { pendingSetup = true; ui.Toast("[개발] 원정 준비 화면", Color.white); }
+        if(Input.GetKeyDown(KeyCode.F6)) ui.ShowRebirth();
+#endif
+    }
+    #endregion
+}

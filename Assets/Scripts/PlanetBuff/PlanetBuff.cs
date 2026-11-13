@@ -1,4 +1,4 @@
-using System.Collections;
+ο»Ώusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -75,28 +75,28 @@ public class PlanetBuff : MonoBehaviour
             value = MaxValue / 10.0f * Level;
             switch(buffType) {
                 case BuffType.GoldIncrease:
-                    BuffInfo.text = "ΘΉµζ °ρµε " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "νλ“ κ³¨λ“ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.EXPIncrease:
-                    BuffInfo.text = "ΘΉµζ °ζΗθΔ΅ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "νλ“ κ²½ν—μΉ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.DamageIncrease:
-                    BuffInfo.text = "ΓΡ µ¥ΉΜΑφ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "μ΄ λ°λ―Έμ§€ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.CritChanceIncrease:
-                    BuffInfo.text = "Δ΅ΈνΕΈ Θ®·ό " + value + "% Αυ°΅";
+                    BuffInfo.text = "μΉλª…νƒ€ ν™•λ¥  " + value + "% μ¦κ°€";
                     break;
                 case BuffType.CritDamageIncrease:
-                    BuffInfo.text = "Δ΅ΈνΕΈ µ¥ΉΜΑφ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "μΉλª…νƒ€ λ°λ―Έμ§€ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.StunIncrease:
-                    BuffInfo.text = "½ΊΕΟ Θ®·ό " + value + "% Αυ°΅";
+                    BuffInfo.text = "μ¤ν„΄ ν™•λ¥  " + value + "% μ¦κ°€";
                     break;
                 case BuffType.AttackSpeedIncrease:
-                    BuffInfo.text = "°ψ°έ ΌΣµµ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "κ³µκ²© μ†λ„ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.BulletSpeedIncrease:
-                    BuffInfo.text = "ΓΡΎΛ ΌΣµµ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "μ΄μ• μ†λ„ " + value * 100 + "% μ¦κ°€";
                     break;
             }
             priceText.gameObject.SetActive(true);
@@ -108,28 +108,28 @@ public class PlanetBuff : MonoBehaviour
             value = MaxValue / 10.0f * Level;
             switch(buffType) {
                 case BuffType.GoldIncrease:
-                    BuffInfo.text = "ΘΉµζ °ρµε " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "νλ“ κ³¨λ“ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.EXPIncrease:
-                    BuffInfo.text = "ΘΉµζ °ζΗθΔ΅ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "νλ“ κ²½ν—μΉ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.DamageIncrease:
-                    BuffInfo.text = "ΓΡ µ¥ΉΜΑφ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "μ΄ λ°λ―Έμ§€ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.CritChanceIncrease:
-                    BuffInfo.text = "Δ΅ΈνΕΈ Θ®·ό " + value + "% Αυ°΅";
+                    BuffInfo.text = "μΉλª…νƒ€ ν™•λ¥  " + value + "% μ¦κ°€";
                     break;
                 case BuffType.CritDamageIncrease:
-                    BuffInfo.text = "Δ΅ΈνΕΈ µ¥ΉΜΑφ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "μΉλª…νƒ€ λ°λ―Έμ§€ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.StunIncrease:
-                    BuffInfo.text = "½ΊΕΟ Θ®·ό " + value + "% Αυ°΅";
+                    BuffInfo.text = "μ¤ν„΄ ν™•λ¥  " + value + "% μ¦κ°€";
                     break;
                 case BuffType.AttackSpeedIncrease:
-                    BuffInfo.text = "°ψ°έ ΌΣµµ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "κ³µκ²© μ†λ„ " + value * 100 + "% μ¦κ°€";
                     break;
                 case BuffType.BulletSpeedIncrease:
-                    BuffInfo.text = "ΓΡΎΛ ΌΣµµ " + value * 100 + "% Αυ°΅";
+                    BuffInfo.text = "μ΄μ• μ†λ„ " + value * 100 + "% μ¦κ°€";
                     break;
             }
             priceText.gameObject.SetActive(false);

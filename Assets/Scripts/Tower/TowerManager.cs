@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -98,7 +98,7 @@ public class TowerManager : MonoBehaviour, IDataPersistence
                     }
                 }
 
-                adsLeftPerDay_Text.text = "±¤°í " + (3 - adsPerDay) + "/3";
+                adsLeftPerDay_Text.text = "ê´‘ê³  " + (3 - adsPerDay) + "/3";
                 AdsButton.interactable = adsPerDay != 3;
             }
 
@@ -132,7 +132,7 @@ public class TowerManager : MonoBehaviour, IDataPersistence
             }
         }
         var ts = TimeSpan.FromSeconds(data.TimeForTravel);
-        TravelTimeText.text = string.Format("{0:#0}½Ã°£ {1:00}ºÐ", (int)ts.TotalHours, ts.Minutes);
+        TravelTimeText.text = string.Format("{0:#0}ì‹œê°„ {1:00}ë¶„", (int)ts.TotalHours, ts.Minutes);
     }
 
     public void Travel()

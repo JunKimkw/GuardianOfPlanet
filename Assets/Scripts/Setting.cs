@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -54,7 +54,7 @@ public class Setting : MonoBehaviour
 
     public void ResetGame(TMP_InputField inputField)
     {
-        if(inputField.text == "�ʱ�ȭ") {
+        if(inputField.text == "초기화") {
             DataPersistenceManager.instance.DeleteGame();
         } else {
             inputField.text = "";

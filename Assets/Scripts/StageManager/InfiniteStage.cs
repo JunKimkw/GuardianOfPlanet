@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -68,6 +68,39 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
     private void Awake()
     {
         Instance = this;
+    }
+
+    // 리마스터: 원정(무한 스테이지)이 지금 진행 중인지
+    public bool IsRunning => InBattle;
+
+    int StartingShield()
+    {
+        int bonus = AugmentManager.Instance != null ? AugmentManager.Instance.ShieldBonus : 0;
+        return Mathf.Max(1, 3 + bonus);
+    }
+
+    // 리마스터: 원정을 특정 스테이지에서 다시 시작 (환생, 기존 유저 보상 후 재시작)
+    public void JumpToStage(int stage)
+    {
+        bool wasRunning = InBattle;
+        PauseInfiniteStage();
+        ResultTab_Cleared.SetActive(false);
+        ResultTab_Failed.SetActive(false);
+        WarningObject.SetActive(false);
+        CurrentStage = Mathf.Max(1, stage);
+        tempEnemy = 0;
+        tempHealth = StartingShield();
+        GridManager.instance.ActiveGrid(CurrentStage / 120);
+        stageText.text = CurrentStage.ToString();
+        if(wasRunning)
+            SetStageBeforeEntering();
+    }
+
+    // 리마스터: 실드 수가 바뀌는 증강을 얻었을 때 현재 실드에도 바로 반영
+    public void AddShieldNow(int delta)
+    {
+        playerHealth = Mathf.Max(1, playerHealth + delta);
+        HealthText.text = playerHealth.ToString();
     }
 
     private void Update()
@@ -156,7 +189,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         KilledEnemy = 0;
         SpawnedEnemy = 0;
         BossSpawned = false;
-        playerHealth = 3;
+        playerHealth = StartingShield();
         setEnemyIndex();
         setSpawnSpeed();
         setEnemyScale();
@@ -175,6 +208,10 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
         //SetPrize
         setPrize();
+
+        //리마스터: 스테이지 클리어 → 증강 뽑기 등
+        if(AugmentManager.Instance != null)
+            AugmentManager.Instance.OnStageCleared(CurrentStage - 1);
 
         //Achievement
         AchievementManager.instance.InfiniteStageDaily++;
@@ -220,7 +257,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         //Diamond
         if((CurrentStage - 1) % 5 == 0) {
             DiamondReward_gameObject.SetActive(true);
-            DiamondReward_gameObject.GetComponentInChildren<TextMeshProUGUI>().text = 25.ToString();
+            DiamondReward_gameObject.GetComponentInChildren<TextMeshProUGUI>().text = 50.ToString();
             GameManager.SetDiamond(50);
         } else {
             DiamondReward_gameObject.SetActive(false);
@@ -232,10 +269,10 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         UniqueStoneReward_gameObject.SetActive(false);
         LegendaryStoneReward_gameObject.SetActive(false);
         AncientStoneReward_gameObject.SetActive(false);
-        int ran = 0;
+        float ran = 0;
         //Stone
         if((CurrentStage - 1) % 4 == 0) {
-            ran = UnityEngine.Random.Range(0, 100);
+            ran = UnityEngine.Random.Range(0f, 100f);
             if(ran <= 0.3f) {
                 AncientStoneReward_gameObject.SetActive(true);
                 AncientStoneReward_gameObject.GetComponentInChildren<TextMeshProUGUI>().text = "1";
@@ -304,7 +341,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         SoundManager.Instance.playDefeat();
 
         ResultTab_Failed.SetActive(true);
-        currentStageText_Failed.text = "�������� " + CurrentStage;
+        currentStageText_Failed.text = "스테이지 " + CurrentStage;
 
         timeSlider_Failed.maxValue = 3;
         timeSlider_Failed.value = 3;

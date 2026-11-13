@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -138,13 +138,13 @@ public class Railmanager : MonoBehaviour, IDataPersistence
     [Header("Scroll")]
     [Space(5)]
     public float dragSpeed = 2.0f;
-    public float minY = 0f; //¾Æ·¡·Î Ä«¸Ş¶ó ÀÌµ¿ ¹üÀ§ È®Àå
-    public float maxY = 0f; //À§·Î Ä«¸Ş¶ó ÀÌµ¿ ¹üÀ§ È®Àå
+    public float minY = 0f; //ì•„ë˜ë¡œ ì¹´ë©”ë¼ ì´ë™ ë²”ìœ„ í™•ì¥
+    public float maxY = 0f; //ìœ„ë¡œ ì¹´ë©”ë¼ ì´ë™ ë²”ìœ„ í™•ì¥
 
     float railFrameTopY;
     float railFrameBottomY;
 
-    public float intervalY; //°£°İ¸¸Å­ Ä«¸Ş¶ó È®Àå
+    public float intervalY; //ê°„ê²©ë§Œí¼ ì¹´ë©”ë¼ í™•ì¥
     int countToScroll;
 
     public bool isInMine = false;
@@ -348,7 +348,7 @@ public class Railmanager : MonoBehaviour, IDataPersistence
 
         tradingAmount = 0;
 
-        tradingOreText.text = "¼ö·® ¼±ÅÃ";
+        tradingOreText.text = "ìˆ˜ëŸ‰ ì„ íƒ";
         resultAmountText.text = "0";
     }
 
@@ -415,10 +415,10 @@ public class Railmanager : MonoBehaviour, IDataPersistence
     public void setResultText()
     {
         if(currentTradeIndex == 2) {
-            tradingOreText.text = tradingAmount != 0 ? (tradingAmount).ToString() : "¼ö·® ¼±ÅÃ";
+            tradingOreText.text = tradingAmount != 0 ? (tradingAmount).ToString() : "ìˆ˜ëŸ‰ ì„ íƒ";
             resultAmountText.text = (tradingAmount * orePerItem).ToString();
         } else {
-            tradingOreText.text = tradingAmount != 0 ? (tradingAmount * orePerItem).ToString() : "¼ö·® ¼±ÅÃ";
+            tradingOreText.text = tradingAmount != 0 ? (tradingAmount * orePerItem).ToString() : "ìˆ˜ëŸ‰ ì„ íƒ";
             resultAmountText.text = (tradingAmount).ToString();
         }
     }

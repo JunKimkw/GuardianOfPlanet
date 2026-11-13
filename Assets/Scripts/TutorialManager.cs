@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -75,30 +75,30 @@ public class TutorialManager : MonoBehaviour
             case 0:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialUIs[0].SetActive(true);
-                return "ÇöÀç Áö±¸¿¡´Â ¸¹Àº ¸ó½ºÅÍµéÀÌ Á¸ÀçÇÕ´Ï´Ù.";
+                return "í˜„ì¬ ì§€êµ¬ì—ëŠ” ë§ì€ ëª¬ìŠ¤í„°ë“¤ì´ ì¡´ì¬í•©ë‹ˆë‹¤.";
             case 1:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 setTutorialHandPosition(0);
                 tutorialHands[0].SetActive(true);
                 tutorialUIs[1].SetActive(true);
-                return "À§¿¡ º¸ÀÌ´Â ½ºÅ×ÀÌÁö¿¡ µû¶ó ¸ó½ºÅÍÀÇ Ã¼·Â, °æÇèÄ¡, °ñµå°¡ ´Ş¶óÁı´Ï´Ù.";
+                return "ìœ„ì— ë³´ì´ëŠ” ìŠ¤í…Œì´ì§€ì— ë”°ë¼ ëª¬ìŠ¤í„°ì˜ ì²´ë ¥, ê²½í—˜ì¹˜, ê³¨ë“œê°€ ë‹¬ë¼ì§‘ë‹ˆë‹¤.";
             case 2:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialUIs[2].SetActive(true);
                 setTutorialHandPosition(1);
                 tutorialHands[1].SetActive(true);
-                return "Ã¼·ÂÀº ¸ó½ºÅÍ¿¡°Ô °ø°İ ¹ŞÀ» ½Ã ÁÙ¾îµì´Ï´Ù.\nÀüºÎ ¼Ò¸ğÇÒ °æ¿ì ÇØ´ç ½ºÅ×ÀÌÁö¸¦ ´Ù½Ã ½ÃÀÛÇÕ´Ï´Ù.";
+                return "ì²´ë ¥ì€ ëª¬ìŠ¤í„°ì—ê²Œ ê³µê²© ë°›ì„ ì‹œ ì¤„ì–´ë“­ë‹ˆë‹¤.\nì „ë¶€ ì†Œëª¨í•  ê²½ìš° í•´ë‹¹ ìŠ¤í…Œì´ì§€ë¥¼ ë‹¤ì‹œ ì‹œì‘í•©ë‹ˆë‹¤.";
             case 3:
                 setTutorialHandPosition(2);
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialUIs[3].SetActive(true);
                 tutorialHands[2].SetActive(true);
-                return "ÇØ°ñÀº ³²Àº ¸ó½ºÅÍ ¼ö¸¦ Ç¥½ÃÇÕ´Ï´Ù.\nÇØ´ç ¼ıÀÚ°¡ 0ÀÌµÇ°Å³ª º¸½º¸¦ Ã³Ä¡ÇÏ¸é\n´ÙÀ½ ½ºÅ×ÀÌÁö·Î ³Ñ¾î°©´Ï´Ù.";
+                return "í•´ê³¨ì€ ë‚¨ì€ ëª¬ìŠ¤í„° ìˆ˜ë¥¼ í‘œì‹œí•©ë‹ˆë‹¤.\ní•´ë‹¹ ìˆ«ìê°€ 0ì´ë˜ê±°ë‚˜ ë³´ìŠ¤ë¥¼ ì²˜ì¹˜í•˜ë©´\në‹¤ìŒ ìŠ¤í…Œì´ì§€ë¡œ ë„˜ì–´ê°‘ë‹ˆë‹¤.";
             case 4:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 GameManager.SetMoney(20);
                 tutorialUIs[4].SetActive(true);
-                return "¸ó½ºÅÍ´Â ¿ìÁÖ¼±À» ÅëÇØ Ã³Ä¡ÇÕ´Ï´Ù. ¾Æ·¡ º¸ÀÌ´Â °­È­¸¦ ´­·¯ ¿ìÁÖ¼±À» ¸¸µé¾îº¸¼¼¿ä. 20°ñµå¸¦ Áö±ŞÇØµå¸®°Ú½À´Ï´Ù. ";
+                return "ëª¬ìŠ¤í„°ëŠ” ìš°ì£¼ì„ ì„ í†µí•´ ì²˜ì¹˜í•©ë‹ˆë‹¤. ì•„ë˜ ë³´ì´ëŠ” ê°•í™”ë¥¼ ëˆŒëŸ¬ ìš°ì£¼ì„ ì„ ë§Œë“¤ì–´ë³´ì„¸ìš”. 20ê³¨ë“œë¥¼ ì§€ê¸‰í•´ë“œë¦¬ê² ìŠµë‹ˆë‹¤. ";
             case 5:
                 setTutorialHandPosition(3);
                 tutorialHands[3].SetActive(true);
@@ -122,64 +122,64 @@ public class TutorialManager : MonoBehaviour
                 return "";
             case 9:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "¸ó½ºÅÍ ÇÑ¸¶¸®¸¦ ¼ÒÈ¯ÇØº¸°Ú½À´Ï´Ù. Å¬¸¯ÇÏ¿© Àâ¾Æº¸¼¼¿ä";
+                return "ëª¬ìŠ¤í„° í•œë§ˆë¦¬ë¥¼ ì†Œí™˜í•´ë³´ê² ìŠµë‹ˆë‹¤. í´ë¦­í•˜ì—¬ ì¡ì•„ë³´ì„¸ìš”";
             case 10:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialUIs[5].SetActive(true);
-                return "½ºÅ×ÀÌÁö¸¶´Ù º¸»óÀÌ ÁÖ¾îÁı´Ï´Ù. *º¸»ó (°ñµå, °­È­¼®, »Ì±â±Ç, ´ÙÀÌ¾Æ)";
+                return "ìŠ¤í…Œì´ì§€ë§ˆë‹¤ ë³´ìƒì´ ì£¼ì–´ì§‘ë‹ˆë‹¤. *ë³´ìƒ (ê³¨ë“œ, ê°•í™”ì„, ë½‘ê¸°ê¶Œ, ë‹¤ì´ì•„)";
             case 11:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "´õ °­ÇÑ ¿ìÁÖ¼±À» ¸¸µé±â À§ÇØ ¸ğÇèÀ» ¶°³¯ ¼ö ÀÖ¾î¿ä";
+                return "ë” ê°•í•œ ìš°ì£¼ì„ ì„ ë§Œë“¤ê¸° ìœ„í•´ ëª¨í—˜ì„ ë– ë‚  ìˆ˜ ìˆì–´ìš”";
             case 12:
                 setTutorialHandPosition(6);
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialHands[6].SetActive(true);
                 tutorialButtons[3].gameObject.SetActive(true);
-                return "¸ğÇèÀ» Å¬¸¯ÇØº¸¼¼¿ä";
+                return "ëª¨í—˜ì„ í´ë¦­í•´ë³´ì„¸ìš”";
             case 13:
                 setTutorialHandPosition(7);
                 tutorialBubbles[1].gameObject.SetActive(true);
                 tutorialButtons[4].gameObject.SetActive(true);
                 tutorialHands[7].SetActive(true);
-                return "Çà¼ºÀº ÁÖÀÎÀÇ ÀÌ¸§À» °¡Á®¿Ô½À´Ï´Ù. Ã¹¹øÂ° Çà¼ºÀº º£Çì¸ğ½º¿¡¿ä. Å¬¸¯ÇØº¸¼¼¿ä";
+                return "í–‰ì„±ì€ ì£¼ì¸ì˜ ì´ë¦„ì„ ê°€ì ¸ì™”ìŠµë‹ˆë‹¤. ì²«ë²ˆì§¸ í–‰ì„±ì€ ë² í—¤ëª¨ìŠ¤ì—ìš”. í´ë¦­í•´ë³´ì„¸ìš”";
             case 14:
                 setTutorialHandPosition(8);
                 tutorialBubbles[1].gameObject.SetActive(true);
                 tutorialButtons[5].gameObject.SetActive(true);
                 tutorialHands[8].SetActive(true);
-                return "½ºÅ×ÀÌÁö ÁøÀÔ Àü Çà¼ºÁ¤º¸¸¦ ÅëÇØ Çà¼º ¸ó½ºÅÍÀÇ Á¤º¸¸¦ ¾Ë ¼ö ÀÖ¾î¿ä. Å¬¸¯ÇØº¸¼¼¿ä.";
+                return "ìŠ¤í…Œì´ì§€ ì§„ì… ì „ í–‰ì„±ì •ë³´ë¥¼ í†µí•´ í–‰ì„± ëª¬ìŠ¤í„°ì˜ ì •ë³´ë¥¼ ì•Œ ìˆ˜ ìˆì–´ìš”. í´ë¦­í•´ë³´ì„¸ìš”.";
             case 15:
                 tutorialBubbles[1].gameObject.SetActive(true);
-                return "¹æ±İ Àâ¾Ò´ø ¸ó½ºÅÍº¸´Ù ÈÎ¾À ¾àÇÕ´Ï´Ù.";
+                return "ë°©ê¸ˆ ì¡ì•˜ë˜ ëª¬ìŠ¤í„°ë³´ë‹¤ í›¨ì”¬ ì•½í•©ë‹ˆë‹¤.";
             case 16:
                 setTutorialHandPosition(9);
                 tutorialBubbles[1].gameObject.SetActive(true);
                 tutorialHands[9].SetActive(true);
                 tutorialButtons[6].gameObject.SetActive(true);
-                return "Á¤º¸Ã¢À» ´İ°í ¸ğÇèÀ» ¶°³ªº¾½Ã´Ù";
+                return "ì •ë³´ì°½ì„ ë‹«ê³  ëª¨í—˜ì„ ë– ë‚˜ë´…ì‹œë‹¤";
             case 17:
                 setTutorialHandPosition(10);
                 tutorialBubbles[1].gameObject.SetActive(true);
                 tutorialButtons[7].gameObject.SetActive(true);
                 tutorialHands[10].SetActive(true);
-                return "ÀüÅõ ½ÃÀÛ ¹öÆ°À» ´­·¯º¸¼¼¿ä!";
+                return "ì „íˆ¬ ì‹œì‘ ë²„íŠ¼ì„ ëˆŒëŸ¬ë³´ì„¸ìš”!";
             case 18:
                 tutorialBubbles[1].gameObject.SetActive(true);
-                return "5¸¶¸® ¸ó½ºÅÍ°¡ ³ª¿Í¿ä. È¥ÀÚ¼­ Å¬¸®¾îÇØº¸¼¼¿ä!";
+                return "5ë§ˆë¦¬ ëª¬ìŠ¤í„°ê°€ ë‚˜ì™€ìš”. í˜¼ìì„œ í´ë¦¬ì–´í•´ë³´ì„¸ìš”!";
             case 19:
                 if(StageManager.instance.StageCleared.activeSelf) {
                     setTutorialHandPosition(11);
                     tutorialBubbles[1].gameObject.SetActive(true);
                     tutorialButtons[8].gameObject.SetActive(true);
                     tutorialHands[11].SetActive(true);
-                    return "ÃàÇÏµå¸³´Ï´Ù! º¸»óÀ» È¹µæÇÏ°í ¸ğÇè Á¾·á¸¦ Å¬¸¯ÇÏ¼¼¿ä.";
+                    return "ì¶•í•˜ë“œë¦½ë‹ˆë‹¤! ë³´ìƒì„ íšë“í•˜ê³  ëª¨í—˜ ì¢…ë£Œë¥¼ í´ë¦­í•˜ì„¸ìš”.";
                 } else if(StageManager.instance.StageFailed.activeSelf) {
                     setTutorialHandPosition(12);
                     tutorialBubbles[1].gameObject.SetActive(true); 
                     tutorialButtons[9].gameObject.SetActive(true);
                     tutorialHands[12].SetActive(true);
                     ind--;
-                    return "¾Æ½±°Ô ÆĞ¹èÇÏ¼Ì¾î¿ä.... Àç½Ãµµ¸¦ Å¬¸¯ÇØº¸¼¼¿ä!";
+                    return "ì•„ì‰½ê²Œ íŒ¨ë°°í•˜ì…¨ì–´ìš”.... ì¬ì‹œë„ë¥¼ í´ë¦­í•´ë³´ì„¸ìš”!";
                 } else {
                     ind--;
                 }
@@ -187,84 +187,84 @@ public class TutorialManager : MonoBehaviour
             case 20:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialUIs[6].SetActive(true);
-                return "Àåºñ, ¹öÇÁ, Æ¯¼º µî ´Ù¾çÇÑ ÄÁÅÙÃ÷·Î ¿ìÁÖ¼±À» °­È­ ÇÒ ¼ö ÀÖ½À´Ï´Ù.";
+                return "ì¥ë¹„, ë²„í”„, íŠ¹ì„± ë“± ë‹¤ì–‘í•œ ì»¨í…ì¸ ë¡œ ìš°ì£¼ì„ ì„ ê°•í™” í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.";
             case 21:
                 tutorialUIs[7].SetActive(true);
                 tutorialBubbles[0].gameObject.SetActive(true); 
-                return "Àåºñ´Â ÀÏ¹İ, ·¹¾î, ¿¡ÇÈ, À¯´ÏÅ©, ·¹Àü´õ¸®, °í´ë µî±ŞÀÌ ÀÖ¾î¿ä.";
+                return "ì¥ë¹„ëŠ” ì¼ë°˜, ë ˆì–´, ì—í”½, ìœ ë‹ˆí¬, ë ˆì „ë”ë¦¬, ê³ ëŒ€ ë“±ê¸‰ì´ ìˆì–´ìš”.";
             case 22:
                 tutorialUIs[8].SetActive(true);
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "¹öÇÁ´Â ¿ìÁÖ¼®À¸·Î °­È­°¡ °¡´ÉÇÕ´Ï´Ù. ÇÏÁö¸¸ ¿ìÁÖ¼®Àº ¸ğÇè¿¡¼­ ±¸ÇÏ´Â°Ç ºÒ°¡´ÉÇØ¿ä.";
+                return "ë²„í”„ëŠ” ìš°ì£¼ì„ìœ¼ë¡œ ê°•í™”ê°€ ê°€ëŠ¥í•©ë‹ˆë‹¤. í•˜ì§€ë§Œ ìš°ì£¼ì„ì€ ëª¨í—˜ì—ì„œ êµ¬í•˜ëŠ”ê±´ ë¶ˆê°€ëŠ¥í•´ìš”.";
             case 23:
                 tutorialUIs[9].SetActive(true);
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "Áö±¸¿¡´Â ±¤»êÀÌ ÀÖ´Âµ¥ ±¤»êÀ» ÅëÇØ¼­ ¿ìÁÖ¼®À» Á¦ÀÛÇÏ°Å³ª È¹µæÇÒ ¼ö ÀÖ¾î¿ä!";
+                return "ì§€êµ¬ì—ëŠ” ê´‘ì‚°ì´ ìˆëŠ”ë° ê´‘ì‚°ì„ í†µí•´ì„œ ìš°ì£¼ì„ì„ ì œì‘í•˜ê±°ë‚˜ íšë“í•  ìˆ˜ ìˆì–´ìš”!";
             case 24:
                 setTutorialHandPosition(13);
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialHands[13].SetActive(true);
                 tutorialButtons[10].gameObject.SetActive(true);
-                return "±¤»êÀ» Å¬¸¯ÇØº¸¼¼¿ä.";
+                return "ê´‘ì‚°ì„ í´ë¦­í•´ë³´ì„¸ìš”.";
             case 25:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialHands[14].SetActive(true);
                 tutorialButtons[11].gameObject.SetActive(true);
-                return "¿©±â´Â ±¤»êÀÔ´Ï´Ù. ÇÑ¹ø È­¸éÀ» ÅÍÄ¡ÇØº¸¼¼¿ä!";
+                return "ì—¬ê¸°ëŠ” ê´‘ì‚°ì…ë‹ˆë‹¤. í•œë²ˆ í™”ë©´ì„ í„°ì¹˜í•´ë³´ì„¸ìš”!";
             case 26:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "È­¸éÀ» ÅÍÄ¡ÇÏ¸é ±âº» ±¤¼®À» È¹µæÇÒ ¼ö ÀÖ¾î¿ä!";
+                return "í™”ë©´ì„ í„°ì¹˜í•˜ë©´ ê¸°ë³¸ ê´‘ì„ì„ íšë“í•  ìˆ˜ ìˆì–´ìš”!";
             case 27:
                 setTutorialHandPosition(15);
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialHands[15].SetActive(true);
                 tutorialButtons[12].gameObject.SetActive(true);
-                return "¾Æ·¡ ±¤¼® ¹öÆ°À» ´­·¯º¸¼¼¿ä.";
+                return "ì•„ë˜ ê´‘ì„ ë²„íŠ¼ì„ ëˆŒëŸ¬ë³´ì„¸ìš”.";
             case 28:
                 setTutorialHandPosition(16);
                 tutorialBubbles[1].gameObject.SetActive(true);
                 tutorialHands[16].SetActive(true);
                 tutorialButtons[13].gameObject.SetActive(true);
                 GameManager.SetOre(30);
-                return "Áö±¸¿¡´Â ¿©·¯°¡Áö Á¾·ùÀÇ µ¹ÀÌ ÀÖ¾î¿ä. Ã¹ ¹øÂ° ±¤¼®À» ±¸¸ÅÇØº¸¼¼¿ä.";
+                return "ì§€êµ¬ì—ëŠ” ì—¬ëŸ¬ê°€ì§€ ì¢…ë¥˜ì˜ ëŒì´ ìˆì–´ìš”. ì²« ë²ˆì§¸ ê´‘ì„ì„ êµ¬ë§¤í•´ë³´ì„¸ìš”.";
             case 29:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "±¤¼®¸¶´Ù ·¹ÀÏ°ú µå¸±ÀÌ ÀÖ¾î¿ä. ·¹ÀÏÀ» ÅëÇØ ±¤¼®ÀÌ Àü´ŞµÇ¸é À§ ¶Ç´Â ¾Æ·¡·Î ³ª´©¾îÁı´Ï´Ù.";
+                return "ê´‘ì„ë§ˆë‹¤ ë ˆì¼ê³¼ ë“œë¦´ì´ ìˆì–´ìš”. ë ˆì¼ì„ í†µí•´ ê´‘ì„ì´ ì „ë‹¬ë˜ë©´ ìœ„ ë˜ëŠ” ì•„ë˜ë¡œ ë‚˜ëˆ„ì–´ì§‘ë‹ˆë‹¤.";
             case 30:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "À§´Â µå¸±·Î Ã¤±¼ÀÌ °¡´ÉÇÕ´Ï´Ù.";
+                return "ìœ„ëŠ” ë“œë¦´ë¡œ ì±„êµ´ì´ ê°€ëŠ¥í•©ë‹ˆë‹¤.";
             case 31:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "¹İ´ë·Î ¾Æ·¡´Â ¹ÌÈ®ÀÎ ±¤¼®À¸·Î ÀúÀå¼Ò¿¡ ÀúÀåµË´Ï´Ù.";
+                return "ë°˜ëŒ€ë¡œ ì•„ë˜ëŠ” ë¯¸í™•ì¸ ê´‘ì„ìœ¼ë¡œ ì €ì¥ì†Œì— ì €ì¥ë©ë‹ˆë‹¤.";
             case 32:
                 tutorialBubbles[0].gameObject.SetActive(true);
                 tutorialButtons[14].gameObject.SetActive(true);
-                return "µå¸±À» Å¬¸¯ÇØº¸¼¼¿ä.";
+                return "ë“œë¦´ì„ í´ë¦­í•´ë³´ì„¸ìš”.";
             case 33:
                 tutorialBubbles[2].gameObject.SetActive(true);
                 Railmanager.Instance.openRailInfoTab(Railmanager.Instance.currentRails[0]);
-                return "µå¸±·Î Ã¤±¼ÇÑ ±¤¼®Àº ¿ÂÀüÇÑ ±¤¼®À¸·Î ÀúÀåµË´Ï´Ù.";
+                return "ë“œë¦´ë¡œ ì±„êµ´í•œ ê´‘ì„ì€ ì˜¨ì „í•œ ê´‘ì„ìœ¼ë¡œ ì €ì¥ë©ë‹ˆë‹¤.";
             case 34:
                 tutorialBubbles[2].gameObject.SetActive(true);
-                return "¿ÂÀüÇÑ ±¤¼®À¸·Î µ¥¹ÌÁö, °ø°İ¼Óµµ ¶Ç´Â Çà¿îÀ» °­È­ÇÒ ¼ö ÀÖ¾î¿ä.";
+                return "ì˜¨ì „í•œ ê´‘ì„ìœ¼ë¡œ ë°ë¯¸ì§€, ê³µê²©ì†ë„ ë˜ëŠ” í–‰ìš´ì„ ê°•í™”í•  ìˆ˜ ìˆì–´ìš”.";
             case 35:
                 setTutorialHandPosition(17);
                 tutorialBubbles[2].gameObject.SetActive(true);
                 tutorialHands[17].SetActive(true);
                 tutorialButtons[15].gameObject.SetActive(true); 
-                return "Á¦Ã¶¼Ò¸¦ Å¬¸¯ÇØº¸¼¼¿ä!";
+                return "ì œì² ì†Œë¥¼ í´ë¦­í•´ë³´ì„¸ìš”!";
             case 36:
                 tutorialBubbles[2].gameObject.SetActive(true);
-                return "¾Æ·¡·Î ³»·Á°£ ±¤¼®Àº ¹ÌÈ®ÀÎ ±¤¼®À¸·Î Á¦Ã¶¼Ò¸¦ ÅëÇØ ±³È¯ÀÌ °¡´ÉÇØ¿ä!";
+                return "ì•„ë˜ë¡œ ë‚´ë ¤ê°„ ê´‘ì„ì€ ë¯¸í™•ì¸ ê´‘ì„ìœ¼ë¡œ ì œì² ì†Œë¥¼ í†µí•´ êµí™˜ì´ ê°€ëŠ¥í•´ìš”!";
             case 37:
                 tutorialBubbles[2].gameObject.SetActive(true);
-                return "±¤¼® °¡Ä¡¿¡ µû¶ó ±³È¯ ¾çÀÌ ´Ş¶óÁö´Ï ÁÖÀÇÇÏ¼¼¿ä!";
+                return "ê´‘ì„ ê°€ì¹˜ì— ë”°ë¼ êµí™˜ ì–‘ì´ ë‹¬ë¼ì§€ë‹ˆ ì£¼ì˜í•˜ì„¸ìš”!";
             case 38:
                 setTutorialHandPosition(18);
                 tutorialBubbles[2].gameObject.SetActive(true);
                 tutorialHands[18].SetActive(true);
                 tutorialButtons[16].gameObject.SetActive(true); 
-                return "Ã¢À» ´İ°í »ç³ÉÅÍ·Î µ¹¾Æ°¡º¸¼¼¿ä";
+                return "ì°½ì„ ë‹«ê³  ì‚¬ëƒ¥í„°ë¡œ ëŒì•„ê°€ë³´ì„¸ìš”";
             case 39:
                 setTutorialHandPosition(19);
                 tutorialHands[19].SetActive(true);
@@ -272,13 +272,13 @@ public class TutorialManager : MonoBehaviour
                 return "";
             case 40:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "ÃÖ°­ÀÇ ¿ìÁÖ¼±À» ¸¸µé¾î Çà¼ºÀ» ÁöÄÑÁÖ¼¼¿ä!";
+                return "ìµœê°•ì˜ ìš°ì£¼ì„ ì„ ë§Œë“¤ì–´ í–‰ì„±ì„ ì§€ì¼œì£¼ì„¸ìš”!";
             case 41:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "Çà¿îÀ» º÷´Ï´Ù.";
+                return "í–‰ìš´ì„ ë¹•ë‹ˆë‹¤.";
             case 42:
                 tutorialBubbles[0].gameObject.SetActive(true);
-                return "¸ğµç Æ©Åä¸®¾óÀÌ ³¡³µ½À´Ï´Ù. Æ©ÅÍ¸®¾ó º¸»ó°ú ÇÔ²² °ÔÀÓÀ» ½ÃÀÛÇÕ´Ï´Ù.";
+                return "ëª¨ë“  íŠœí† ë¦¬ì–¼ì´ ëë‚¬ìŠµë‹ˆë‹¤. íŠœí„°ë¦¬ì–¼ ë³´ìƒê³¼ í•¨ê»˜ ê²Œì„ì„ ì‹œì‘í•©ë‹ˆë‹¤.";
             default:
                 return "";
         }
