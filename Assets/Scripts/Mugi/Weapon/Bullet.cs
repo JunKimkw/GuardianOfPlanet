@@ -5,6 +5,7 @@ public abstract class Bullet : MonoBehaviour
 {
     [HideInInspector] public bool isCritical;
     [HideInInspector] public bool isStunning;
+    [HideInInspector] public int edgeBounces;   // 증강 "반사 파편"으로 튕긴 횟수 (풀에서 꺼낼 때 0)
     public float BulletSpeed;
 
     protected abstract PoolObjectTypeBullet PoolType { get; }
@@ -28,7 +29,19 @@ public abstract class Bullet : MonoBehaviour
         float h = cam.orthographicSize + OffScreenMargin;
         float w = cam.orthographicSize * cam.aspect + OffScreenMargin;
         Vector3 p = transform.position;
-        return p.y > h || p.y < -h || p.x > w || p.x < -w;
+        bool outX = p.x > w || p.x < -w, outY = p.y > h || p.y < -h;
+        if(!outX && !outY) return false;
+        // 증강 "반사 파편": 화면 끝에서 튕겨 돌아와요
+        if(edgeBounces < AugmentManager.RicochetCount) {
+            edgeBounces++;
+            Vector3 dir = transform.up;
+            if(outX) dir.x = -dir.x;
+            if(outY) dir.y = -dir.y;
+            transform.position = new Vector3(Mathf.Clamp(p.x, -w, w), Mathf.Clamp(p.y, -h, h), p.z);
+            transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f);
+            return false;
+        }
+        return true;
     }
 
     public virtual void DestroyBullet() => ObjectPoolBullet.Instance.CoolObject(gameObject, PoolType);

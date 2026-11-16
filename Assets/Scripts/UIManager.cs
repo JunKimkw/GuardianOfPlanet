@@ -49,18 +49,9 @@ public class UIManager : MonoBehaviour
     public void setGameSpeedandAuto()
     {
         for(int i = 0; i < AutoFarmButton.Length; i++) {
-            if(Player.instance.AutoShootTime > 0) {
-                AutoFarmButton[i].interactable = true;
-                if(WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot) {
-                    TimeSpan t = TimeSpan.FromSeconds(Player.instance.AutoShootTime);
-                    AutoFarmButton[i].GetComponentInChildren<TextMeshProUGUI>().text = string.Format("{0:#0}:{1:D2}:{2:D2}", t.Hours, t.Minutes, t.Seconds);
-                } else {
-                    AutoFarmButton[i].GetComponentInChildren<TextMeshProUGUI>().text = "AUTO";
-                }
-            } else {
-                AutoFarmButton[i].interactable = false;
-                AutoFarmButton[i].GetComponentInChildren<TextMeshProUGUI>().text = "AUTO";
-            }
+            // 리마스터: 자동 공격은 무료·무제한 (예전엔 시간제 아이템이 있어야 켜졌어요)
+            AutoFarmButton[i].interactable = true;
+            AutoFarmButton[i].GetComponentInChildren<TextMeshProUGUI>().text = "AUTO";
 
             AutoFarmButton[i].GetComponent<Image>().color = WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot ? new Color(0.2378687f, 0.8490566f, 0) : Color.white;
         }

@@ -57,10 +57,7 @@ public class PoisonBullet : MonoBehaviour
         poisonArea.transform.position = transform.position;
 
         //Scale if Passive
-        if(PoisonPlane.instance.extraSizeOfPoisonArea) {
-            poisonArea.transform.localScale *= 1.3f;
-            poisonArea.hasScaled = true;
-        }
+        poisonArea.SetScaleMul((PoisonPlane.instance.extraSizeOfPoisonArea ? 1.3f : 1f) * AugmentManager.PoisonAreaScale);
 
         poisonArea.gameObject.SetActive(true);
     }

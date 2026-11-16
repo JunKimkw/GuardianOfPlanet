@@ -28,6 +28,7 @@ public class ObjectPoolBullet : TypedObjectPool<ObjectPoolBullet, PoolObjectType
     protected override void OnTake(PoolObjectTypeBullet type, GameObject ob)
     {
         if(type == PoolObjectTypeBullet.Mining || type == PoolObjectTypeBullet.PoisonArea || type == PoolObjectTypeBullet.Poison) return;
+        if(ob.TryGetComponent(out Bullet bullet)) bullet.edgeBounces = 0;
         if(!baseScales.TryGetValue(ob, out Vector3 baseScale)) {
             baseScale = ob.transform.localScale;
             baseScales[ob] = baseScale;

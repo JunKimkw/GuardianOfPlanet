@@ -94,15 +94,6 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
             }
         }
 
-        // 일반 스테이지에서 자동 공격 시간 소모
-        if(StageManager.instance.isInStage && Time.timeScale > 0.5f && shootType == ShootType.AutoShoot) {
-            if(Player.instance.AutoShootTime > 0)
-                Player.instance.AutoShootTime -= Time.unscaledDeltaTime;
-            else {
-                shootType = ShootType.NormalShoot;
-                Player.instance.AutoShootTime = 0;
-            }
-        }
     }
 
     void RefreshAll()
@@ -152,14 +143,10 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
         foreach(var s in Shops) s.purchaseSize = size;
     }
 
+    // 자동 공격 켜고 끄기 (리마스터: 무료·무제한)
     public void AutoAttack()
     {
-        if(shootType != ShootType.AutoShoot) {
-            if(Player.instance.AutoShootTime > 0)
-                shootType = ShootType.AutoShoot;
-        } else {
-            shootType = ShootType.NormalShoot;
-        }
+        shootType = shootType == ShootType.AutoShoot ? ShootType.NormalShoot : ShootType.AutoShoot;
         GameManager.instance.saveGameSpeedandAuto(Time.timeScale, shootType == ShootType.AutoShoot);
     }
 

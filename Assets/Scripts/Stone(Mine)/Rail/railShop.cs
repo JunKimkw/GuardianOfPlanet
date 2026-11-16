@@ -50,7 +50,6 @@ public class railShop : MonoBehaviour
 
     public void SetShopInfo()
     {
-        stone.OnEnable();
         finalStoneValue = getStoneValue();
         SpawnTime = getSpawnTime();
         LvlText.text = "Lv. " + ShopLevel;

@@ -215,7 +215,7 @@ public class GameManager : MonoBehaviour, IDataPersistence
         if(PlayerPrefs.HasKey("lastAutoAttack")) {
             WeaponManager.instance.shootType = PlayerPrefs.GetInt("lastAutoAttack") == 1 ? WeaponManager.ShootType.AutoShoot : WeaponManager.ShootType.NormalShoot;
         } else {
-            PlayerPrefs.SetInt("lastAutoAttack", 0);
+            PlayerPrefs.SetInt("lastAutoAttack", 1);   // 리마스터: 처음부터 자동 공격
             WeaponManager.instance.shootType = PlayerPrefs.GetInt("lastAutoAttack") == 1 ? WeaponManager.ShootType.AutoShoot : WeaponManager.ShootType.NormalShoot;
         }
 

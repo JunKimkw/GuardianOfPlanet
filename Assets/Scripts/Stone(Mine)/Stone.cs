@@ -68,7 +68,7 @@ public class Stone : MonoBehaviour
         healthbar.slider.transform.position = Camera.main.WorldToScreenPoint(transform.position + healthbar.Offset);
     }
 
-    public void OnEnable()
+    void OnEnable()   // 풀에서 꺼낼 때만 (프리팹 원본에 부르면 원본 체력바가 바뀌어요)
     {
         MaxHealth = StoneHealth;
         SetStoneInfo();

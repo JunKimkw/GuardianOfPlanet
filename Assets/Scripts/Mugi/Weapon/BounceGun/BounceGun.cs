@@ -31,7 +31,7 @@ public class BounceGun : GunWeapon
         var be = new BounceEnemy();
         CreateBullet(be);
         if(ExtraBullet) CreateBullet(be);
-        if(AugmentManager.RollMultiShot()) CreateBullet(be);
+        for(int i = AugmentManager.ExtraShots(); i > 0; i--) CreateBullet(be);
     }
 
     public override void CreateBullet() => CreateBullet(new BounceEnemy());

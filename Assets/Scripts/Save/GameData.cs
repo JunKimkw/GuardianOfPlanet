@@ -199,6 +199,8 @@ public class GameData
     public float expSoulStack;
     public float expSlaughterStack;
     public float expWraithStack;
+    public List<string> expStackKeys;   // 리마스터 증강 누적 값 (용광로, 변이, 맹세 등)
+    public List<float> expStackVals;
     public int expBlessing;          // -1 없음, 0 연쇄, 1 저주, 2 증식
     public int expRerollBag;
     public int expPity;
@@ -416,5 +418,7 @@ public class GameData
         expLoadoutRight = -1;
         freeRerollDate = "";
         rebirthTree = new List<int>();
+        expStackKeys = new List<string>();
+        expStackVals = new List<float>();
     }
 }

@@ -87,7 +87,7 @@ public abstract class GunWeapon : WeaponBase
     public virtual float getAttackSpeed()
     {
         float t = RelodingSpeed * (1 - Trait(TraitsData.TraitsType.AttackSpeed)) * (1 - Player.instance.FinalAttack_SpeedPercent) * (1 - ExtraAttackSpeedScale);
-        return Mathf.Max(t, MaximumAttackSpeed);
+        return Mathf.Max(t, MaximumAttackSpeed) / AugmentManager.AttackSpeedFactor;   // 증강: 시간 가속, 무거운 사슬, 강철 장갑
     }
 
     protected virtual void Update()
@@ -100,11 +100,11 @@ public abstract class GunWeapon : WeaponBase
         }
     }
 
-    // 한 번 발사 (+ 증강 "다중 사격")
+    // 한 번 발사 (+ 증강 "다중 사격", "쌍둥이탄", 증식 세트 6)
     protected virtual void Fire()
     {
         CreateBullet();
-        if(AugmentManager.RollMultiShot()) CreateBullet();
+        for(int i = AugmentManager.ExtraShots(); i > 0; i--) CreateBullet();
     }
 
     public abstract void CreateBullet();
@@ -155,7 +155,9 @@ public abstract class ContactWeapon : WeaponBase
     IEnumerator HitEnemy(Enemy enemy)
     {
         while(enemyOnLaser.Contains(enemy) && enemy != null && enemy.gameObject.activeInHierarchy) {
-            enemy.OnHit(HitDamage, RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage);
+            AugmentManager.CurrentHitKind = HitKind.Laser;   // 증강 "굴절"
+            try { enemy.OnHit(HitDamage, RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage); }
+            finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
             yield return new WaitForSeconds(HitInterval);
         }
         enemyOnLaser.Remove(enemy);

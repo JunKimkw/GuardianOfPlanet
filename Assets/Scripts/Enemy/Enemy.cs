@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class Enemy : MonoBehaviour
+public partial class Enemy : MonoBehaviour
 {
     [SerializeField] public string id;
 
@@ -102,6 +102,7 @@ public class Enemy : MonoBehaviour
     private void OnEnable()
     {
         ResetVisuals();
+        ClearStatus();
         stunLeft = 0;
         //Speed
         enemyMovingSpeed = initialValue.initialSpeed;
@@ -122,19 +123,24 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
+        TickStatus(Time.deltaTime);
         if(_state == EnemyState.moving) {
+            float move = Time.deltaTime * enemyMovingSpeed * MoveFactor;
             if(_typeofEnemy == typeofEnemy.normal || _typeofEnemy == typeofEnemy.Dungeon || _typeofEnemy == typeofEnemy.InfiniteStage)
-                transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, Time.deltaTime * enemyMovingSpeed);
+                transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, move);
             else {
                 if(Vector3.Distance(WeaponManager.instance.mainWeapon.transform.position, transform.position) > Camera.main.orthographicSize / 1.2f)
-                    transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, Time.deltaTime * enemyMovingSpeed * 10);
+                    transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, move * 10);
                 else
-                    transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, Time.deltaTime * enemyMovingSpeed);
+                    transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, move);
 
             }
         } else if(_state == EnemyState.stunned) {
             stunLeft -= Time.deltaTime;
-            if(stunLeft <= 0) _state = EnemyState.moving;
+            if(stunLeft <= 0) {
+                _state = EnemyState.moving;
+                OnStunEnded();
+            }
         }
         distanceBetween();
 
@@ -180,6 +186,7 @@ public class Enemy : MonoBehaviour
         if(baseScaleSaved) transform.localScale = baseScale;
         DamageTakenMul = 1f;
         NumberScale = 1;
+        ClearStatus();
         if(TryGetComponent(out GateBossAbilities gate)) gate.enabled = false;
         ResetVisuals();
     }
@@ -223,12 +230,17 @@ public class Enemy : MonoBehaviour
         if(_state == EnemyState.dead || !gameObject.activeInHierarchy)
             return;
 
+        // 증강: 치명타 다시 굴리기 + 받는 피해 배율 (독, 부식, 얼음 깨기)
+        var aug = AugmentManager.Instance;
+        double augMul = aug != null ? aug.BeforeHit(this, ref Critical, ref CritDamage) : 1;
+
         // 기본 피해(구간 배율 전) → 증강 효과(분열 등)에 넘겨요. 실제로 깎이는 피해는 구간 배율을 곱한 값
-        long baseDamage = Critical ? (long)(DealtDamage * (2 + CritDamage)) : DealtDamage;
+        long baseDamage = Critical ? (long)(DealtDamage * (2 + (double)CritDamage)) : DealtDamage;
+        if(augMul != 1) baseDamage = WeaponBase.ClampDamage(baseDamage * augMul);
         if(DamageTakenMul != 1f) baseDamage = (long)(baseDamage * (double)DamageTakenMul);
         // 환생 트리 "보스 사냥꾼"
-        if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && AugmentManager.Instance != null)
-            baseDamage = (long)(baseDamage * (double)AugmentManager.Instance.BossDamageMul);
+        if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && aug != null)
+            baseDamage = (long)(baseDamage * (double)aug.BossDamageMul);
         double totalDamage = baseDamage * NumberScale;
         
 
@@ -242,12 +254,18 @@ public class Enemy : MonoBehaviour
         SoundManager.Instance.playEnemyHit();
 
         //리마스터: 적중 증강 효과(분열 등)
-        if(AugmentManager.Instance != null)
-            AugmentManager.Instance.OnEnemyHit(this, baseDamage);
+        if(aug != null) {
+            aug.OnEnemyHit(this, baseDamage, Critical);
+            if(_state == EnemyState.dead || !gameObject.activeInHierarchy) return;   // 효과가 먼저 처치했으면 끝
+        }
 
         // 오프라인 진행 계산용 초당 피해 측정 (원정 적만, 넘친 피해 제외)
         if(_typeofEnemy == typeofEnemy.InfiniteStage || _typeofEnemy == typeofEnemy.InfiniteStageBoss)
             OfflineProgress.RecordDamage(System.Math.Min(totalDamage, CurrentHealth) / NumberScale);
+
+        // 처형: 남을 체력이 기준 이하면 바로 처치
+        if(aug != null && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))
+            totalDamage = CurrentHealth;
 
         //Dead
         if(CurrentHealth - totalDamage > 0) {
@@ -255,7 +273,7 @@ public class Enemy : MonoBehaviour
             //Stun
             if(Stunned) {
                 _state = EnemyState.stunned;
-                stunLeft = 1f;
+                stunLeft = Mathf.Max(stunLeft, 1f);
             }
             StartCoroutine(DamagedEffect());
         } else if(CurrentHealth - totalDamage <= 0 && _state != EnemyState.dead) {
@@ -268,7 +286,7 @@ public class Enemy : MonoBehaviour
     {
         SetTint(Color.red);
         yield return new WaitForSeconds(0.25f);
-        SetTint(baseTint);
+        SetTint(Frozen ? IceTint : baseTint);
     }
 
     // 그림자(Circle)는 빼고 색 바꾸기

@@ -253,10 +253,27 @@ public class RemasterUI : MonoBehaviour
         var img = rt.gameObject.AddComponent<Image>();
         var sp = Resources.Load<Sprite>("AugmentIcons/" + icon);
         if(sp != null) img.sprite = sp;
-        else { img.sprite = rounded; img.type = Image.Type.Sliced; img.color = new Color(1, 1, 1, 0.2f); }
+        else {
+            // 아직 그림이 없는 증강·계열은 이름 첫 글자로 대신해요 (그림은 P7에서)
+            img.sprite = rounded; img.type = Image.Type.Sliced; img.color = new Color(1, 1, 1, 0.2f);
+            string glyph = IconGlyph(icon);
+            if(glyph.Length > 0) Label(rt, glyph, size, Vector2.zero, size.y * 0.62f, Color.white, FontStyles.Bold);
+        }
         img.preserveAspect = true;
         img.raycastTarget = false;
         return img;
+    }
+
+    static string IconGlyph(string icon)
+    {
+        if(string.IsNullOrEmpty(icon)) return "";
+        if(icon.StartsWith("tag_")) {
+            foreach(var t in AugmentDefs.MainTags)
+                if(AugmentDefs.TagIcon(t) == icon) return AugmentDefs.TagName(t).Substring(0, 1);
+            return "";
+        }
+        var def = AugmentDefs.Get(icon);
+        return def != null && def.name.Length > 0 ? def.name.Substring(0, 1) : "";
     }
 
     Image SkinIcon(Transform parent, string sprite, Vector2 size, Vector2 pos)
@@ -323,6 +340,20 @@ public class RemasterUI : MonoBehaviour
     RectTransform hud;
     TextMeshProUGUI hudStardust, hudStack;
     readonly TextMeshProUGUI[] hudTag = new TextMeshProUGUI[3];
+    readonly Image[] hudTile = new Image[3];
+    readonly AugTag?[] hudTileTag = new AugTag?[3];
+
+    // 많이 모은 계열 순서 (같으면 기본 순서). 아무것도 없으면 연쇄·저주·증식
+    List<AugTag> TopTags(int n)
+    {
+        var list = new List<AugTag>(AugmentDefs.MainTags);
+        list.Sort((a, b) => {
+            int c = mgr.TagCount(b).CompareTo(mgr.TagCount(a));
+            return c != 0 ? c : System.Array.IndexOf(AugmentDefs.MainTags, a).CompareTo(System.Array.IndexOf(AugmentDefs.MainTags, b));
+        });
+        if(list.Count > n) list.RemoveRange(n, list.Count - n);
+        return list;
+    }
     Button hudRebirthBtn;
     bool hudRebirthReady;
 
@@ -340,13 +371,9 @@ public class RemasterUI : MonoBehaviour
         Label(hud, "원정", new Vector2(160, 42), new Vector2(0, 212), 32, Color.white, FontStyles.Bold);
         SkinIcon(hud, "ItemIcon_Star_Purple", new Vector2(40, 40), new Vector2(-56, 168));
         hudStardust = Label(hud, "", new Vector2(110, 40), new Vector2(22, 168), 28, TextGold, FontStyles.Bold);
-        AugTag[] tags = { AugTag.Chain, AugTag.Curse, AugTag.Split };
-        string[] icons = { "bless_chain", "bless_curse", "bless_split" };
-        for(int i = 0; i < 3; i++) {
-            float y = 110 - i * 58;
-            IconTile(hud, icons[i], 50, new Vector2(-46, y), AugmentDefs.TagColor(tags[i]));
-            hudTag[i] = Label(hud, "", new Vector2(90, 46), new Vector2(30, y), 32, Color.white, FontStyles.Bold);
-        }
+        // 가장 많이 모은 계열 3개 (아이콘은 RefreshHUD 에서 바뀌어요)
+        for(int i = 0; i < 3; i++)
+            hudTag[i] = Label(hud, "", new Vector2(90, 46), new Vector2(30, 110 - i * 58), 32, Color.white, FontStyles.Bold);
         hudStack = Label(hud, "", new Vector2(164, 56), new Vector2(0, -60), 22, TextDim);
         Btn(hud, "증강", new Vector2(160, 76), new Vector2(0, -132), BBlue, ShowAugmentList, 30);
         hudRebirthBtn = Btn(hud, "환생", new Vector2(160, 76), new Vector2(0, -210), BGray, ShowRebirth, 30);
@@ -371,8 +398,15 @@ public class RemasterUI : MonoBehaviour
     {
         if(hud == null || mgr == null || !mgr.Loaded) return;
         hudStardust.text = $"{mgr.Stardust:N0}";
-        AugTag[] tags = { AugTag.Chain, AugTag.Curse, AugTag.Split };
-        for(int i = 0; i < 3; i++) hudTag[i].text = mgr.TagCount(tags[i]).ToString();
+        var top = TopTags(3);
+        for(int i = 0; i < 3; i++) {
+            if(hudTileTag[i] != top[i]) {
+                if(hudTile[i] != null) Destroy(hudTile[i].gameObject);
+                hudTile[i] = IconTile(hud, AugmentDefs.TagIcon(top[i]), 50, new Vector2(-46, 110 - i * 58), AugmentDefs.TagColor(top[i]));
+                hudTileTag[i] = top[i];
+            }
+            hudTag[i].text = mgr.TagCount(top[i]).ToString();
+        }
         float stack = mgr.CurseStackTotal;
         hudStack.text = stack > 0 ? $"누적 피해\n+{stack * 100:0.#}%" : $"처치 {mgr.ExpeditionKills:N0}";
         bool can = mgr.CanRebirth;
@@ -449,7 +483,8 @@ public class RemasterUI : MonoBehaviour
         var cg = content.gameObject.AddComponent<CanvasGroup>();
         cg.alpha = 0;
         var tagChip = ColorCard(content, new Vector2(360, 64), new Vector2(0, 262), AugmentDefs.TagColor(def.tag), "TagChip");
-        Label(tagChip.transform, $"{AugmentDefs.TagName(def.tag)} · {AugmentDefs.GodName(def.tag)}", new Vector2(320, 48), new Vector2(0, 2), 30, Color.white, FontStyles.Bold);
+        string chip = def.tag == AugTag.Weapon ? $"무기 전용 · {AugmentDefs.WeaponName(def.requiredWeapon)}" : $"{AugmentDefs.TagName(def.tag)} · {AugmentDefs.GodName(def.tag)}";
+        Label(tagChip.transform, chip, new Vector2(320, 48), new Vector2(0, 2), 30, Color.white, FontStyles.Bold);
         IconTile(content, def.icon, 250, new Vector2(0, 80), AugmentDefs.GradeColor(def.grade));
         Label(content, def.name, new Vector2(540, 76), new Vector2(0, -100), 56, Color.white, FontStyles.Bold);
         Label(content, newLevel <= 1 ? "NEW" : $"★{newLevel}  (최대 ★{def.maxLevel})", new Vector2(520, 48), new Vector2(0, -160), 34, newLevel <= 1 ? new Color(0.5f, 1f, 0.6f) : TextGold, FontStyles.Bold);
@@ -569,36 +604,35 @@ public class RemasterUI : MonoBehaviour
 
         // ---- 축복
         var blessBox = Row(p, new Vector2(900, 620), new Vector2(0, -170), "BlessBox");
-        Label(blessBox.transform, "축복", new Vector2(840, 56), new Vector2(0, 260), 40, Color.white, FontStyles.Bold);
-        AugTag[] tags = { AugTag.Chain, AugTag.Curse, AugTag.Split };
-        string[] icons = { "bless_chain", "bless_curse", "bless_split" };
-        var cards = new Image[3];
+        Label(blessBox.transform, "축복", new Vector2(840, 56), new Vector2(0, 268), 40, Color.white, FontStyles.Bold);
+        // 9계열의 신 3×3. 신의 관문을 처음 이기면 열려요
+        var tags = AugmentDefs.MainTags;
+        var cards = new Image[tags.Length];
         Action refreshCards = null;
         bool anyUnlocked = false;
-        for(int i = 0; i < 3; i++) {
-            int idx = i;
+        for(int i = 0; i < tags.Length; i++) {
             var tag = tags[i];
+            int tagIdx = (int)tag;
             bool unlocked = mgr.BlessingUnlocked(tag);
             anyUnlocked |= unlocked;
-            var card = ColorCard(blessBox.transform, new Vector2(270, 430), new Vector2(-285 + i * 285, -10), unlocked ? AugmentDefs.TagColor(tag) : LockedTint, "Blessing");
+            var card = ColorCard(blessBox.transform, new Vector2(270, 150), new Vector2(-285 + (i % 3) * 285, 160 - (i / 3) * 158), unlocked ? AugmentDefs.TagColor(tag) : LockedTint, "Blessing");
             cards[i] = card;
-            var face = Row(card.transform, new Vector2(240, 400), new Vector2(0, 3), "Face");
-            Icon(face.transform, icons[i], new Vector2(130, 130), new Vector2(0, 110));
-            Label(face.transform, AugmentDefs.GodName(tag), new Vector2(220, 56), new Vector2(0, 12), 34, unlocked ? AugmentDefs.TagColor(tag) : TextDim, FontStyles.Bold);
+            var face = Row(card.transform, new Vector2(244, 126), new Vector2(0, 2), "Face");
+            if(unlocked) IconTile(face.transform, AugmentDefs.TagIcon(tag), 76, new Vector2(-72, 0), AugmentDefs.TagColor(tag));
+            else SkinIcon(face.transform, "Icon_Lock03", new Vector2(56, 56), new Vector2(-72, 0));
+            Label(face.transform, AugmentDefs.GodName(tag), new Vector2(150, 44), new Vector2(42, 22), 26, unlocked ? AugmentDefs.TagColor(tag) : TextDim, FontStyles.Bold);
+            string sub = unlocked ? $"{AugmentDefs.TagName(tag)} ×2" : $"{AugmentDefs.BlessingGate(tag)}번째 관문";
+            Label(face.transform, sub, new Vector2(150, 40), new Vector2(42, -24), 22, TextDim);
             if(unlocked) {
-                Label(face.transform, $"{AugmentDefs.TagName(tag)} 증강이\n더 잘 나와요", new Vector2(220, 110), new Vector2(0, -95), 30, TextDim);
                 var b = card.gameObject.AddComponent<Button>();
-                b.onClick.AddListener(() => { blessing = blessing == idx ? -1 : idx; refreshCards(); });
-            } else {
-                SkinIcon(face.transform, "Icon_Lock03", new Vector2(56, 56), new Vector2(0, -50));
-                Label(face.transform, $"{AugmentManager.BlessingPlanetName(tag)}\n행성을 클리어하면 열려요", new Vector2(220, 100), new Vector2(0, -130), 24, TextDim);
+                b.onClick.AddListener(() => { blessing = blessing == tagIdx ? -1 : tagIdx; refreshCards(); });
             }
         }
-        Label(blessBox.transform, anyUnlocked ? "다시 누르면 선택을 해제해요" : "4번째 행성(헤파이스토스)을 클리어하면 첫 축복이 열려요", new Vector2(840, 44), new Vector2(0, -262), 26, TextDim);
+        Label(blessBox.transform, anyUnlocked ? "고른 신의 계열 증강이 2배 잘 나와요 · 다시 누르면 해제" : "신의 관문(50스테이지마다)을 처음 이기면 그 신의 축복이 열려요", new Vector2(840, 44), new Vector2(0, -262), 26, TextDim);
         refreshCards = () => {
-            for(int i = 0; i < 3; i++) {
+            for(int i = 0; i < tags.Length; i++) {
                 if(!mgr.BlessingUnlocked(tags[i])) continue;
-                bool on = blessing == i;
+                bool on = blessing == (int)tags[i];
                 // 고른 카드는 밝고 크게, 나머지는 살짝 어둡게
                 cards[i].color = on ? AugmentDefs.TagColor(tags[i]) : AugmentDefs.TagColor(tags[i]) * new Color(0.55f, 0.55f, 0.55f, 1f);
                 cards[i].rectTransform.localScale = on ? Vector3.one * 1.06f : Vector3.one;
@@ -641,43 +675,92 @@ public class RemasterUI : MonoBehaviour
         if(mgr.SupplyWeapon != SideWeapon.None) weapons += $" + {AugmentDefs.WeaponName(mgr.SupplyWeapon)}(보급)";
         Label(p, $"축복: {bless}\n무기: {weapons}", new Vector2(880, 96), new Vector2(0, 670), 30, TextDim);
 
-        // 시너지
-        AugTag[] tags = { AugTag.Chain, AugTag.Curse, AugTag.Split };
-        string[] icons = { "bless_chain", "bless_curse", "bless_split" };
-        for(int i = 0; i < 3; i++) {
-            var tag = tags[i];
+        // 스크롤 영역: 세트 → 조합 계열 → 가진 증강 (설명 칸 위까지)
+        var ids = mgr.OwnedOrder;
+        var ownedTags = new List<AugTag>();
+        foreach(var t in AugmentDefs.MainTags) if(mgr.TagCount(t) > 0) ownedTags.Add(t);
+        ownedTags.Sort((a, b) => mgr.TagCount(b).CompareTo(mgr.TagCount(a)));
+        var combos = new List<int>();
+        for(int i = 0; i < AugmentDefs.Combos.Length; i++) {
+            var c = AugmentDefs.Combos[i];
+            if(mgr.TagCount(c.a) > 0 && mgr.TagCount(c.b) > 0) combos.Add(i);
+        }
+        combos.Sort((a, b) => mgr.ComboTier(b).CompareTo(mgr.ComboTier(a)));
+        const int cols = 5;
+        int gridRows = (ids.Count + cols - 1) / cols;
+        const float headH = 64f, tagH = 168f, comboH = 104f, cellStep = 178f, emptyH = 80f;
+        float contentH = headH + Mathf.Max(1, ownedTags.Count) * (ownedTags.Count > 0 ? tagH : emptyH)
+                       + headH + Mathf.Max(1, combos.Count) * (combos.Count > 0 ? comboH : emptyH)
+                       + headH + Mathf.Max(1, gridRows) * (gridRows > 0 ? cellStep : emptyH) + 20f;
+
+        const float viewH = 1080f;
+        var viewport = Rect("ListView", p, new Vector2(940, viewH), new Vector2(0, 620 - viewH / 2));
+        viewport.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.001f);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        var content = Rect("Content", viewport, new Vector2(920, contentH), new Vector2(0, (viewH - contentH) / 2));
+        var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+        scroll.viewport = viewport;
+        scroll.content = content;
+        scroll.horizontal = false;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 40f;
+
+        float cursor = 0f;   // 위에서부터 내려가며 놓아요
+        Func<float, float> place = h => { float y = contentH / 2 - cursor - h / 2; cursor += h; return y; };
+        string on = "<color=#FFD54A>●</color> ", off = "<color=#6B6F8A>○</color> ";
+
+        Label(content, "계열 세트 (2 / 4 / 6 / 8)", new Vector2(880, 52), new Vector2(0, place(headH)), 34, Color.white, FontStyles.Bold);
+        if(ownedTags.Count == 0)
+            Label(content, "같은 계열 증강을 2개 모으면 세트 효과가 켜져요", new Vector2(880, 60), new Vector2(0, place(emptyH)), 28, TextDim);
+        foreach(var tag in ownedTags) {
             int c = mgr.TagCount(tag);
-            string on = "<color=#FFD54A>●</color> ", off = "<color=#6B6F8A>○</color> ";
-            string s2 = (c >= 2 ? on : off) + "2: " + AugmentDefs.SynergyText(tag, 2);
-            string s4 = (c >= 4 ? on : off) + "4: " + AugmentDefs.SynergyText(tag, 4);
-            var row = Row(p, new Vector2(900, 104), new Vector2(0, 550 - i * 114), "Synergy");
-            IconTile(row.transform, icons[i], 72, new Vector2(-394, 0), AugmentDefs.TagColor(tag));
-            Label(row.transform, $"{AugmentDefs.TagName(tag)} {c}", new Vector2(150, 70), new Vector2(-260, 0), 34, AugmentDefs.TagColor(tag), FontStyles.Bold);
-            Label(row.transform, s2 + "\n" + s4, new Vector2(580, 88), new Vector2(150, 0), 26, TextDim);
+            var sb = new System.Text.StringBuilder();
+            foreach(int tier in AugmentDefs.SetTiers)
+                sb.Append(c >= tier ? on : off).Append(tier).Append(": ").Append(AugmentDefs.SynergyText(tag, tier)).Append(tier < 8 ? "\n" : "");
+            var row = Row(content, new Vector2(900, tagH - 10), new Vector2(0, place(tagH)), "Set");
+            IconTile(row.transform, AugmentDefs.TagIcon(tag), 72, new Vector2(-394, 20), AugmentDefs.TagColor(tag));
+            Label(row.transform, $"{AugmentDefs.TagName(tag)} {c}", new Vector2(130, 50), new Vector2(-394, -44), 30, AugmentDefs.TagColor(tag), FontStyles.Bold);
+            var setText = Label(row.transform, sb.ToString(), new Vector2(720, 148), new Vector2(80, 0), 25, TextDim);
+            setText.alignment = TextAlignmentOptions.MidlineLeft;
         }
 
-        // 보유 증강 (아이콘 격자)
-        var ids = mgr.OwnedOrder;
-        var descBox = Row(p, new Vector2(900, 150), new Vector2(0, -540), "Desc");
-        var desc = Label(descBox.transform, ids.Count == 0 ? "아직 증강이 없어요.\n5스테이지마다 하나씩 얻어요." : "아이콘을 누르면 설명이 보여요", new Vector2(850, 130), Vector2.zero, 30, TextDim);
-        int cols = 5;
-        for(int i = 0; i < ids.Count && i < 20; i++) {
+        Label(content, "조합 계열", new Vector2(880, 52), new Vector2(0, place(headH)), 34, Color.white, FontStyles.Bold);
+        if(combos.Count == 0)
+            Label(content, "서로 다른 두 계열을 각각 2개씩 모으면 켜져요", new Vector2(880, 60), new Vector2(0, place(emptyH)), 28, TextDim);
+        foreach(int i in combos) {
+            var c = AugmentDefs.Combos[i];
+            int tier = mgr.ComboTier(i);
+            int need = tier == 0 ? 2 : 4;
+            string state = tier > 0 ? on + $"<color=#FFFFFF>{c.god} · {c.name}{(tier == 2 ? " 2단계" : "")}</color>" : off + $"{c.god} · {c.name}";
+            string effect = tier == 2 ? c.tier2 : c.tier1;
+            string req = tier == 2 ? "" : $"  <size=80%>({AugmentDefs.TagName(c.a)} {mgr.TagCount(c.a)}/{need} · {AugmentDefs.TagName(c.b)} {mgr.TagCount(c.b)}/{need})</size>";
+            var row = Row(content, new Vector2(900, comboH - 8), new Vector2(0, place(comboH)), "Combo");
+            Label(row.transform, $"{state}{req}\n{effect}", new Vector2(860, 88), Vector2.zero, 26, tier > 0 ? Color.white : TextDim);
+        }
+
+        Label(content, $"가진 증강 ({ids.Count})", new Vector2(880, 52), new Vector2(0, place(headH)), 34, Color.white, FontStyles.Bold);
+        var descBox = Row(p, new Vector2(900, 150), new Vector2(0, -560), "Desc");
+        var desc = Label(descBox.transform, ids.Count == 0 ? "아직 증강이 없어요.\n스테이지를 넘으면 하나씩 얻어요." : "아이콘을 누르면 설명이 보여요", new Vector2(850, 130), Vector2.zero, 30, TextDim);
+        if(ids.Count == 0) place(emptyH);
+        float gridTop = cursor;
+        for(int i = 0; i < ids.Count; i++) {
             var def = AugmentDefs.Get(ids[i]);
             if(def == null) continue;
             int lv = mgr.Level(def.id);
             int r = i / cols, col = i % cols;
-            // 칸 160x170, 줄 간격 178: 시너지 줄(아래 끝 270)과 설명 칸(위 끝 -465) 사이에 4줄이 들어가요
-            var cell = ColorCard(p, new Vector2(160, 168), new Vector2(-344 + col * 172, 180 - r * 178), AugmentDefs.GradeColor(def.grade), "Aug");
+            float y = contentH / 2 - gridTop - cellStep / 2 - r * cellStep;
+            var cell = ColorCard(content, new Vector2(160, 168), new Vector2(-344 + col * 172, y), AugmentDefs.GradeColor(def.grade), "Aug");
             var face = Row(cell.transform, new Vector2(140, 148), new Vector2(0, 2), "Face");
             Icon(face.transform, def.icon, new Vector2(88, 88), new Vector2(0, 22));
             Label(face.transform, $"{def.name}\n<color=#FFD54A>★{lv}</color>", new Vector2(132, 54), new Vector2(0, -44), 20, Color.white, FontStyles.Bold);
             var b = cell.gameObject.AddComponent<Button>();
-            b.onClick.AddListener(() => desc.text = $"<color=#FFFFFF><b>{def.name}</b></color> <color=#FFD54A>★{lv}</color>\n{def.describe(lv)}");
+            string tagLine = def.tag == AugTag.Weapon ? $"무기 전용 · {AugmentDefs.WeaponName(def.requiredWeapon)}" : AugmentDefs.TagName(def.tag);
+            b.onClick.AddListener(() => desc.text = $"<color=#FFFFFF><b>{def.name}</b></color> <color=#FFD54A>★{lv}</color> <size=80%>({tagLine})</size>\n{def.describe(lv)}");
         }
 
         string stack = $"처치 {mgr.ExpeditionKills:N0}";
         if(mgr.CurseStackTotal > 0) stack += $"   ·   누적 피해 +{mgr.CurseStackTotal * 100:0.#}%";
-        Label(p, stack, new Vector2(860, 48), new Vector2(0, -650), 30, AugmentDefs.TagColor(AugTag.Curse), FontStyles.Bold);
+        Label(p, stack, new Vector2(860, 48), new Vector2(0, -665), 30, AugmentDefs.TagColor(AugTag.Curse), FontStyles.Bold);
         Btn(p, "닫기", new Vector2(340, 120), new Vector2(0, -750), BGray, () => { close(); mgr.ResumeFromUI(); }, 42);
     }
     #endregion

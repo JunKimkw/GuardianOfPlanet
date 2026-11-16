@@ -165,17 +165,28 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         Instance.StartCoroutine(Instance.nextStage());
     }
 
+    // 실드 감소 (증강: 아이기스·무적이 막고, 방벽이 버티고, 반격·복수 등이 터져요)
+    void LoseShield(int amount)
+    {
+        var aug = AugmentManager.Instance;
+        if(aug != null) amount = aug.FilterShieldLoss(amount);
+        if(amount <= 0) return;
+        playerHealth -= amount;
+        if(playerHealth <= 0 && aug != null && aug.TrySurviveLethal()) playerHealth = 1;
+        if(aug != null) aug.OnShieldLost(amount);
+    }
+
     public void enemyHit(Enemy data)
     {
         if(data._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss) {
             // 보스가 우주선에 닿으면 실드 -2, 살아 있으면 보스가 처음부터 다시 나와요
             // (예전엔 보스 도착을 처리하지 않아서 스테이지가 멈췄어요)
-            playerHealth -= 2;
+            LoseShield(2);
             BossSpawned = false;
             WarningObject.gameObject.SetActive(false);
         } else {
             KilledEnemy++;
-            playerHealth--;
+            LoseShield(1);
             if(KilledEnemy <= setEnemyNumber())
                 RemainedMonsterText.text = (setEnemyNumber() - KilledEnemy).ToString();
         }

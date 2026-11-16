@@ -9,13 +9,27 @@ public class PoisonArea : MonoBehaviour
     [HideInInspector]
     public bool hasScaled;
 
+    Vector3 baseScale;
+    bool baseScaleSaved;
+
+    // 원래 크기 × 배율 (독 비행기 패시브 1.3배, 증강 "독구름 확장")
+    public void SetScaleMul(float mul)
+    {
+        if(!baseScaleSaved) { baseScale = transform.localScale; baseScaleSaved = true; }
+        transform.localScale = baseScale * mul;
+        hasScaled = mul != 1f;
+    }
+
     public List<Enemy> enemyOnPoison;
     public List<Dummy> dummyOnPoison;
 
     public IEnumerator poisonAttack(Enemy enemy)
     {
         while(enemyOnPoison.Find(d => d.gameObject == enemy.gameObject) != null) {
-            enemy.OnHit(poisonDamage, false, PoisonPlane.instance.Poison_canCrit ? Random.Range(1, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage);
+            // 리마스터: 독 지대 피해 (증강 맹독·변이 배율, 전염 계열이면 독 상태)
+            AugmentManager.CurrentHitKind = HitKind.PoisonArea;
+            try { enemy.OnHit(poisonDamage, false, PoisonPlane.instance.Poison_canCrit ? Random.Range(1, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage); }
+            finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
             yield return new WaitForSeconds(PoisonPlane.instance.extraHit ? 0.35f : 0.7f);
         }
     }
@@ -54,10 +68,8 @@ public class PoisonArea : MonoBehaviour
     {
         yield return new WaitForSeconds(6);
 
-        if(hasScaled) {
-            transform.localScale /= 1.3f;
-            hasScaled = false;
-        }
+        if(baseScaleSaved) transform.localScale = baseScale;
+        hasScaled = false;
 
         ObjectPoolBullet.Instance.CoolObject(this.gameObject, PoolObjectTypeBullet.PoisonArea);
     }
