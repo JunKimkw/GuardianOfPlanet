@@ -125,8 +125,8 @@ public class AchievementManager : MonoBehaviour, IDataPersistence
     {
         if(Time.timeScale > 0.3f) {
             //퀘스트 도우미
-            PlayedTimeDaily += Time.deltaTime / Time.timeScale;
-            PlayedTimeWeekly += Time.deltaTime / Time.timeScale;
+            PlayedTimeDaily += Time.unscaledDeltaTime;
+            PlayedTimeWeekly += Time.unscaledDeltaTime;
         }
     }
 

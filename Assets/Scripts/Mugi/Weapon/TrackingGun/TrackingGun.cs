@@ -1,143 +1,32 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class TrackingGun : MonoBehaviour
+// 유도탄
+public class TrackingGun : GunWeapon
 {
-    [SerializeField] public string id;
-
-    [ContextMenu("Generate guid for id")]
-    private void GenerateGuid()
-    {
-        id = System.Guid.NewGuid().ToString();
-    }
-
     public static TrackingGun instance;
 
-    [HideInInspector]
-    public int UpgradeLevel;
-
-    [HideInInspector]
-    public int Damage;
+    [HideInInspector] public int Damage;
 
     [Header("#-----Weapon Info")]
-    [Space(10)]
     public Transform ShootingPoint;
 
-    [Header("#-----Reload")]
-    [Space(10)]
-    public float MaximumAttackSpeed;
-    public float RelodingSpeed;
-
-    [Header("#-----Passive Stats")]
     public float missileSpeedScale;
-    public float ExtraAttackSpeedScale;
-    public float ExtraDamagePercent;
     public float ExtraCritDamage;
 
-    bool IsShooting;
-    float TimerAs;
+    protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.TrackingMissile;
+    public override int BaseDamage => Damage;
 
-    private void Awake()
+    void Awake() => instance = this;
+
+    public override void SetDamage() =>
+        Damage = Tiered(UpgradeLevel, 50, (0, 3), (10, 4), (50, 5), (100, 6), (200, 4), (300, 3), (500, 2));
+
+    // (Lv.500 패시브 "공격 속도"는 예전엔 장전 계산에 안 들어가서 효과가 없었어요. 이제 GunWeapon 에서 반영돼요)
+    public override void CreateBullet()
     {
-        instance = this;
-    }
-
-    public void UpgradeWeapon()
-    {
-        UpgradeLevel++;
-        SetDamage();
-    }
-
-    public void SetDamage()
-    {
-        Damage = 50;
-
-        if(UpgradeLevel >= 0)
-            Damage += UpgradeLevel * 3;
-
-        if(UpgradeLevel >= 10)
-            Damage += (UpgradeLevel - 10) * 4;
-
-        if(UpgradeLevel >= 50)
-            Damage += (UpgradeLevel - 50) * 5;
-
-        if(UpgradeLevel >= 100)
-            Damage += (UpgradeLevel - 100) * 6;
-
-        if(UpgradeLevel >= 200)
-            Damage += (UpgradeLevel - 200) * 4;
-
-        if(UpgradeLevel >= 300)
-            Damage += (UpgradeLevel - 300) * 3;
-
-        if(UpgradeLevel >= 500)
-            Damage += (UpgradeLevel - 500) * 2;
-
-    }
-
-    private void Update()
-    {
-        if(IsShooting) {
-            TimerAs += Time.deltaTime;
-            if(TimerAs >= getAttackSpeed()) {
-                CreateBullet();
-                if(AugmentManager.RollMultiShot()) CreateBullet();
-                TimerAs = 0;
-            }
-        }
-    }
-
-
-    public float getAttackSpeed()
-    {
-        if(RelodingSpeed * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.TrackingMissile, TraitsData.TraitsType.AttackSpeed)) * (1 - Player.instance.FinalAttack_SpeedPercent) <= MaximumAttackSpeed) {
-            return MaximumAttackSpeed;
-        } else {
-            return RelodingSpeed * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.TrackingMissile, TraitsData.TraitsType.AttackSpeed)) * (1 - Player.instance.FinalAttack_SpeedPercent);
-        }
-    }
-
-    public void CreateBullet()
-    {
-        TrackingBullet bullet_A = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Tracking).GetComponent<TrackingBullet>();
-        bullet_A.setBulletStats((int)((Damage * (1  + ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.TrackingMissile, TraitsData.TraitsType.DamagePercent))) + Player.instance.FinalAttack_Damage), missileSpeedScale, ExtraCritDamage);
-        bullet_A.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
-        bullet_A.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
-        bullet_A.transform.position = ShootingPoint.position;
-        bullet_A.transform.rotation = transform.rotation;
-        bullet_A.gameObject.SetActive(true);
-    }
-    public void DonShoot()
-    {
-        this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, 0);
-        IsShooting = false;
-    }
-    public void NormalShooting()
-    {
-        Vector3 Mousetarget = new Vector3(0, 0, 0);
-        Mousetarget = GameManager.instance.mainCamera.ScreenToWorldPoint(Input.mousePosition);
-        Vector3 difference = Mousetarget - this.transform.position;
-        float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-        this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-        IsShooting = true;
-    }
-
-    public void AutoShooting()
-    {
-        Enemy _e = EnemyManager.Instance.FindCloseEnemy();
-        if(_e == null) {
-            Vector3 Mousetarget = new Vector3(0, 0, 0);
-            Vector3 difference = Mousetarget - this.transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-            IsShooting = false;
-        } else {
-            Vector3 difference = new Vector3(0, 0, 0);
-            difference = EnemyManager.Instance.FindCloseEnemy().pos - this.transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-            IsShooting = true;
-        }
+        var b = TakeBullet<TrackingBullet>(PoolObjectTypeBullet.Tracking, ShootingPoint.position, transform.rotation);
+        // 치명타 피해: 예전엔 패시브 값만 넘겨서 플레이어 치명타 피해가 빠져 있었어요
+        b.setBulletStats(HitDamage, missileSpeedScale, Player.instance.FinalCriticalDamage + ExtraCritDamage);
+        b.gameObject.SetActive(true);
     }
 }

@@ -76,10 +76,9 @@ public class GameManager : MonoBehaviour, IDataPersistence
     // Update is called once per frame
     void Update()
     {
-        Canvas.ForceUpdateCanvases();
         if(Time.timeScale > 0.9f) {
             //TotalPlayedTime
-            totalPlayedTime += Time.deltaTime / Time.timeScale;
+            totalPlayedTime += Time.unscaledDeltaTime;
 
             //최대 돈
             if(money >= maxMoney)
@@ -223,130 +222,31 @@ public class GameManager : MonoBehaviour, IDataPersistence
         saveGameSpeedandAuto(Time.timeScale, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
     }
 
-    public static string MoneyStringForGamemanager(long M)
+    // ---- 큰 숫자 줄여 쓰기 (K, M, B, T, Q). 예전 7개 함수가 같은 일을 조금씩 다르게 복사하고 있던 것을 하나로.
+    static readonly (double div, string suffix)[] Units = { (1e15, "Q"), (1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K") };
+
+    // plainBelow 미만은 그대로(천 단위 쉼표), 그 이상은 단위를 붙여 format 으로 표시
+    static string Abbrev(long M, long plainBelow, System.Func<double, string> format)
     {
-        if(M < 10000) {
-            return string.Format("{0:#,###0}", M);
-        } else if(M < 1000000) {
-            return ((float)(M / 1000.0)).ToString("F2") + "K";
-        } else if(M < 1000000000) {
-            return ((float)(M / 1000000.0)).ToString("F2") + "M";
-        } else if(M < 1000000000000) {
-            return ((float)(M / 1000000000.0)).ToString("F2") + "B";
-        } else if(M < 1000000000000000) {
-            return ((float)(M / 1000000000000.0)).ToString("F2") + "T";
-        } else if(M < 1000000000000000000)
-        {
-            return ((float)(M / 1000000000000000.0)).ToString("F2") + "Q";
-        }
-        return "";
-    }
-    public static string MoneyString(long M)
-    {
-        if(M < 10000) {
-            return string.Format("{0:#,##0.##}", M);
-        } else if(M < 1000000) {
-            return string.Format("{0:#,###.##}K", M / 1000.0f);
-        } else if(M < 1000000000) {
-            return string.Format("{0:#,###.##}M", M / 1000000.0f);
-        } else if(M < 1000000000000) {
-            return string.Format("{0:#,###.##}B", M / 1000000000.0);
-        } else if(M < 1000000000000000) {
-            return string.Format("{0:#,###.##}T", M / 1000000000000.0);
-        } else if(M < 1000000000000000000) {
-            return string.Format("{0:#,###.##}Q", M / 1000000000000000.0);
-        }
-        return "";
+        if(M < plainBelow) return M.ToString("#,##0");
+        foreach(var u in Units)
+            if(M >= u.div) return format(M / u.div) + u.suffix;
+        return M.ToString("#,##0");
     }
 
-    public static string MoneyStringForShop(long M)
-    {
-        if(M < 10000) {
-            return string.Format("{0:#,###0}", M);
-        } else if(M < 1000000) {
-            return Mathf.RoundToInt((float)(M / 1000.0)) + "K";
-        } else if(M < 1000000000) {
-            return Mathf.RoundToInt((float)(M / 1000000.0)) + "M";
-        } else if(M < 1000000000000) {
-            return Mathf.RoundToInt((float)(M / 1000000000.0)) + "B";
-        } else if(M < 1000000000000000) {
-            return Mathf.RoundToInt((float)(M / 1000000000000.0)) + "T";
-        } else if(M < 1000000000000000000) {
-            return string.Format("{0:#,###.##}Q", M / 1000000000000000.0);
-        }
-        return "";
-    }
+    static string Fixed2(double v) => v.ToString("F2");
+    static string Upto2(double v) => v.ToString("#,##0.##");
+    static string Rounded(double v) => System.Math.Round(v).ToString("#,##0");
+    static string Floored(double v) => System.Math.Floor(v).ToString("#,##0");
 
-    public static string MoneyStringForTower(long M)
-    {
-        if(M < 1000) {
-            return string.Format("{0:#,###0}", M);
-        } else if(M < 1000000) {
-            return Mathf.RoundToInt((float)(M / 1000.0)) + "K";
-        } else if(M < 1000000000) {
-            return Mathf.RoundToInt((float)(M / 1000000.0)) + "M";
-        } else if(M < 1000000000000) {
-            return Mathf.RoundToInt((float)(M / 1000000000.0)) + "B";
-        } else if(M < 1000000000000000) {
-            return Mathf.RoundToInt((float)(M / 1000000000000.0)) + "T";
-        } else if(M < 1000000000000000000) {
-            return string.Format("{0:#,###.##}Q", M / 1000000000000000.0);
-        }
-        return "";
-    }
-
-    public string MoneyStringForAchievement(long M)
-    {
-        if(M < 10000) {
-            return string.Format("{0:#,###0}", M);
-        } else if(M < 1000000) {
-            return string.Format("{0:#,###0.##}", (float)(M / 1000.0)) + "K";
-        } else if(M < 1000000000) {
-            return ((float)(M / 1000000.0)).ToString("F2") + "M";
-        } else if(M < 1000000000000) {
-            return ((float)(M / 100000000.0)).ToString("F2") + "B";
-        } else if(M < 1000000000000000) {
-            return ((float)(M / 100000000000.0)).ToString("F2") + "T";
-        } else if(M < 1000000000000000000) {
-            return string.Format("{0:#,###.##}Q", M / 1000000000000000.0);
-        }
-        return "";
-    }
-
-    public string moneyStringForMine(long M)
-    {
-        if(M < 1000000) {
-            return string.Format("{0:#,##0}", M);
-        } else if(M < 1000000000) {
-            return string.Format("{0:#,###}M", (float)(M / 1000000));
-        } else if(M < 1000000000000) {
-            return string.Format("{0:#,###}B", (float)(M / 1000000000));
-        } else if(M < 1000000000000000) {
-            return string.Format("{0:#,###}T", (float)(M / 1000000000000));
-        } else if(M < 1000000000000000000) {
-            return string.Format("{0:#,###.##}Q", M / 1000000000000000.0);
-        }
-        return "";
-    }
-
-
-    public string MoneyStringForInfiniteStage(long M)
-    {
-        if(M < 10000) {
-            return string.Format("{0:#,##0}", M);
-        } else if(M < 1000000) {
-            return string.Format("{0:#,###}K", (float)(M / 1000));
-        } else if(M < 1000000000) {
-            return string.Format("{0:#,###}M", (float)(M / 1000000));
-        } else if(M < 1000000000000) {
-            return string.Format("{0:#,###}B", (float)(M / 1000000000));
-        } else if(M < 1000000000000000) {
-            return string.Format("{0:#,###}T", (float)(M / 1000000000000));
-        } else if(M < 1000000000000000000) {
-            return string.Format("{0:#,###.##}Q", M / 1000000000000000.0);
-        }
-        return "";
-    }
+    public static string MoneyStringForGamemanager(long M) => Abbrev(M, 10000, Fixed2);
+    public static string MoneyString(long M) => Abbrev(M, 10000, Upto2);
+    public static string MoneyStringForShop(long M) => Abbrev(M, 10000, Rounded);
+    public static string MoneyStringForTower(long M) => Abbrev(M, 1000, Rounded);
+    // (예전엔 B·T 를 10배 크게 보여 줬어요)
+    public string MoneyStringForAchievement(long M) => Abbrev(M, 10000, v => v < 1000 && M < 1000000 ? Upto2(v) : Fixed2(v));
+    public string moneyStringForMine(long M) => Abbrev(M, 1000000, Floored);
+    public string MoneyStringForInfiniteStage(long M) => Abbrev(M, 10000, Floored);
 
     //경험치 올리기
     public static void Enemy_Dead_Player_EXP_UP(int exp)
@@ -355,13 +255,13 @@ public class GameManager : MonoBehaviour, IDataPersistence
     }
 
     //돈 올리기
-    public static void Enemy_Dead_Money_UP(long money)
+    public static void Enemy_Dead_Money_UP(long money) => instance.money = SafeAdd(instance.money, money);
+
+    // 더하다가 long 최대값을 넘으면 최대값에서 멈추고, 0 아래로는 내려가지 않아요
+    public static long SafeAdd(long a, long b)
     {
-        if(instance.money + money > 0)
-            instance.money += money;
-        else {
-            instance.money = 0;
-        }
+        if(b > 0 && a > long.MaxValue - b) return long.MaxValue;
+        return System.Math.Max(0, a + b);
     }
 
     public static int GetTotalExpOfEnemy(Enemy enemy)
@@ -403,12 +303,9 @@ public class GameManager : MonoBehaviour, IDataPersistence
         return instance.money;
     }
 
-    public static void SetMoney(long n)
-    {
-        instance.money += n;
-    }
+    public static void SetMoney(long n) => instance.money = SafeAdd(instance.money, n);
 
-    public void addMoney(long n) => money += n;
+    public void addMoney(long n) => money = SafeAdd(money, n);
 
     public static long GetParts()
     {

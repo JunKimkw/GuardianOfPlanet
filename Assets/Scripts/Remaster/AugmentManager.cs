@@ -16,9 +16,12 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     const int PityLimit = 8;
 
     // 환생 트리: 0 행운, 1 출발 가속, 2 첫 선물
-    public static readonly string[] TreeNames = { "행운", "출발 가속", "첫 선물" };
-    public static readonly int[] TreeMax = { 10, 5, 3 };
-    static readonly int[] TreeBaseCost = { 5, 20, 40 };
+    public static readonly string[] TreeNames = { "행운", "출발 가속", "첫 선물", "별의 가호" };
+    public static readonly int[] TreeMax = { 10, 5, 3, 99 };
+    static readonly int[] TreeBaseCost = { 5, 20, 40, 0 };
+    public const int StarPowerNode = 3;
+    // 별의 가호: 원정 피해 ×1.15 / 레벨 (환생할수록 확실히 강해지는 축)
+    public float StarPowerMultiplier => Mathf.Pow(RemasterBalance.StarPowerPerLevel, tree.Length > StarPowerNode ? tree[StarPowerNode] : 0);
 
     RemasterUI ui;
     bool loaded;
@@ -48,7 +51,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
 
     // ---- 영구 상태 (저장)
     long stardust;
-    int[] tree = new int[3];
+    int[] tree = new int[TreeNames.Length];
     int bestStage;
     int rebirthCount;
 
@@ -89,6 +92,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
         }
         Instance = this;
         ui = gameObject.AddComponent<RemasterUI>();
+        gameObject.AddComponent<OfflineProgress>();
         DataPersistenceManager.Register(this);
     }
     #endregion
@@ -105,6 +109,16 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     public SideWeapon SupplyWeapon => supplyWeapon;
     public int SupplyUntil => supplyUntil;
     public long ExpeditionKills => expKills;
+
+    // 오프라인 진행으로 넘은 스테이지의 처치·보스 수 (누적 증강에 반영)
+    public void AddOfflineKills(long kills, int bosses)
+    {
+        expKills += kills;
+        expBossKills += bosses;
+    }
+
+    public bool IsLoaded => loaded;
+    public RemasterUI UI => ui;
     public IReadOnlyList<string> OwnedOrder => order;
     public int TreeLevel(int node) => tree[node];
 
@@ -138,7 +152,13 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
 
     public float CurseStackTotal {
         get {
-            float s = soulStack + slaughterStack + wraithStack;
+            // 처치 수가 많아질수록 덜 쌓이고(EffectiveKills), 합계는 +300%가 상한
+            float k = RemasterBalance.EffectiveKills(expKills) * CurseGain;
+            float s = 0f;
+            if(Level("soul") > 0) s += AugmentDefs.SoulPerKill(Level("soul")) * k;
+            if(Level("slaughter") > 0) s += AugmentDefs.SlaughterPerKill(Level("slaughter")) * k;
+            if(Level("wraith") > 0) s += AugmentDefs.WraithPerBoss(Level("wraith")) * expBossKills * CurseGain;
+            s = Mathf.Min(s, RemasterBalance.CurseCap);
             if(Synergy(AugTag.Curse, 6)) s *= 1.5f;
             int tl = Level("tartarus");
             if(tl > 0 && InfiniteStage.Instance != null && InfiniteStage.Instance.playerHealth == 1)
@@ -151,7 +171,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
         get {
             if(!EffectsActive) return 1f;
             float blood = Level("bloodprice") > 0 ? AugmentDefs.BloodDamage(Level("bloodprice")) : 0f;
-            return (1f + blood) * (1f + CurseStackTotal);
+            return (1f + blood) * (1f + CurseStackTotal) * StarPowerMultiplier;
         }
     }
 
@@ -214,40 +234,18 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     #endregion
 
     #region 무기 / 출격
+    WeaponBase SideWeaponOf(SideWeapon w) => WeaponManager.instance != null ? WeaponManager.instance.GetSideWeapon(w) : null;
+
     public int WeaponLevel(SideWeapon w)
     {
-        var wm = WeaponManager.instance;
-        if(wm == null) return 0;
-        switch(w) {
-            case SideWeapon.DoubleGun: return wm.doubleGun != null ? wm.doubleGun.UpgradeLevel : 0;
-            case SideWeapon.Bomber: return wm.BomberGun != null ? wm.BomberGun.UpgradeLevel : 0;
-            case SideWeapon.TrackingGun: return wm.trackingGun != null ? wm.trackingGun.UpgradeLevel : 0;
-            case SideWeapon.Poison: return wm.poison != null ? wm.poison.UpgradeLevel : 0;
-            case SideWeapon.Orbital: return wm.orbital != null ? wm.orbital.UpgradeLevel : 0;
-            case SideWeapon.Lazer: return wm.lazer != null ? wm.lazer.UpgradeLevel : 0;
-            case SideWeapon.StrLaser: return wm.strLaser != null ? wm.strLaser.UpgradeLevel : 0;
-            case SideWeapon.Sniper: return wm.sniperGun != null ? wm.sniperGun.UpgradeLevel : 0;
-            case SideWeapon.BounceGun: return wm.bounceGun != null ? wm.bounceGun.UpgradeLevel : 0;
-        }
-        return 0;
+        var weapon = SideWeaponOf(w);
+        return weapon != null ? weapon.UpgradeLevel : 0;
     }
 
     GameObject WeaponObject(SideWeapon w)
     {
-        var wm = WeaponManager.instance;
-        if(wm == null) return null;
-        switch(w) {
-            case SideWeapon.DoubleGun: return wm.doubleGun ? wm.doubleGun.gameObject : null;
-            case SideWeapon.Bomber: return wm.BomberGun ? wm.BomberGun.gameObject : null;
-            case SideWeapon.TrackingGun: return wm.trackingGun ? wm.trackingGun.gameObject : null;
-            case SideWeapon.Poison: return wm.poison ? wm.poison.gameObject : null;
-            case SideWeapon.Orbital: return wm.orbital ? wm.orbital.gameObject : null;
-            case SideWeapon.Lazer: return wm.lazer ? wm.lazer.gameObject : null;
-            case SideWeapon.StrLaser: return wm.strLaser ? wm.strLaser.gameObject : null;
-            case SideWeapon.Sniper: return wm.sniperGun ? wm.sniperGun.gameObject : null;
-            case SideWeapon.BounceGun: return wm.bounceGun ? wm.bounceGun.gameObject : null;
-        }
-        return null;
+        var weapon = SideWeaponOf(w);
+        return weapon != null ? weapon.gameObject : null;
     }
 
     public bool Owned(SideWeapon w) => w != SideWeapon.None && WeaponLevel(w) > 0;
@@ -374,7 +372,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             ui.Toast($"보급 무기 {AugmentDefs.WeaponName(supplyWeapon)}가 돌아갔어요", AugmentDefs.TagColor(AugTag.Treasure));
             supplyWeapon = SideWeapon.None;
         }
-        if(clearedStage > 0 && clearedStage % PullInterval == 0)
+        if(RemasterBalance.IsAugmentStage(clearedStage))
             QueuePull(1);
         ui.RefreshHUD();
     }
@@ -386,12 +384,8 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
         if(enemy._typeofEnemy != Enemy.typeofEnemy.InfiniteStage && !isBoss) return;
 
         expKills++;
-        float gain = CurseGain;
-        if(Level("soul") > 0) soulStack += AugmentDefs.SoulPerKill(Level("soul")) * gain;
-        if(Level("slaughter") > 0) slaughterStack += AugmentDefs.SlaughterPerKill(Level("slaughter")) * gain;
         if(isBoss) {
             expBossKills++;
-            if(Level("wraith") > 0) wraithStack += AugmentDefs.WraithPerBoss(Level("wraith")) * gain;
         }
         if(Level("stardustshot") > 0 && expKills % 100 == 0)
             stardustSizeStack = Mathf.Min(2f, stardustSizeStack + AugmentDefs.StardustShotPer100(Level("stardustshot")));
@@ -720,13 +714,13 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     #endregion
 
     #region 원정 시작 / 환생
-    public int RebirthThreshold => rebirthCount == 0 ? 100 : Mathf.Max(50, bestStage / 2);
+    public int RebirthThreshold => rebirthCount == 0 ? RemasterBalance.FirstRebirthStage : Mathf.Max(50, bestStage / 2);
     public bool CanRebirth => loaded && CurrentStage >= RebirthThreshold;
 
     public static long StardustFor(int stage)
     {
         if(stage < 10) return 0;
-        return (long)Mathf.Floor(Mathf.Pow(stage / 10f, 1.5f));
+        return (long)Mathf.Floor(RemasterBalance.StardustMul * Mathf.Pow(stage / 10f, 1.5f));
     }
 
     public long RebirthGain {
@@ -738,7 +732,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
         }
     }
 
-    public int TreeCost(int node) => TreeBaseCost[node] * (tree[node] + 1);
+    public int TreeCost(int node) => node == StarPowerNode ? RemasterBalance.StarPowerCost(tree[node]) : TreeBaseCost[node] * (tree[node] + 1);
 
     public bool UpgradeTree(int node)
     {
@@ -758,6 +752,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             case 0: return $"골드 확률 +{l * 2}%p, 프리즘 확률 +{l * 0.4f:0.#}%p";
             case 1: return l == 0 ? "원정 시작 시 최고 기록의 일부를 건너뛰어요" : $"최고 기록의 {l * 10}%부터 출발 (건너뛴 만큼 증강 지급)";
             case 2: return l == 0 ? "원정 시작 시 증강 1개를 들고 출발" : $"{(l == 1 ? "실버" : l == 2 ? "골드" : "프리즘")} 이상 증강 1개를 들고 출발";
+            case 3: return $"원정 피해 ×{StarPowerMultiplier:0.##} (레벨마다 ×{RemasterBalance.StarPowerPerLevel:0.##})";
         }
         return "";
     }
@@ -834,15 +829,19 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
                 var def = Roll(out _, tree[2] - 1);
                 if(def != null) { Apply(def, false); got.Add(def.name); }
             }
-            int skippedPulls = (rebirthStartStage - 1) / PullInterval;
+            int skippedPulls = RemasterBalance.AugmentStagesBefore(rebirthStartStage);
             for(int i = 0; i < skippedPulls; i++) {
                 var def = Roll(out _, -1);
                 if(def == null) break;
                 Apply(def, false);
                 got.Add(def.name);
             }
-            if(InfiniteStage.Instance != null && rebirthStartStage > 1)
+            if(InfiniteStage.Instance != null && rebirthStartStage > 1) {
+                // 건너뛴 스테이지의 처치·보스 수를 인정 (누적 증강이 손해 보지 않게)
+                expKills += RemasterBalance.KillsBefore(rebirthStartStage);
+                expBossKills += (rebirthStartStage - 1) / 10;
                 InfiniteStage.Instance.JumpToStage(rebirthStartStage);
+            }
         }
         if(got.Count > 0) {
             PauseForUI();
@@ -864,7 +863,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             freeRerollDate = "";
             freeRerollsUsed = adRerollsUsed = 0;
             stardust = 0;
-            tree = new int[3];
+            tree = new int[TreeNames.Length];
             rebirthCount = 0;
             int oldStage = data.StageIndex;
             bestStage = Mathf.Max(1, oldStage);
@@ -909,7 +908,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             freeRerollsUsed = data.freeRerollsUsed;
             adRerollsUsed = data.adRerollsUsed;
             stardust = data.stardust;
-            tree = new int[3];
+            tree = new int[TreeNames.Length];
             if(data.rebirthTree != null)
                 for(int i = 0; i < tree.Length && i < data.rebirthTree.Count; i++) tree[i] = Mathf.Clamp(data.rebirthTree[i], 0, TreeMax[i]);
             bestStage = Mathf.Max(1, data.bestExpeditionStage);

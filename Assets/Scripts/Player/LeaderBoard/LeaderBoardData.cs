@@ -17,7 +17,7 @@ public class LeaderBoardData : MonoBehaviour
     public void setUserData(string rank, string name, string score)
     {
         UserRank.text = rank;
-        UserName.text = name.Substring(0, name.IndexOf("#"));
+        UserName.text = UserNameManager.Display(name);
 
         if(typeOfData == BoardType.InfiniteStage) {
             UserScore.text = "스테이지 " + score;

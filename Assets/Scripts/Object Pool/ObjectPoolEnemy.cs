@@ -122,78 +122,8 @@ public enum PoolObjectTypeEnemy
 
 
 [Serializable]
-public class PoolInfoEnemy
+public class PoolInfoEnemy : PoolEntry<PoolObjectTypeEnemy> { }
+
+public class ObjectPoolEnemy : TypedObjectPool<ObjectPoolEnemy, PoolObjectTypeEnemy, PoolInfoEnemy>
 {
-    public PoolObjectTypeEnemy type;
-    public int amount = 0;
-    public GameObject prefab;
-    public GameObject Parent;
-
-    [HideInInspector]
-    public List<GameObject> pool = new List<GameObject>();
-}
-
-public class ObjectPoolEnemy : Singleton<ObjectPoolEnemy>
-{
-    [SerializeField]
-    List<PoolInfoEnemy> listofPool;
-
-    private Vector3 defaultPos = new Vector3(-100, -100, -100);
-
-    void Start()
-    {
-        for(int i = 0; i < listofPool.Count; i++) {
-            FillPool(listofPool[i]);
-        }
-    }
-
-    void FillPool(PoolInfoEnemy info)
-    {
-        for(int i = 0; i < info.amount; i++) {
-            GameObject obInstance = null;
-            obInstance = Instantiate(info.prefab, info.Parent.transform);
-            obInstance.gameObject.SetActive(false);
-            obInstance.transform.position = defaultPos;
-            info.pool.Add(obInstance);
-        }
-    }
-
-    public GameObject GetPoolObject(PoolObjectTypeEnemy type)
-    {
-        PoolInfoEnemy selected = GetPoolByType(type);
-        List<GameObject> pool = selected.pool;
-
-        GameObject obInstance = null;
-        if(pool.Count > 0) {
-            obInstance = pool[pool.Count - 1];
-            pool.Remove(obInstance);
-        } else
-            obInstance = Instantiate(selected.prefab, selected.Parent.transform);
-
-        return obInstance;
-    }
-
-    public void CoolObject(GameObject ob, PoolObjectTypeEnemy type)
-    {
-        ob.SetActive(false);
-        ob.transform.position = defaultPos;
-
-        PoolInfoEnemy selected = GetPoolByType(type);
-        List<GameObject> pool = selected.pool;
-
-        if(!pool.Contains(ob))
-            pool.Add(ob);
-    }
-
-    private PoolInfoEnemy GetPoolByType(PoolObjectTypeEnemy type)
-    {
-        for(int i = 0; i < listofPool.Count; i++) {
-            if(type == listofPool[i].type) {
-                return listofPool[i];
-            }
-        }
-
-        return null;
-
-    }
 }

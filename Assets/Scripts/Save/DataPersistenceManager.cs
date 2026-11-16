@@ -74,7 +74,13 @@ public class DataPersistenceManager : MonoBehaviour
         isLoadFailed = false;
 
         try {
+            // 네트워크가 잠깐 끊겨도 바로 포기하지 않게 3번까지 시도 (실패하면 이번 실행 내내 저장이 막혀요)
             var loadResult = await CloudSaveManager.LoadDataOnCloud("GameData");
+            for(int attempt = 1; attempt < 3 && !loadResult.Success; attempt++) {
+                Debug.LogWarning($"[DataPersistence] Cloud load retry {attempt}");
+                await System.Threading.Tasks.Task.Delay(1500 * attempt);
+                loadResult = await CloudSaveManager.LoadDataOnCloud("GameData");
+            }
 
             if(!loadResult.Success) {
                 Debug.LogError("[DataPersistence] Cloud load failed. Save will be blocked to prevent overwrite.");

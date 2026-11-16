@@ -20,7 +20,7 @@ public class CloudSaveManager : MonoBehaviour
             string dataString = JsonUtility.ToJson(inData);
             var data = new Dictionary<string, object> { { key, dataString } };
 
-            await CloudSaveService.Instance.Data.ForceSaveAsync(data);
+            await ServiceHub.CloudSave.Data.ForceSaveAsync(data);
             Debug.Log($"[CloudSave] Save success : {key}");
             return true;
         } catch(Exception e) {
@@ -39,7 +39,7 @@ public class CloudSaveManager : MonoBehaviour
         };
 
         try {
-            var savedData = await CloudSaveService.Instance.Data.LoadAsync(new HashSet<string> { key });
+            var savedData = await ServiceHub.CloudSave.Data.LoadAsync(new HashSet<string> { key });
 
             if(!savedData.ContainsKey(key)) {
                 Debug.LogWarning($"[CloudSave] Key not found : {key}");
@@ -85,7 +85,7 @@ public class CloudSaveManager : MonoBehaviour
     public static async Task<bool> DeleteSomeData(string key)
     {
         try {
-            await CloudSaveService.Instance.Data.ForceDeleteAsync(key);
+            await ServiceHub.CloudSave.Data.ForceDeleteAsync(key);
             Debug.Log($"[CloudSave] Delete success : {key}");
             return true;
         } catch(Exception e) {

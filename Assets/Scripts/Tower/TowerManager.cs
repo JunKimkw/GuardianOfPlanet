@@ -84,7 +84,7 @@ public class TowerManager : MonoBehaviour, IDataPersistence
     {
         if(Time.timeScale > 0.5f) {
             if(isTraveling) {
-                TimeForAdventure -= Time.deltaTime / Time.timeScale;
+                TimeForAdventure -= Time.unscaledDeltaTime;
 
                 var ts = TimeSpan.FromSeconds(TimeForAdventure);
                 TravelLeftTimeText.text = string.Format("{0:00}:{1:00}:{2:00}", (int)ts.TotalHours, ts.Minutes, ts.Seconds);

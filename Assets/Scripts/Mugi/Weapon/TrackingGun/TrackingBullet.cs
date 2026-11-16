@@ -1,19 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class TrackingBullet : MonoBehaviour
+public class TrackingBullet : Bullet
 {
-    [HideInInspector]
-    public bool isCritical;
-    [HideInInspector]
-    public bool isStunning;
-    [Header("#-----총알 정보")]
-    public float BulletSpeed;
+    Rigidbody2D rb;
 
-    [Header("#-----총알 필요 요소")]
-    //추적 미사일 전용
-    private Rigidbody2D rb;
     [Header("추적 미사일 전용")]
     public float RotationControl;
 
@@ -22,36 +12,28 @@ public class TrackingBullet : MonoBehaviour
     public float missileSpeedScale;
     public float bullet_CritDamage;
 
-    private void Awake()
+    protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.Tracking;
+    protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.TrackingMissile;
+
+    void Awake()
     {
-        rb = this.GetComponent<Rigidbody2D>();
+        rb = GetComponent<Rigidbody2D>();
     }
 
-    // Update is called once per frame
     void Update()
     {
-        //How it Moves
-        if(EnemyManager.Instance.FindCloseEnemyWithoutRange() != null) {
-            Vector2 direction = ((Vector2)EnemyManager.Instance.FindCloseEnemyWithoutRange().pos + (Vector2)EnemyManager.Instance.FindCloseEnemyWithoutRange().transform.forward * 2) - rb.position;
-
+        Enemy target = EnemyManager.Instance.FindCloseEnemyWithoutRange();   // 예전엔 프레임마다 3번 찾았어요
+        if(target != null) {
+            Vector2 direction = ((Vector2)target.pos + (Vector2)target.transform.forward * 2) - rb.position;
             direction.Normalize();
-
             float rotateAmount = Vector3.Cross(direction, transform.up).z;
-
             rb.angularVelocity = -rotateAmount * RotationControl * 15;
-
-            rb.linearVelocity = 50 * transform.up * BulletSpeed * (1 + Player.instance.FinalAttack_Bullet_SpeedPercent) * (1 + TraitsManager.instance.GetStats(TraitsData.WeaponType.TrackingMissile, TraitsData.TraitsType.BulletSpeed)) * (1 + missileSpeedScale ) * Time.deltaTime;
-
+            rb.linearVelocity = 50 * transform.up * BulletSpeed * SpeedMultiplier * (1 + missileSpeedScale) * Time.deltaTime;
         } else {
             transform.Translate(Vector3.up * 3f * Time.deltaTime);
         }
 
-        if(transform.position.y > Camera.main.orthographicSize || transform.position.y < -(Camera.main.orthographicSize) || transform.position.x > Camera.main.orthographicSize * Camera.main.aspect || transform.position.x < Camera.main.orthographicSize * Camera.main.aspect * -1)
-            DestroyBullet();
-    }
-    public void DestroyBullet()
-    {
-        ObjectPoolBullet.Instance.CoolObject(this.gameObject, PoolObjectTypeBullet.Tracking);
+        if(IsOffScreen()) DestroyBullet();
     }
 
     public void setBulletStats(int a, float b, float c)
@@ -61,15 +43,10 @@ public class TrackingBullet : MonoBehaviour
         bullet_CritDamage = c;
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    void OnCollisionEnter2D(Collision2D collision)
     {
-        if(collision.gameObject.GetComponent<Enemy>() != null) {
-            //DamagePopup
-            collision.gameObject.GetComponent<Enemy>().OnHit(bullet_Damage, isStunning, isCritical, bullet_CritDamage);
+        // 더미는 예전엔 배율 없이 기본 피해만 받았어요 → 실제 탄 피해로 통일
+        if(Hit(collision.gameObject, bullet_Damage, bullet_CritDamage))
             DestroyBullet();
-        } else if(collision.gameObject.GetComponent<Dummy>() != null) {
-            collision.gameObject.GetComponent<Dummy>().addDamage(TrackingGun.instance.Damage + Player.instance.FinalAttack_Damage, isCritical, bullet_CritDamage);
-            DestroyBullet();
-        }
     }
 }

@@ -30,8 +30,8 @@ public class Stats : MonoBehaviour
 
     void Update()
     {
-        if(Player.instance.PlayerName.Length > 2)
-            PlayerName.text = Player.instance.PlayerName.Substring(0, Player.instance.PlayerName.IndexOf("#"));
+        if(!string.IsNullOrEmpty(Player.instance.PlayerName))
+            PlayerName.text = UserNameManager.Display(Player.instance.PlayerName);
         PlayerID.text = Player.instance.PlayerID;
 
         Slider_PlayerLevel.value = Player.instance.exp;

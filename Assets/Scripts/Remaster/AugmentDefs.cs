@@ -34,10 +34,10 @@ public static class AugmentDefs
     public static int ChainDepth(int L) => 4 + L;                               // 연쇄 단수
     public static float HammerDamage(int L) => 3f + 1.5f * (L - 1);             // 플레이어 공격력 배수
     public static int CarpetBombs(int L) => Mathf.Min(2 + L, 6);                // 추가 폭탄 수
-    public static float SoulPerKill(int L) => 0.0005f * (1 + 0.375f * (L - 1)); // 처치당 피해 +
+    public static float SoulPerKill(int L) => 0.001f * (1 + 0.375f * (L - 1));  // 유효 처치 1당 피해 + (시뮬레이터 v1)
     public static float BloodDamage(int L) => 0.4f + 0.1f * (L - 1);
     public static float WraithPerBoss(int L) => 0.03f * (1 + 0.25f * (L - 1));
-    public static float SlaughterPerKill(int L) => 0.005f * (1 + 0.25f * (L - 1));
+    public static float SlaughterPerKill(int L) => 0.002f * (1 + 0.25f * (L - 1)); // 시뮬레이터 v1 (예전 0.005는 +2500%까지 폭주)
     public static float TartarusMult(int L) => 2f + 0.25f * (L - 1);
     public static float MultiShotChance(int L) => 0.15f + 0.05f * (L - 1);
     public static float BigShotSize(int L) => 0.15f + 0.05f * (L - 1);
@@ -62,13 +62,13 @@ public static class AugmentDefs
 
         // ---- 저주 (타르타로스)
         new AugmentDef("soul", "영혼 수확", AugTag.Curse, AugGrade.Silver, 5, "soul",
-            L => $"누적: 처치마다 피해 +{SoulPerKill(L) * 100:0.###}%"),
+            L => $"누적: 이번 원정에서 처치할수록 피해 증가\n(처음 100마리 동안 +{SoulPerKill(L) * 10000:0.#}%, 갈수록 천천히)"),
         new AugmentDef("bloodprice", "피의 대가", AugTag.Curse, AugGrade.Silver, 5, "bloodprice",
             L => $"실드 -1, 피해 +{BloodDamage(L) * 100:0}%"),
         new AugmentDef("wraith", "망령", AugTag.Curse, AugGrade.Silver, 5, "wraith",
             L => $"누적: 보스 처치마다 피해 +{WraithPerBoss(L) * 100:0.#}%"),
         new AugmentDef("slaughter", "학살자의 저주", AugTag.Curse, AugGrade.Gold, 5, "slaughter",
-            L => $"누적: 처치마다 피해 +{SlaughterPerKill(L) * 100:0.###}%\n대신 처치 1000마다 적 이동속도 +1%"),
+            L => $"누적: 처치할수록 피해 크게 증가\n(처음 100마리 동안 +{SlaughterPerKill(L) * 10000:0.#}%, 갈수록 천천히)\n대신 처치 1000마다 적 이동속도 +1%"),
         new AugmentDef("tartarus", "타르타로스의 문", AugTag.Curse, AugGrade.Prism, 3, "tartarus",
             L => $"실드가 1칸만 남으면\n모든 누적 효과 ×{TartarusMult(L):0.##}"),
 

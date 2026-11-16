@@ -62,7 +62,7 @@ public class LeaderBoardManager : MonoBehaviour
     public async void AddInfiniteStageScore()
     {
         try {
-            var scoreResponse = await LeaderboardsService.Instance.AddPlayerScoreAsync(LeaderboardInfiniteStage, InfiniteStage.Instance.CurrentStage);
+            var scoreResponse = await ServiceHub.Leaderboards.AddPlayerScoreAsync(LeaderboardInfiniteStage, InfiniteStage.Instance.CurrentStage);
             setLeaderBoard();
             snapToMyScoreInfiniteStage();
         } catch(System.Exception e) {
@@ -73,7 +73,7 @@ public class LeaderBoardManager : MonoBehaviour
     public async void AddTotalDamageScore(long score)
     {
         try {
-            var scoreResponse = await LeaderboardsService.Instance.AddPlayerScoreAsync(LeaderboardTotalDamage, score);
+            var scoreResponse = await ServiceHub.Leaderboards.AddPlayerScoreAsync(LeaderboardTotalDamage, score);
             setLeaderBoard();
             snapToMyScoreTotalDamage();
         } catch(System.Exception e) {
@@ -81,19 +81,29 @@ public class LeaderBoardManager : MonoBehaviour
         }
     }
 
-    public async void checkDuplication(string name)
+    // 닉네임 중복 확인: 두 랭킹에 올라간 다른 플레이어 이름(# 앞부분)과 대소문자 무시하고 비교해요.
+    // 랭킹에 점수가 없는 사람은 확인할 방법이 없어요 (Unity 이름 뒤에 #숫자가 붙어서 실제 계정은 겹치지 않아요).
+    // 네트워크 오류면 막지 않고 통과시켜요.
+    public static async System.Threading.Tasks.Task<bool> IsNameTaken(string name)
     {
-        var scoresResponse =
-            await LeaderboardsService.Instance.GetScoresAsync(LeaderboardInfiniteStage);
-
-        duplication = true;
-        for(int i = 0; i < scoresResponse.Results.Count; i++) {
-            if(name.ToLower().Equals(scoresResponse.Results[i].PlayerName.Substring(0, scoresResponse.Results[i].PlayerName.IndexOf("#")).ToLower())) {
-                duplication = false;
-                break;
+        string key = name.ToLowerInvariant();
+        string me = Unity.Services.Authentication.AuthenticationService.Instance.PlayerId;
+        try {
+            foreach(var board in new[] { LeaderboardInfiniteStage, LeaderboardTotalDamage }) {
+                for(int offset = 0; offset < 5000; offset += 1000) {
+                    var page = await ServiceHub.Leaderboards.GetScoresAsync(board, new GetScoresOptions() { Offset = offset, Limit = 1000 });
+                    if(page?.Results == null) break;
+                    foreach(var e in page.Results) {
+                        if(e.PlayerId != me && UserNameManager.Display(e.PlayerName).ToLowerInvariant() == key)
+                            return true;
+                    }
+                    if(page.Results.Count < 1000) break;
+                }
             }
+        } catch(System.Exception e) {
+            Debug.LogWarning("[LeaderBoard] 닉네임 중복 확인 실패(통과 처리): " + e.Message);
         }
-        UserNameManager.Instance.setConditionText(duplication);
+        return false;
     }
 
     public void InitializeLeaderBoardInfiniteStage()
@@ -148,7 +158,7 @@ public class LeaderBoardManager : MonoBehaviour
 
         //Infinite Stage
         var scoresResponse =
-      await LeaderboardsService.Instance.GetScoresAsync(LeaderboardInfiniteStage, new GetScoresOptions() { Limit = 1000 });
+      await ServiceHub.Leaderboards.GetScoresAsync(LeaderboardInfiniteStage, new GetScoresOptions() { Limit = 1000 });
 
         if(scoresResponse.Results != null && scoresResponse.Results.Count > 0) {
             FirstPlace_UserName.gameObject.SetActive(true);
@@ -178,7 +188,7 @@ public class LeaderBoardManager : MonoBehaviour
         }
 
         for(int i = 3; i < scoresResponse.Results.Count; i++) {
-            if(scoresResponse.Results[i].PlayerName.Length <= 8)
+            if(UserNameManager.Display(scoresResponse.Results[i].PlayerName).Length > 0)
                 activateLeaderBoardDataInifniteStage(i, scoresResponse.Results[i].PlayerName, scoresResponse.Results[i].Score.ToString("N0"));
         }
 
@@ -186,7 +196,7 @@ public class LeaderBoardManager : MonoBehaviour
 
         //Total Damage
         var scoresTotalDamage =
-          await LeaderboardsService.Instance.GetScoresAsync(LeaderboardTotalDamage, new GetScoresOptions() { Limit = 1000 });
+          await ServiceHub.Leaderboards.GetScoresAsync(LeaderboardTotalDamage, new GetScoresOptions() { Limit = 1000 });
 
         if(scoresTotalDamage.Results != null && scoresTotalDamage.Results.Count > 0) {
             FirstPlace_UserName.gameObject.SetActive(true);
@@ -216,7 +226,7 @@ public class LeaderBoardManager : MonoBehaviour
         }
 
         for(int i = 3; i < scoresTotalDamage.Results.Count; i++) {
-            if(scoresTotalDamage.Results[i].PlayerName.Length <= 8)
+            if(UserNameManager.Display(scoresTotalDamage.Results[i].PlayerName).Length > 0)
                 activateLeaderBoardDataTotalDamage(i, scoresTotalDamage.Results[i].PlayerName, scoresTotalDamage.Results[i].Score.ToString("N0"));
         }
 
@@ -228,9 +238,9 @@ public class LeaderBoardManager : MonoBehaviour
         Canvas.ForceUpdateCanvases();
 
         RectTransform data = null;
-        var myScore = await LeaderboardsService.Instance.GetPlayerScoreAsync(LeaderboardInfiniteStage);
+        var myScore = await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardInfiniteStage);
 
-        string myName = myScore.PlayerName.Substring(0, myScore.PlayerName.IndexOf("#"));
+        string myName = UserNameManager.Display(myScore.PlayerName);
 
         for(int i = 0; i < BoardDatas.Count; i++) {
             BoardDatas[i].Focus.SetActive(false);
@@ -258,9 +268,9 @@ public class LeaderBoardManager : MonoBehaviour
         Canvas.ForceUpdateCanvases();
 
         RectTransform data = null;
-        var myScore = await LeaderboardsService.Instance.GetPlayerScoreAsync(LeaderboardTotalDamage);
+        var myScore = await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardTotalDamage);
 
-        string myName = myScore.PlayerName.Substring(0, myScore.PlayerName.IndexOf("#"));
+        string myName = UserNameManager.Display(myScore.PlayerName);
 
         for(int i = 0; i < BoardDatas2.Count; i++) {
             BoardDatas2[i].Focus.SetActive(false);
@@ -285,64 +295,64 @@ public class LeaderBoardManager : MonoBehaviour
 
     public void setFirstPlaceInfiniteStage(string name, string score)
     {
-        FirstPlace_UserName.text = name.Substring(0, name.IndexOf("#"));
+        FirstPlace_UserName.text = UserNameManager.Display(name);
         FirstPlace_UserScore.text = "스테이지 " + score;
     }
 
     public void setSecondPlaceInfiniteStage(string name, string score)
     {
-        SecondPlace_UserName.text = name.Substring(0, name.IndexOf("#"));
+        SecondPlace_UserName.text = UserNameManager.Display(name);
         SecondPlace_UserScore.text = "스테이지 " + score;
     }
 
     public void setThirdPlaceInfiniteStage(string name, string score)
     {
-        ThirdPlace_UserName.text = name.Substring(0, name.IndexOf("#"));
+        ThirdPlace_UserName.text = UserNameManager.Display(name);
         ThirdPlace_UserScore.text = "스테이지 " + score;
     }
 
     public void setFirstPlaceTotalDamage(string name, string score)
     {
-        FirstPlaceTotalDamage_UserName.text = name.Substring(0, name.IndexOf("#"));
+        FirstPlaceTotalDamage_UserName.text = UserNameManager.Display(name);
         FirstPlaceTotalDamage_UserScore.text = score;
     }
 
     public void setSecondPlaceTotalDamage(string name, string score)
     {
-        SecondPlaceTotalDamage_UserName.text = name.Substring(0, name.IndexOf("#"));
+        SecondPlaceTotalDamage_UserName.text = UserNameManager.Display(name);
         SecondPlaceTotalDamage_UserScore.text = score;
     }
 
     public void setThirdPlaceTotalDamage(string name, string score)
     {
-        ThirdPlaceTotalDamage_UserName.text = name.Substring(0, name.IndexOf("#"));
+        ThirdPlaceTotalDamage_UserName.text = UserNameManager.Display(name);
         ThirdPlaceTotalDamage_UserScore.text = score;
     }
 
     public async void setMyScoreInfiniteStage()
     {
         var scoreResponse =
-          await LeaderboardsService.Instance.GetPlayerScoreAsync(LeaderboardInfiniteStage);
+          await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardInfiniteStage);
 
         MyUserRank_InfiniteStage.text = (scoreResponse.Rank + 1).ToString("N0");
-        MyUserName_InfiniteStage.text = scoreResponse.PlayerName.Substring(0, scoreResponse.PlayerName.IndexOf("#"));
+        MyUserName_InfiniteStage.text = UserNameManager.Display(scoreResponse.PlayerName);
         MyUserScore_InfiniteStage.text = "스테이지 " + scoreResponse.Score.ToString("N0");
     }
 
     public async void setMyScoreTotalDamage()
     {
         var scoreResponse =
-          await LeaderboardsService.Instance.GetPlayerScoreAsync(LeaderboardTotalDamage);
+          await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardTotalDamage);
 
         MyUserRank_TotalDamage.text = (scoreResponse.Rank + 1).ToString("N0");
-        MyUserName_TotalDamage.text = scoreResponse.PlayerName.Substring(0, scoreResponse.PlayerName.IndexOf("#"));
+        MyUserName_TotalDamage.text = UserNameManager.Display(scoreResponse.PlayerName);
         MyUserScore_TotalDamage.text = scoreResponse.Score.ToString("N0");
     }
 
     public async void GetPlayerScore()
     {
         var scoreResponse =
-            await LeaderboardsService.Instance.GetPlayerScoreAsync(LeaderboardInfiniteStage);
+            await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardInfiniteStage);
         Debug.Log(JsonConvert.SerializeObject(scoreResponse));
     }
 

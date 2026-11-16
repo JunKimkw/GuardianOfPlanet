@@ -35,78 +35,8 @@ public enum PoolObjectTypeDungeon
 
 
 [Serializable]
-public class PoolInfoDungeon
+public class PoolInfoDungeon : PoolEntry<PoolObjectTypeDungeon> { }
+
+public class ObjectPoolDungeon : TypedObjectPool<ObjectPoolDungeon, PoolObjectTypeDungeon, PoolInfoDungeon>
 {
-    public PoolObjectTypeDungeon type;
-    public int amount = 0;
-    public GameObject prefab;
-    public GameObject Parent;
-
-    [HideInInspector]
-    public List<GameObject> pool = new List<GameObject>();
-}
-
-public class ObjectPoolDungeon : Singleton<ObjectPoolDungeon>
-{
-    [SerializeField]
-    List<PoolInfoDungeon> listofPool;
-
-    private Vector3 defaultPos = new Vector3(-100, -100, -100);
-
-    void Start()
-    {
-        for(int i = 0; i < listofPool.Count; i++) {
-            FillPool(listofPool[i]);
-        }
-    }
-
-    void FillPool(PoolInfoDungeon info)
-    {
-        for(int i = 0; i < info.amount; i++) {
-            GameObject obInstance = null;
-            obInstance = Instantiate(info.prefab, info.Parent.transform);
-            obInstance.gameObject.SetActive(false);
-            obInstance.transform.position = defaultPos;
-            info.pool.Add(obInstance);
-        }
-    }
-
-    public GameObject GetPoolObject(PoolObjectTypeDungeon type)
-    {
-        PoolInfoDungeon selected = GetPoolByType(type);
-        List<GameObject> pool = selected.pool;
-
-        GameObject obInstance = null;
-        if(pool.Count > 0) {
-            obInstance = pool[pool.Count - 1];
-            pool.Remove(obInstance);
-        } else
-            obInstance = Instantiate(selected.prefab, selected.Parent.transform);
-
-        return obInstance;
-    }
-
-    public void CoolObject(GameObject ob, PoolObjectTypeDungeon type)
-    {
-        ob.SetActive(false);
-        ob.transform.position = defaultPos;
-
-        PoolInfoDungeon selected = GetPoolByType(type);
-        List<GameObject> pool = selected.pool;
-
-        if(!pool.Contains(ob))
-            pool.Add(ob);
-    }
-
-    private PoolInfoDungeon GetPoolByType(PoolObjectTypeDungeon type)
-    {
-        for(int i = 0; i < listofPool.Count; i++) {
-            if(type == listofPool[i].type) {
-                return listofPool[i];
-            }
-        }
-
-        return null;
-
-    }
 }

@@ -65,6 +65,13 @@ public class StartScreenScript : MonoBehaviour
         loadingProgress.text = "100%";
 
         yield return new WaitForSeconds(3);
+
+        // 자동 로그인(세션/구글/애플)이 아직 진행 중이면 끝날 때까지 기다려요 (최대 15초)
+        float waited = 0f;
+        while(AuthManager.AnyAutoLoginRunning && waited < 15f) {
+            waited += Time.unscaledDeltaTime;
+            yield return null;
+        }
         LoadingUI.gameObject.SetActive(false);
 
         //StageManager
@@ -86,8 +93,8 @@ public class StartScreenScript : MonoBehaviour
             LoginTab.SetActive(false);
             gameObject.SetActive(false);
 
-            if(PlayerPrefs.GetInt("username") == 0) {
-                UserNameManager.Instance.checkIfUserNameSet();
+            if(UserNameManager.NeedsName()) {
+                UserNameManager.Instance.openUserNameTab();
                 return;
             }
 

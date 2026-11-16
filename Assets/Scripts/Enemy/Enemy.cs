@@ -62,17 +62,20 @@ public class Enemy : MonoBehaviour
     [Header("채력바")]
     public float CurrentHealth;
 
-    //Stunned
-    bool IsCoroutineRunning;
+    //Stunned: 남은 스턴 시간(초). 스턴 중에 다시 맞으면 1초로 갱신
+    float stunLeft;
 
-    //Moving Timer
-    float Timer;
+    // 매 프레임 GetComponents 를 부르지 않게 한 번만 찾아 둬요
+    Collider2D[] colliders;
+    SpriteRenderer[] sprites;
 
     //Range Related
     Vector3 screenPos;
 
     private void Awake()
     {
+        colliders = GetComponents<Collider2D>();
+        sprites = GetComponentsInChildren<SpriteRenderer>(true);
         initialValue.SetInitialValues(EnemyHealth, Enemy_EXP, enemy_Money, StunResistence, enemyMovingSpeed);
     }
 
@@ -87,16 +90,8 @@ public class Enemy : MonoBehaviour
 
     private void OnEnable()
     {
-        for(int i = 0; i < GetComponents<Collider2D>().Length; i++) {
-            GetComponents<Collider2D>()[i].enabled = true;
-        }
-        for(int i = 0; i < this.gameObject.GetComponentsInChildren<SpriteRenderer>().Length; i++) {
-            if(gameObject.GetComponentsInChildren<SpriteRenderer>()[i].name != "Shadow")
-                this.gameObject.GetComponentsInChildren<SpriteRenderer>()[i].color = new Color(1, 1, 1, 1);
-            else
-                this.gameObject.GetComponentsInChildren<SpriteRenderer>()[i].color = new Color(0, 0, 0, 0.62f);
-        }
-        StopAllCoroutines();
+        ResetVisuals();
+        stunLeft = 0;
         //Speed
         enemyMovingSpeed = initialValue.initialSpeed;
 
@@ -127,17 +122,8 @@ public class Enemy : MonoBehaviour
 
             }
         } else if(_state == EnemyState.stunned) {
-            transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, 0);
-            Timer += Time.deltaTime / Time.timeScale;
-            if(Timer >= 1) {
-                _state = EnemyState.moving;
-                Timer = 0;
-            } else {
-                if(IsCoroutineRunning) {
-                    IsCoroutineRunning = false;
-                    Timer = 0;
-                }
-            }
+            stunLeft -= Time.deltaTime;
+            if(stunLeft <= 0) _state = EnemyState.moving;
         }
         distanceBetween();
 
@@ -179,24 +165,24 @@ public class Enemy : MonoBehaviour
         StunResistence = initialValue.StunResistence;
         enemyMovingSpeed = initialValue.initialSpeed;
         distance = 0;
+        ResetVisuals();
+    }
 
-        for(int i = 0; i < GetComponents<Collider2D>().Length; i++) {
-            GetComponents<Collider2D>()[i].enabled = true;
-        }
-        for(int i = 0; i < this.gameObject.GetComponentsInChildren<SpriteRenderer>().Length; i++) {
-            if(gameObject.GetComponentsInChildren<SpriteRenderer>()[i].name != "Shadow")
-                this.gameObject.GetComponentsInChildren<SpriteRenderer>()[i].color = new Color(1, 1, 1, 1);
-            else
-                this.gameObject.GetComponentsInChildren<SpriteRenderer>()[i].color = new Color(0, 0, 0, 0.62f);
-        }
+    // 충돌 켜기 + 색 원래대로 (그림자는 반투명 검정)
+    void ResetVisuals()
+    {
+        foreach(var c in colliders) c.enabled = true;
+        foreach(var r in sprites)
+            r.color = r.name != "Shadow" ? Color.white : new Color(0, 0, 0, 0.62f);
         StopAllCoroutines();
     }
 
     public void distanceBetween()
     {
-        if(GameObject.FindGameObjectWithTag("MainWeapon") != null)
-            distance = Vector3.Distance(GameObject.FindGameObjectWithTag("MainWeapon").transform.position, pos);
-        if(distance < 0.5f) {
+        var ship = WeaponManager.instance != null ? WeaponManager.instance.mainWeapon : null;
+        if(ship != null)
+            distance = Vector3.Distance(ship.transform.position, pos);
+        if(distance < 0.5f && _state != EnemyState.dead) {
             shelterReached();
         }
     }
@@ -231,21 +217,19 @@ public class Enemy : MonoBehaviour
         if(AugmentManager.Instance != null)
             AugmentManager.Instance.OnEnemyHit(this, totalDamage);
 
+        // 오프라인 진행 계산용 초당 피해 측정 (원정 적만, 넘친 피해 제외)
+        if(_typeofEnemy == typeofEnemy.InfiniteStage || _typeofEnemy == typeofEnemy.InfiniteStageBoss)
+            OfflineProgress.RecordDamage(System.Math.Min(totalDamage, (double)CurrentHealth));
+
         //Dead
         if(CurrentHealth - totalDamage > 0) {
             CurrentHealth -= totalDamage;
             //Stun
             if(Stunned) {
-                if(_state == EnemyState.stunned)
-                    IsCoroutineRunning = true;
-                else
-                    StartCoroutine(StunnedEffect());
+                _state = EnemyState.stunned;
+                stunLeft = 1f;
             }
-            if(this.gameObject.activeSelf) {
-                Coroutine lastcoroutine = StartCoroutine(DamagedEffect());
-                if(lastcoroutine == null)
-                    StartCoroutine(DamagedEffect());
-            }
+            StartCoroutine(DamagedEffect());
         } else if(CurrentHealth - totalDamage <= 0 && _state != EnemyState.dead) {
             _state = EnemyState.dead;
             EnemyManager.EnemyDead(this);
@@ -254,22 +238,16 @@ public class Enemy : MonoBehaviour
 
     IEnumerator DamagedEffect()
     {
-        for(int i = 0; i < this.gameObject.GetComponentsInChildren<SpriteRenderer>().Length; i++) {
-            if(gameObject.GetComponentsInChildren<SpriteRenderer>()[i].sprite.name != "Circle")
-                gameObject.GetComponentsInChildren<SpriteRenderer>()[i].color = Color.red;
-        }
+        SetTint(Color.red);
         yield return new WaitForSeconds(0.25f);
-        for(int i = 0; i < this.gameObject.GetComponentsInChildren<SpriteRenderer>().Length; i++) {
-            if(gameObject.GetComponentsInChildren<SpriteRenderer>()[i].sprite.name != "Circle")
-                gameObject.GetComponentsInChildren<SpriteRenderer>()[i].color = Color.white;
-        }
+        SetTint(Color.white);
     }
 
-    public IEnumerator StunnedEffect()
+    // 그림자(Circle)는 빼고 색 바꾸기
+    void SetTint(Color c)
     {
-        _state = EnemyState.stunned;
-        yield return new WaitForSeconds(1f);
-        _state = EnemyState.moving;
+        foreach(var r in sprites)
+            if(r != null && (r.sprite == null || r.sprite.name != "Circle")) r.color = c;
     }
 
     public void EnemyDeath()
@@ -278,12 +256,9 @@ public class Enemy : MonoBehaviour
             Healthbar.slider.gameObject.SetActive(false);
 
         enemyMovingSpeed = 0;
-        for(int i = 0; i < GetComponents<Collider2D>().Length; i++) {
-            GetComponents<Collider2D>()[i].enabled = false;
-        }
-        for(int i = 0; i < this.gameObject.GetComponentsInChildren<SpriteRenderer>().Length; i++) {
-            EnemyDeathEffect(gameObject.GetComponentsInChildren<SpriteRenderer>()[i], i == this.gameObject.GetComponentsInChildren<SpriteRenderer>().Length - 1);
-        }
+        foreach(var c in colliders) c.enabled = false;
+        for(int i = 0; i < sprites.Length; i++)
+            EnemyDeathEffect(sprites[i], i == sprites.Length - 1);
 
         SoundManager.Instance.Invoke("playEnemyDead", SoundManager.Instance.EnemyDamagedSFX.length);
     }
@@ -292,9 +267,11 @@ public class Enemy : MonoBehaviour
     {
         sprite.color = new Color(sprite.color.r, sprite.color.g, sprite.color.b, 1f);
         for(float f = 1f; f >= -0.1f; f -= 0.075f) {
+            if(this == null || sprite == null) return;   // 플레이 종료·파괴 후 접근 오류 방지
             sprite.color = new Color(sprite.color.r, sprite.color.g, sprite.color.b, f);
             await Task.Delay(50);
         }
+        if(this == null) return;
         if(isLast) {
             if(_typeofEnemy == typeofEnemy.Dungeon || _typeofEnemy == typeofEnemy.DungeonBoss) {
                 ObjectPoolDungeon.Instance.CoolObject(gameObject, typeDungeonPool);

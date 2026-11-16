@@ -1,38 +1,27 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class BounceBullet : MonoBehaviour
+// 튕김탄: 목표 적을 맞히면(또는 목표가 먼저 죽으면) 다음 적들로 갈라져 튕겨요.
+public class BounceBullet : Bullet
 {
     public BounceEnemy bounceEnemy;
-
     public int BounceTime;
-
-    [HideInInspector]
-    public bool isCritical;
-    [HideInInspector]
-    public bool isStunning;
-    public float BulletSpeed;
-
     public int bullet_Damage;
-
     public Enemy TargetEnemy;
+
+    protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.BounceBullet;
+    protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.BounceGun;
 
     void Update()
     {
-        //How it Moves
-        transform.Translate(Vector3.up * BulletSpeed * (1 + Player.instance.FinalAttack_Bullet_SpeedPercent) * (1 + TraitsManager.instance.GetStats(TraitsData.WeaponType.BounceGun, TraitsData.TraitsType.BulletSpeed)) * Time.deltaTime);
+        MoveForward();
 
-        if(transform.position.y > Camera.main.orthographicSize || transform.position.y < -(Camera.main.orthographicSize) || transform.position.x > Camera.main.orthographicSize * Camera.main.aspect || transform.position.x < Camera.main.orthographicSize * Camera.main.aspect * -1) {
-            BounceGun.instance.bounceEnemyList_Bullet.Remove(bounceEnemy);
-            DestroyBullet();
+        if(IsOffScreen()) {
+            Finish();
+            return;
         }
 
-        if(TargetEnemy != null) {
-            if(TargetEnemy._state == Enemy.EnemyState.dead) {
-                HandleBounce();
-            }
-        }
+        if(TargetEnemy != null && TargetEnemy._state == Enemy.EnemyState.dead)
+            HandleBounce();
     }
 
     // 튕김 처리 (리마스터: 증식 튕김 증강으로 추가 튕김. 추가분은 1발씩만 이어져서 탄이 폭증하지 않아요)
@@ -47,65 +36,66 @@ public class BounceBullet : MonoBehaviour
                 CreateBullet();
             DestroyBullet();
         } else {
-            BounceGun.instance.bounceEnemyList_Bullet.Remove(bounceEnemy);
-            DestroyBullet();
+            Finish();
         }
     }
-    public void DestroyBullet()
+
+    void Finish()
     {
-        ObjectPoolBullet.Instance.CoolObject(this.gameObject, PoolObjectTypeBullet.BounceBullet);
+        BounceGun.instance.bounceEnemyList_Bullet.Remove(bounceEnemy);
+        DestroyBullet();
     }
 
-    public void setBulletStats(int damage)
+    public override void DestroyBullet()
     {
-        bullet_Damage = damage;
+        TargetEnemy = null;   // 풀에서 다시 꺼낼 때 예전 목표가 남아 있으면 바로 튕겨 버리던 문제
+        base.DestroyBullet();
     }
+
+    public void setBulletStats(int damage) => bullet_Damage = damage;
 
     public void CreateBullet()
     {
-        BounceBullet bullet_A = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.BounceBullet).GetComponent<BounceBullet>();
+        BounceBullet b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.BounceBullet).GetComponent<BounceBullet>();
 
-        if(AugmentManager.Instance != null && AugmentManager.Instance.BounceExtraCount > 0) {
-            bullet_A.setBulletStats((int)Mathf.Min(int.MaxValue, bullet_Damage * 1.2f));
-        } else if(BounceGun.instance.NoDamageReduce) {
-            bullet_A.setBulletStats(bullet_Damage);
-        } else {
-            bullet_A.setBulletStats((int)(bullet_Damage * Mathf.Pow(0.9f, BounceTime)));
-        }
-        bullet_A.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
-        bullet_A.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
-        bullet_A.transform.position = transform.position;
-        bullet_A.bounceEnemy = bounceEnemy;
-        bullet_A.BounceTime = BounceTime;
+        if(AugmentManager.Instance != null && AugmentManager.Instance.BounceExtraCount > 0)
+            b.setBulletStats((int)Mathf.Min(int.MaxValue, bullet_Damage * 1.2f));
+        else if(BounceGun.instance.NoDamageReduce)
+            b.setBulletStats(bullet_Damage);
+        else
+            b.setBulletStats((int)(bullet_Damage * Mathf.Pow(0.9f, BounceTime)));
 
-        Enemy e = EnemyManager.Instance.FindCloseEnemy(bullet_A.bounceEnemy);
-        if(e != null) {
-            //To Closest Enemy
-            Vector3 difference = new Vector3(0, 0, 0);
-            difference = e.pos - bullet_A.transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            bullet_A.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-            bullet_A.TargetEnemy = e;
-        } else {
-            bullet_A.transform.rotation = transform.rotation;
-        }
-
-        bullet_A.gameObject.SetActive(true);
+        b.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
+        b.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
+        b.transform.position = transform.position;
+        b.bounceEnemy = bounceEnemy;
+        b.BounceTime = BounceTime;
+        b.AimAtNext(transform.rotation);
+        b.gameObject.SetActive(true);
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    // 아직 안 맞힌 가장 가까운 적을 향해요 (없으면 그대로 직진)
+    public void AimAtNext(Quaternion fallback)
     {
-        if(collision.gameObject.GetComponent<Enemy>() != null && collision.gameObject.GetComponent<Enemy>() == TargetEnemy) {
-            collision.gameObject.GetComponent<Enemy>().OnHit(bullet_Damage, isStunning, isCritical, Player.instance.FinalCriticalDamage);
-            bounceEnemy.BouncedEnemies.Add(collision.gameObject.GetComponent<Enemy>());
+        Enemy e = EnemyManager.Instance.FindCloseEnemy(bounceEnemy);
+        TargetEnemy = e;
+        if(e != null) {
+            Vector3 d = e.pos - transform.position;
+            transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg - 90f);
+        } else {
+            transform.rotation = fallback;
+        }
+    }
 
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        if(collision.TryGetComponent(out Enemy enemy)) {
+            if(enemy != TargetEnemy) return;
+            enemy.OnHit(bullet_Damage, isStunning, isCritical, PlayerCritDamage);
+            bounceEnemy.BouncedEnemies.Add(enemy);
             HandleBounce();
-
-        } else if(collision.gameObject.GetComponent<Dummy>() != null) {
-            collision.gameObject.GetComponent<Dummy>().addDamage(bullet_Damage, isCritical, Player.instance.FinalCriticalDamage);
-
-
-
+        } else if(collision.TryGetComponent(out Dummy dummy)) {
+            dummy.addDamage(bullet_Damage, isCritical, PlayerCritDamage);
         }
     }
 }

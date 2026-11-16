@@ -132,7 +132,9 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
     IEnumerator spawnEnemy(Enemy e)
     {
         while(SpawningEnemy) {
-            yield return new WaitForSeconds(SpawnSpeed * (1f - (0.1f * (KilledEnemy / Mathf.Max(1, (float)(setEnemyNumber() / 8))))));
+            // 처치가 늘수록 조금씩 빨라지지만 최소 30% 간격은 지켜요 (예전엔 0초·음수가 되어 막판에 한꺼번에 쏟아졌어요)
+            float speedUp = 0.1f * (KilledEnemy / Mathf.Max(1f, setEnemyNumber() / 8f));
+            yield return new WaitForSeconds(SpawnSpeed * Mathf.Max(0.3f, 1f - speedUp));
             SpawnedEnemy++;
             EnemyManager.Instance.createInfiniteEnemy(e, EnemyScale);
             if(SpawnedEnemy >= setEnemyNumber()) {
@@ -162,12 +164,18 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
     public void enemyHit(Enemy data)
     {
-        Instance.KilledEnemy++;
-
-        if(data._typeofEnemy == Enemy.typeofEnemy.InfiniteStage)
-            playerHealth--;
-        else if(data._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss)
+        if(data._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss) {
+            // 보스가 우주선에 닿으면 실드 -2, 살아 있으면 보스가 처음부터 다시 나와요
+            // (예전엔 보스 도착을 처리하지 않아서 스테이지가 멈췄어요)
             playerHealth -= 2;
+            BossSpawned = false;
+            WarningObject.gameObject.SetActive(false);
+        } else {
+            KilledEnemy++;
+            playerHealth--;
+            if(KilledEnemy <= setEnemyNumber())
+                RemainedMonsterText.text = (setEnemyNumber() - KilledEnemy).ToString();
+        }
         HealthText.text = playerHealth.ToString();
         if(playerHealth <= 0) {
             SpawningEnemy = false;
@@ -238,8 +246,8 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         timeSlider_Cleared.value = 1.5f;
 
         while(timeSlider_Cleared.value > 0) {
-            timeSlider_Cleared.value -= Time.deltaTime / Time.timeScale;
-            yield return new WaitForSecondsRealtime(0.001f);
+            timeSlider_Cleared.value -= Time.unscaledDeltaTime;
+            yield return null;
         }
         ResultTab_Cleared.SetActive(false);
 
@@ -330,10 +338,8 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
     public long getPrizeMoney()
     {
-        long sum = (long)(CurrentStage * 500) + (long)Mathf.Pow((CurrentStage / 120), 8);
-        if(sum > 500000000)
-            sum = 500000000 + CurrentStage * 100000;
-        return sum;
+        // 리마스터 원정: 클리어한 스테이지 처치 골드의 25%
+        return System.Math.Max(1, RemasterBalance.StageClearGold(Mathf.Max(1, CurrentStage - 1)));
     }
 
     IEnumerator restartStage()
@@ -347,8 +353,8 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         timeSlider_Failed.value = 3;
 
         while(timeSlider_Failed.value > 0) {
-            timeSlider_Failed.value -= Time.deltaTime / Time.timeScale;
-            yield return new WaitForSecondsRealtime(0.001f);
+            timeSlider_Failed.value -= Time.unscaledDeltaTime;
+            yield return null;
         }
         ResultTab_Failed.SetActive(false);
         SetStageBeforeEntering();
@@ -356,15 +362,8 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
     public int setEnemyNumber()
     {
-        if(CurrentStage / 80 < StageManager.instance.planets.Count) {
-            if(StageManager.instance.planets[CurrentStage / 80].PlanetCleared) {
-                return (10 + CurrentStage)/2;
-            } else {
-                return 10 + CurrentStage;
-            }
-        } else {
-            return 10 + CurrentStage;
-        }
+        // 리마스터 원정: 10 + 스테이지/5, 최대 30마리 (예전: 10 + 스테이지, 끝없이 늘어남)
+        return RemasterBalance.EnemyCount(CurrentStage);
     }
 
     public void setEnemyScale()
@@ -388,13 +387,14 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         if(CurrentEnemyIndex[1] > enemyPrefab.Length - 1) {
             CurrentEnemyIndex[1] = enemyPrefab.Length - 1;
         }
+
+        // 보스 28종을 60스테이지마다 하나씩 (예전엔 이 값을 아무 데서도 바꾸지 않아서 항상 첫 보스만 나왔어요)
+        CurrentBossIndex = Mathf.Clamp(CurrentStage / 60, 0, bossPrefab.Length - 1);
     }
 
     public void setSpawnSpeed()
     {
-        SpawnSpeed = 2.5f - (CurrentStage * 0.01f);
-        if(SpawnSpeed <= 0.25f)
-            SpawnSpeed = 0.25f;
+        SpawnSpeed = RemasterBalance.SpawnSpeed(CurrentStage);
     }
 
     public void ResumeInfiniteStage()

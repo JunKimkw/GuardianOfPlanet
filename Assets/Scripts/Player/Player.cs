@@ -261,18 +261,14 @@ public class Player : MonoBehaviour, IDataPersistence
         if(FinalAttack_Bullet_SpeedPercent > 4) FinalAttack_Bullet_SpeedPercent = 4;      
     }
 
-    public void extraCritchance(int amount)
-    {
-        CriticalDamage += amount * 0.01f;
-    }
-
     public void PlayerEXPUP(long exp)
     {
         expTotal += exp;
         long remainingExp = exp;
 
         while(remainingExp > 0) {
-            long expRequiredForNextLevel = getEXPRequired() - this.exp;
+            // 이미 필요량을 넘겨 있으면(불러오기 직후 등) 0으로 봐요. 음수면 남은 경험치가 오히려 늘어났어요
+            long expRequiredForNextLevel = System.Math.Max(0, getEXPRequired() - this.exp);
 
             if(remainingExp < expRequiredForNextLevel) {
                 this.exp += remainingExp;
@@ -351,12 +347,13 @@ public class Player : MonoBehaviour, IDataPersistence
             Attack_Damage += (Lvl - 700) * 24;
         }
 
+        // 리마스터: 800·900 구간이 (Lvl - 700)을 기준으로 계산되고 ×100이 붙어 레벨 900에서 공격력이 급상승하던 문제 수정
         if(Lvl >= 800) {
-            Attack_Damage += (Lvl - 700) * 27;
+            Attack_Damage += (Lvl - 800) * 27;
         }
 
         if(Lvl >= 900) {
-            Attack_Damage += (Lvl - 700) * 100;
+            Attack_Damage += (Lvl - 900) * 30;
         }
     }
 
@@ -367,7 +364,8 @@ public class Player : MonoBehaviour, IDataPersistence
 
     public void LoadData(GameData data)
     {
-        PlayerName = data.PlayerName;
+        // 계정 이름이 진짜 기준 (저장 파일 이름은 예전 기록이라 비었거나 옛 이름일 수 있음)
+        PlayerName = UserNameManager.HasName ? UserNameManager.ServerName : data.PlayerName;
         this.Lvl = data.lvl;
         this.exp = data.exp;
         this.AutoShootTime = data.AutoShootTime;

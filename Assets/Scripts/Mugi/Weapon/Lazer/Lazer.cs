@@ -1,208 +1,85 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class Lazer : MonoBehaviour
+// 360 레이저: 대기 후 5초(패시브 시 10초) 동안 빙글 돌며 닿는 적을 계속 공격
+public class Lazer : ContactWeapon
 {
-    [SerializeField] public string id;
-
-    [ContextMenu("Generate guid for id")]
-    private void GenerateGuid()
-    {
-        id = System.Guid.NewGuid().ToString();
-    }
-
     public static Lazer instance;
 
-    [HideInInspector]
-    public int UpgradeLevel;
-
-    [HideInInspector]
-    public int LazerDamage;
+    [HideInInspector] public int LazerDamage;
 
     [Header("Lazer Shoot")]
     public ShootLazer shootLazer;
 
-    [Header("#-----Passive Stats")]
-    public int ExtraDamage;
-    public float ExtraDamagePercent;
     public bool ExtraHit;
-    public float ExtraCritDamage;
     public bool SpinTwoTimes;
 
     float TimerAs;
     bool canShoot;
+    Rigidbody2D rb;
 
-    public List<Enemy> enemyOnLaser;
-    public List<Dummy> dummyOnLaser;
+    protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.CircleLaser;
+    public override int BaseDamage => LazerDamage;
+    protected override float HitInterval => ExtraHit ? 0.05f : 0.1f;
 
-    private void Awake()
+    void Awake()
     {
         instance = this;
-        transform.GetComponent<Rigidbody2D>().isKinematic = true;
+        rb = GetComponent<Rigidbody2D>();
+        rb.isKinematic = true;
     }
 
-    private void Update()
+    void Update()
     {
-        if(canShoot) {
-            TimerAs += Time.deltaTime;
-            if(TimerAs <= 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed))) {
-                transform.GetComponent<Rigidbody2D>().isKinematic = true;
-            } else if(TimerAs > 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed)) && TimerAs < (SpinTwoTimes ? 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed)) + 10 : 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed)) + 5)) {
-                //Sound
-                if(!SoundManager.Instance.laserSFXSource.isPlaying)
-                    SoundManager.Instance.playWeaponSFX(SoundManager.WeaponSFXType.laser);
+        if(!canShoot) return;
+        TimerAs += Time.deltaTime;
 
-                doubleCheckEnemyOnLazer();
-                transform.GetComponent<Rigidbody2D>().isKinematic = false;
-                shootLazer.isShooting = true;
-                this.transform.rotation = Quaternion.Euler(0, 0, 72 * (TimerAs - 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed))));
-            } else if(TimerAs >= (SpinTwoTimes ? 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed)) + 10 : 10 * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.AttackSpeed)) + 5)) {
-                if(SoundManager.Instance.laserSFXSource.isPlaying)
-                    SoundManager.Instance.laserSFXSource.Stop();
+        float wait = 10 * (1 - Trait(TraitsData.TraitsType.AttackSpeed));
+        float end = wait + (SpinTwoTimes ? 10 : 5);
 
-                transform.GetComponent<Rigidbody2D>().isKinematic = true;
-                shootLazer.isShooting = false;
-                this.transform.localRotation = Quaternion.Euler(0, 0, 0);
-                TimerAs = 0;
-                enemyOnLaser.Clear();
-            }
+        if(TimerAs <= wait) {
+            rb.isKinematic = true;
+        } else if(TimerAs < end) {
+            if(!SoundManager.Instance.laserSFXSource.isPlaying)
+                SoundManager.Instance.playWeaponSFX(SoundManager.WeaponSFXType.laser);
+            doubleCheckEnemyOnLazer();
+            rb.isKinematic = false;
+            shootLazer.isShooting = true;
+            transform.rotation = Quaternion.Euler(0, 0, 72 * (TimerAs - wait));
+        } else {
+            if(SoundManager.Instance.laserSFXSource.isPlaying)
+                SoundManager.Instance.laserSFXSource.Stop();
+            rb.isKinematic = true;
+            shootLazer.isShooting = false;
+            transform.localRotation = Quaternion.identity;
+            TimerAs = 0;
+            ClearTargets();
         }
     }
 
+    public override void SetDamage() =>
+        LazerDamage = Tiered(UpgradeLevel, 100, (0, 6), (20, 7), (100, 8), (200, 9), (300, 7), (500, 2));
 
-    public void UpgradeWeapon()
-    {
-        UpgradeLevel++;
-        SetDamage();
-    }
-
-    public void SetDamage()
-    {
-        LazerDamage = 100;
-
-        if(UpgradeLevel >= 0)
-            LazerDamage += UpgradeLevel * 6;
-
-        if(UpgradeLevel >= 20)
-            LazerDamage += (UpgradeLevel - 20) * 7;
-
-        if(UpgradeLevel >= 100)
-            LazerDamage += (UpgradeLevel - 100) * 8;
-
-        if(UpgradeLevel >= 200)
-            LazerDamage += (UpgradeLevel - 200) * 9;
-
-        if(UpgradeLevel >= 300)
-            LazerDamage += (UpgradeLevel - 300) * 7;
-
-        if(UpgradeLevel >= 500)
-            LazerDamage += (UpgradeLevel - 500) * 2;
-
-    }
-
-
-    public void DonShoot()
+    public override void DonShoot()
     {
         shootLazer.isShooting = false;
-        this.transform.localRotation = Quaternion.Euler(0, 0, 0);
+        transform.localRotation = Quaternion.identity;
         TimerAs = 0;
         canShoot = false;
     }
-    public void NormalShooting()
+
+    // 회전 중에는 조준하지 않아요 (예전엔 매 프레임 조준이 회전을 덮어썼어요)
+    public override void NormalShooting()
     {
-        Vector3 Mousetarget = new Vector3(0, 0, 0);
-        Mousetarget = GameManager.instance.mainCamera.ScreenToWorldPoint(Input.mousePosition);
-        Vector3 difference = Mousetarget - this.transform.position;
-        float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-        this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
+        if(!shootLazer.isShooting) Face(MouseWorld);
         canShoot = true;
     }
 
-    public void AutoShooting()
+    public override void AutoShooting()
     {
-        Enemy _e = EnemyManager.Instance.FindCloseEnemy();
-        if(_e == null) {
-            Vector3 Mousetarget = new Vector3(0, 0, 0);
-            Vector3 difference = Mousetarget - this.transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-        } else {
-            Vector3 difference = new Vector3(0, 0, 0);
-            difference = EnemyManager.Instance.FindCloseEnemy().pos - this.transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
+        if(!shootLazer.isShooting) {
+            Enemy e = EnemyManager.Instance.FindCloseEnemy();
+            Face(e != null ? e.pos : Vector3.zero);
         }
         canShoot = true;
-    }
-
-    public IEnumerator laserAttack(Enemy enemy)
-    {
-        while(enemyOnLaser.Find(d => d.gameObject == enemy.gameObject) != null) {
-            enemy.OnHit((int)(Player.instance.FinalAttack_Damage + ((LazerDamage + ExtraDamage) * (1 + ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.CircleLaser, TraitsData.TraitsType.DamagePercent)))), false, Random.Range(0, 101) <= Player.instance.FinalCriticalChance, Player.instance.FinalCriticalDamage);
-            yield return new WaitForSeconds(ExtraHit ? 0.05f : 0.1f);
-        }
-    }
-
-    public IEnumerator laserAttack(Dummy dummy)
-    {
-        while(dummyOnLaser.Find(d => d.gameObject == dummy.gameObject) != null) {
-            dummy.addDamage((int)(Player.instance.FinalAttack_Damage + ((LazerDamage + ExtraDamage) * (1 + ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.SniperGun, TraitsData.TraitsType.DamagePercent)))), Random.Range(0, 101) <= Player.instance.FinalCriticalChance, Player.instance.FinalCriticalDamage);
-            yield return new WaitForSeconds(ExtraHit ? 0.05f : 0.1f);
-        }
-    }
-
-    public void addEnemyToList(Enemy data)
-    {
-        if(enemyOnLaser.Find(d => d.gameObject == data.gameObject) == null) {
-            enemyOnLaser.Add(data);
-            StartCoroutine(laserAttack(data));
-            
-        }
-    }
-
-    public void doubleCheckEnemyOnLazer()
-    {
-        List<Enemy> enemiesToRemove = new List<Enemy>();
-
-        foreach(Enemy enemy in enemyOnLaser) {
-            if(!IsCollidingWithLaser(enemy.gameObject)) {
-                enemiesToRemove.Add(enemy);
-            }
-        }
-
-        foreach(Enemy enemyToRemove in enemiesToRemove) {
-            enemyOnLaser.Remove(enemyToRemove);
-        }
-    }
-
-    private bool IsCollidingWithLaser(GameObject gameObject)
-    {
-        return Physics2D.OverlapPoint(gameObject.transform.position, LayerMask.GetMask("Player")) != null;
-    }
-
-    public void addDummyToList(Dummy dummy)
-    {
-        if(dummyOnLaser.Find(d => d.gameObject == dummy.gameObject) == null) {
-            dummyOnLaser.Add(dummy);
-            StartCoroutine(laserAttack(dummy));
-        }
-    }
-
-    private void OnCollisionStay2D(Collision2D collision)
-    {
-        if(collision.gameObject.GetComponent<Enemy>() != null) {
-            addEnemyToList(collision.gameObject.GetComponent<Enemy>());
-        } else if(collision.gameObject.GetComponent<Dummy>() != null) {
-            addDummyToList(collision.gameObject.GetComponent<Dummy>());
-        }
-    }
-    private void OnCollisionExit2D(Collision2D collision)
-    {
-        if(collision.gameObject.GetComponent<Enemy>() != null) {
-            enemyOnLaser.Remove(collision.gameObject.GetComponent<Enemy>());
-        } else if(collision.gameObject.GetComponent<Dummy>() != null) {
-            dummyOnLaser.Remove(collision.gameObject.GetComponent<Dummy>());
-        }
     }
 }

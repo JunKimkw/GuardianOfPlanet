@@ -1,7 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
+// 궤도 무기가 우주선 주위를 도는 움직임
 public class MoveInCircle : MonoBehaviour
 {
     public Transform mainPosition;
@@ -9,23 +8,32 @@ public class MoveInCircle : MonoBehaviour
     [SerializeField]
     public float rotationRadius, angularSpeed;
 
-    float posX, posY, angle = 0f;
+    float angle = 0f;   // 라디안
 
-    private void Start()
+    void Start()
     {
-        mainPosition = GameObject.FindGameObjectWithTag("MainWeapon").transform;
+        if(mainPosition == null) {
+            var ship = GameObject.FindGameObjectWithTag("MainWeapon");
+            if(ship != null) mainPosition = ship.transform;
+        }
     }
-    // Update is called once per frame
+
     void Update()
     {
-        this.gameObject.transform.rotation = Quaternion.Euler(0,0, GameObject.FindGameObjectWithTag("MainWeapon").transform.rotation.z);
+        if(mainPosition == null) return;
 
-        posX = mainPosition.position.x + Mathf.Cos(angle) * rotationRadius * (Orbital.instance.extraRange ? 1.5f : 1);
-        posY = mainPosition.position.y + Mathf.Sin(angle) * rotationRadius * (Orbital.instance.extraRange ? 1.5f : 1);
-        transform.position = new Vector2(posX, posY);
-        angle = angle + Time.deltaTime * angularSpeed * (Orbital.instance.extraSpeed ? 1.5f : 1);
+        // 예전 코드는 쿼터니언의 z 성분(각도가 아님)을 넣어서 사실상 0도였어요. 같은 모습으로 고정해요.
+        transform.rotation = Quaternion.identity;
 
-        if (angle >= 360f)
-            angle = 0f;
+        var orbital = Orbital.instance;
+        float range = orbital != null && orbital.extraRange ? 1.5f : 1f;
+        float speed = orbital != null && orbital.extraSpeed ? 1.5f : 1f;
+
+        transform.position = new Vector2(
+            mainPosition.position.x + Mathf.Cos(angle) * rotationRadius * range,
+            mainPosition.position.y + Mathf.Sin(angle) * rotationRadius * range);
+
+        // 한 바퀴(2π)에서 0으로 (예전엔 360 라디안에서 되돌려서 그때마다 위치가 순간이동했어요)
+        angle = Mathf.Repeat(angle + Time.deltaTime * angularSpeed * speed, Mathf.PI * 2f);
     }
 }

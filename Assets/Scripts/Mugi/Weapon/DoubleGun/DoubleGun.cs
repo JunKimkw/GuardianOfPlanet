@@ -1,179 +1,81 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class DoubleGun : MonoBehaviour
+// 쌍발총: 총구 두 개가 각각 조준해서 쏴요
+public class DoubleGun : GunWeapon
 {
-    [SerializeField] public string id;
-
-    [ContextMenu("Generate guid for id")]
-    private void GenerateGuid()
-    {
-        id = System.Guid.NewGuid().ToString();
-    }
-
     public static DoubleGun instance;
 
-    [HideInInspector]
-    public int UpgradeLevel;
-
-    [HideInInspector]
-    public int Damage;
+    [HideInInspector] public int Damage;
 
     [Header("#-----Weapon Info")]
-    [Space(10)]
     public Transform ShootingPoint1;
     public Transform ShootingPoint2;
 
-    [Header("#-----Reload")]
-    [Space(10)]
-    public float MaximumAttackSpeed;
-    public float RelodingSpeed;
-
-    [Header("#-----Passive Stats")]
-    public float ExtraDamagePercent;
-    public float ExtraAttackSpeedScale;
     public float ExtraBulletSpeedScale;
     public bool doubleAttack;
 
-    bool IsShooting;
-    float TimerAs;
-    float r;
+    protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.DoubleGun;
+    public override int BaseDamage => Damage;
 
-    private void Awake()
+    Transform Barrel0 => transform.GetChild(0);
+    Transform Barrel1 => transform.GetChild(1);
+
+    void Awake() => instance = this;
+
+    public override void SetDamage() =>
+        Damage = Tiered(UpgradeLevel, 5, (0, 1), (50, 1), (100, 2), (200, 3), (300, 2), (500, 1));
+
+    protected override void Fire()
     {
-        instance = this;
+        base.Fire();
+        if(doubleAttack) StartCoroutine(DelayedAttack());
     }
 
-    public void UpgradeWeapon()
-    {
-        UpgradeLevel++;
-        SetDamage();
-    }
-
-    public void SetDamage()
-    {
-        Damage = 5;
-
-        if(UpgradeLevel >= 0)
-            Damage += UpgradeLevel * 1;
-
-        if(UpgradeLevel >= 50)
-            Damage += (UpgradeLevel - 50) * 1;
-
-        if(UpgradeLevel >= 100)
-            Damage += (UpgradeLevel - 100) * 2;
-
-        if(UpgradeLevel >= 200)
-            Damage += (UpgradeLevel - 200) * 3;
-
-        if(UpgradeLevel >= 300)
-            Damage += (UpgradeLevel - 300) * 2;
-
-        if(UpgradeLevel >= 500)
-            Damage += (UpgradeLevel - 500);
-
-    }
-    private void Update()
-    {
-        if(IsShooting) {
-            TimerAs += Time.deltaTime;
-            if(TimerAs >= getAttackSpeed()) {
-                CreateBullet();
-                if(AugmentManager.RollMultiShot()) CreateBullet();
-                if(doubleAttack) {
-                    StartCoroutine(DelayedAttack());
-                    TimerAs = 0;
-                } else
-                    TimerAs = 0;
-            }
-        }
-    }
-
-    private IEnumerator DelayedAttack()
+    // 패시브(Lv.500): 잠시 뒤 1% 확률로 한 번 더
+    IEnumerator DelayedAttack()
     {
         yield return new WaitForSeconds(MaximumAttackSpeed / 2);
-        r = Random.Range(0.0f, 101.0f);
-        if(r <= 1.0f) {
-            CreateBullet();
-        }
+        if(Random.Range(0f, 100f) < 1f) CreateBullet();
     }
 
-
-    public float getAttackSpeed()
+    public override void CreateBullet()
     {
-        if(RelodingSpeed * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.AttackSpeed)) * (1 - Player.instance.FinalAttack_SpeedPercent) * (1 - ExtraAttackSpeedScale) <= MaximumAttackSpeed) {
-            return MaximumAttackSpeed;
-        } else {
-            return RelodingSpeed * (1 - TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.AttackSpeed)) * (1 - Player.instance.FinalAttack_SpeedPercent) * (1 - ExtraAttackSpeedScale);
-        }
+        int dmg = HitDamage;
+        // 예전엔 두 번째 탄의 피해를 첫 번째 탄에 다시 넣어서, 두 번째 탄은 지난번 피해(처음엔 0)로 날아갔어요
+        Shoot(ShootingPoint1, Barrel1, dmg);
+        Shoot(ShootingPoint2, Barrel0, dmg);
     }
 
-    public void CreateBullet()
+    void Shoot(Transform point, Transform barrel, int dmg)
     {
-        DoubleGunBullet bullet_A = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Double).GetComponent<DoubleGunBullet>();
-        bullet_A.setBulletStats((int)(Player.instance.FinalAttack_Damage + (Damage * (1 + ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.DamagePercent)))), ExtraBulletSpeedScale);
-        bullet_A.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
-        bullet_A.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
-        bullet_A.transform.position = ShootingPoint1.position;
-        bullet_A.transform.rotation = this.transform.GetChild(1).transform.rotation;
-        bullet_A.gameObject.SetActive(true);
-
-        DoubleGunBullet bullet_B = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Double).GetComponent<DoubleGunBullet>();
-        bullet_A.setBulletStats((int)(Player.instance.FinalAttack_Damage + (Damage * (1 + ExtraDamagePercent + TraitsManager.instance.GetStats(TraitsData.WeaponType.DoubleGun, TraitsData.TraitsType.DamagePercent)))), ExtraBulletSpeedScale);
-        bullet_B.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
-        bullet_B.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
-        bullet_B.transform.position = ShootingPoint2.position;
-        bullet_B.transform.rotation = this.transform.GetChild(0).transform.rotation;
-        bullet_B.gameObject.SetActive(true);
+        var b = TakeBullet<DoubleGunBullet>(PoolObjectTypeBullet.Double, point.position, barrel.rotation);
+        b.setBulletStats(dmg, ExtraBulletSpeedScale);
+        b.gameObject.SetActive(true);
     }
-    public void DonShoot()
+
+    public override void NormalShooting()
     {
-        this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, 0);
-        IsShooting = false;
-    }
-    public void NormalShooting()
-    {
-        Vector3 Mousetarget = new Vector3(0, 0, 0);
-        Mousetarget = GameManager.instance.mainCamera.ScreenToWorldPoint(Input.mousePosition);
-
-        Vector3 difference2 = Mousetarget - this.transform.position;
-        float rotationZ2 = Mathf.Atan2(difference2.y, difference2.x) * Mathf.Rad2Deg;
-        this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ2 - 90);
-
-        Vector3 difference = Mousetarget - this.transform.GetChild(0).transform.position;
-        float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-        this.transform.GetChild(0).transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-
-        Vector3 difference1 = Mousetarget - this.transform.GetChild(1).transform.position;
-        float rotationZ1 = Mathf.Atan2(difference1.y, difference1.x) * Mathf.Rad2Deg;
-        this.transform.GetChild(1).transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ1 - 90);
-
+        AimAll(MouseWorld);
         IsShooting = true;
     }
 
-    public void AutoShooting()
+    public override void AutoShooting()
     {
-        Enemy _e = EnemyManager.Instance.FindCloseEnemy();
-        if(_e == null) {
-            Vector3 Mousetarget = new Vector3(0, 0, 0);
-            Vector3 difference = Mousetarget - this.transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
+        Enemy e = EnemyManager.Instance.FindCloseEnemy();
+        if(e == null) {
+            Face(Vector3.zero);
             IsShooting = false;
         } else {
-            Vector3 difference2 = EnemyManager.Instance.FindCloseEnemy().pos - this.transform.position;
-            float rotationZ2 = Mathf.Atan2(difference2.y, difference2.x) * Mathf.Rad2Deg;
-            this.transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ2 - 90);
-
-            Vector3 difference = EnemyManager.Instance.FindCloseEnemy().pos - this.transform.GetChild(0).transform.position;
-            float rotationZ = Mathf.Atan2(difference.y, difference.x) * Mathf.Rad2Deg;
-            this.transform.GetChild(0).transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ - 90);
-
-            Vector3 difference1 = EnemyManager.Instance.FindCloseEnemy().pos - this.transform.GetChild(1).transform.position;
-            float rotationZ1 = Mathf.Atan2(difference1.y, difference1.x) * Mathf.Rad2Deg;
-            this.transform.GetChild(1).transform.rotation = Quaternion.Euler(0.0f, 0.0f, rotationZ1 - 90);
+            AimAll(e.pos);
             IsShooting = true;
         }
+    }
+
+    void AimAll(Vector3 target)
+    {
+        Face(target);
+        Barrel0.rotation = LookRotation(Barrel0.position, target);
+        Barrel1.rotation = LookRotation(Barrel1.position, target);
     }
 }

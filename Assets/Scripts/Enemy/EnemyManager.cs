@@ -1,7 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// 필드 위 적 목록 관리: 생성(풀), 가장 가까운 적 찾기, 처치·도착 처리, 처치 기록 저장.
 public class EnemyManager : MonoBehaviour, IDataPersistence
 {
     public static EnemyManager Instance;
@@ -18,312 +18,232 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
 
     public Transform TopEnemySpawnLoc;
 
-    private void Start()
+    void Awake()
     {
+        // 예전엔 Start 에서 등록해서, 다른 스크립트의 Start 가 먼저 돌면 null 이었어요.
         Instance = this;
-        for(int i = 0; i < BossEnemies.Length; i++) {
-            bossKilled_number.Add(i);
-        }
+        // 보스별 처치 수 (예전엔 0이 아니라 0,1,2… 로 채워졌어요)
+        bossKilled_number = new List<int>(new int[BossEnemies.Length]);
     }
-    public Enemy FindCloseEnemy()
+
+    // ---- 찾기
+    static bool IsBossType(Enemy e) =>
+        e._typeofEnemy == Enemy.typeofEnemy.boss || e._typeofEnemy == Enemy.typeofEnemy.DungeonBoss || e._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss;
+
+    // 가장 가까운 적 (화면 안). 보스를 노리는 중이어도 거리 3 안에 들어온 일반 적을 먼저 노려요.
+    Enemy FindClose(System.Predicate<Enemy> allow)
     {
-        Enemy closeEnemy = null;
-
-        if(bossData.Count > 0 || enemyData.Count > 0) {
-            //가장 가까운 거리의 적
-            float distance = 100000;
-            for(int i = 0; i < bossData.Count; i++) {
-                if(distance >= bossData[i].distance && bossData[i].IsInRange) {
-                    distance = bossData[i].distance;
-                    closeEnemy = bossData[i];
-                }
-            }
-
-            for(int i = 0; i < enemyData.Count; i++) {
-                if(distance >= enemyData[i].distance && enemyData[i].IsInRange) {
-                    if(closeEnemy == null) {
-                        closeEnemy = enemyData[i];
-                        distance = enemyData[i].distance;
-                    } else {
-                        if(closeEnemy._typeofEnemy == Enemy.typeofEnemy.boss || closeEnemy._typeofEnemy == Enemy.typeofEnemy.DungeonBoss || closeEnemy._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss) {
-                            if(enemyData[i].distance <= 3) {
-                                closeEnemy = enemyData[i];
-                                distance = enemyData[i].distance;
-                            }
-                        } else {
-                            closeEnemy = enemyData[i];
-                            distance = enemyData[i].distance;
-                        }
-                    }
-                }
+        Enemy close = null;
+        float distance = 100000;
+        foreach(var b in bossData) {
+            if(b.IsInRange && distance >= b.distance && allow(b)) {
+                distance = b.distance;
+                close = b;
             }
         }
-        return closeEnemy;
+        foreach(var e in enemyData) {
+            if(!e.IsInRange || distance < e.distance || !allow(e)) continue;
+            if(close == null || !IsBossType(close) || e.distance <= 3) {
+                close = e;
+                distance = e.distance;
+            }
+        }
+        return close;
     }
 
+    public Enemy FindCloseEnemy() => FindClose(_ => true);
+
+    // 튕김탄용: 이미 맞힌 적은 빼고 찾아서 목록에 넣어요
     public Enemy FindCloseEnemy(BounceEnemy bounceEnemy)
     {
-        Enemy closeEnemy = null;
-
-        if(bossData.Count > 0 || enemyData.Count > 0) {
-            //가장 가까운 거리의 적
-            float distance = 100000;
-            for(int i = 0; i < bossData.Count; i++) {
-                if(distance >= bossData[i].distance && bossData[i].IsInRange && !bounceEnemy.checkBouncedEnemyisInList(bossData[i])) {
-                    distance = bossData[i].distance;
-                    closeEnemy = bossData[i];
-                }
-            }
-
-            for(int i = 0; i < enemyData.Count; i++) {
-                if(distance >= enemyData[i].distance && enemyData[i].IsInRange && !bounceEnemy.checkBouncedEnemyisInList(enemyData[i])) {
-                    if(closeEnemy == null) {
-                        closeEnemy = enemyData[i];
-                        distance = enemyData[i].distance;
-                    } else {
-                        if(closeEnemy._typeofEnemy == Enemy.typeofEnemy.boss || closeEnemy._typeofEnemy == Enemy.typeofEnemy.DungeonBoss || closeEnemy._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss) {
-                            if(enemyData[i].distance <= 3) {
-                                closeEnemy = enemyData[i];
-                                distance = enemyData[i].distance;
-                            }
-                        } else {
-                            closeEnemy = enemyData[i];
-                            distance = enemyData[i].distance;
-                        }
-                    }
-                }
-            }
-        }
-
-        if(closeEnemy != null) {
-            bounceEnemy.BouncedEnemies.Add(closeEnemy);
-        }
-        return closeEnemy;
+        Enemy close = FindClose(e => !bounceEnemy.checkBouncedEnemyisInList(e));
+        if(close != null) bounceEnemy.BouncedEnemies.Add(close);
+        return close;
     }
 
+    // 화면 밖 포함, 보스 우선
     public Enemy FindCloseEnemyWithoutRange()
     {
-        Enemy closeEnemy = null;
-
-        if(bossData.Count > 0 || enemyData.Count > 0) {
-            //가장 가까운 거리의 적
-            float distance = 100000;
-            for(int i = 0; i < bossData.Count; i++) {
-                if(distance >= bossData[i].distance) {
-                    distance = bossData[i].distance;
-                    closeEnemy = bossData[i];
-                }
-            }
-
-            if(closeEnemy == null) {
-                for(int i = 0; i < enemyData.Count; i++) {
-                    if(distance >= enemyData[i].distance) {
-                        closeEnemy = enemyData[i];
-                        distance = enemyData[i].distance;
-                    }
-                }
-            }
-        }
-        return closeEnemy;
+        Enemy close = null;
+        float distance = 100000;
+        foreach(var b in bossData)
+            if(distance >= b.distance) { distance = b.distance; close = b; }
+        if(close != null) return close;
+        foreach(var e in enemyData)
+            if(distance >= e.distance) { distance = e.distance; close = e; }
+        return close;
     }
 
+    // 반경 1 안에 적이 가장 많이 모인 적 (같으면 더 가까운 쪽)
     public Enemy FindCrowdedEnemy()
     {
-        Enemy e = null;
+        Enemy best = null;
         int max = 0;
-
-        int count = 0;
         for(int i = 0; i < enemyData.Count; i++) {
-            count = 0;
-            for(int j = 0; j < enemyData.Count; j++) {
-                if(Vector2.Distance(enemyData[i].transform.position, enemyData[j].transform.position) <= 1) {
-                    count++;
-                }
-            }
+            Vector2 p = enemyData[i].transform.position;
+            int count = 0;
+            for(int j = 0; j < enemyData.Count; j++)
+                if(((Vector2)enemyData[j].transform.position - p).sqrMagnitude <= 1f) count++;
 
-            if(count > max) {
+            if(count > max || (count == max && best != null && best.distance >= enemyData[i].distance)) {
                 max = count;
-                e = enemyData[i];
-            } else if(count == max) {
-                if(e != null) {
-                    if(e.distance >= enemyData[i].distance) {
-                        e = enemyData[i];
-                    }
-                }
+                best = enemyData[i];
             }
-
         }
-
-        return e;
-
+        return best;
     }
 
-    public void createEnemy(Enemy _e)
+    // ---- 생성
+    // 풀에서 꺼내 화면 가장자리에 배치. side: 1 왼쪽, 2 위, 3 오른쪽, 4 아래
+    Enemy Spawn(Enemy data, Enemy.typeofEnemy type, bool dungeonPool, int side)
     {
-        Enemy enemy = ObjectPoolEnemy.Instance.GetPoolObject(_e.typePool).GetComponent<Enemy>();
-        int Side = Random.Range(1, 5);
-        Vector2 ranLoc = RandomLocation(Side);
-        enemy._typeofEnemy = Enemy.typeofEnemy.normal;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
+        GameObject go = dungeonPool
+            ? ObjectPoolDungeon.Instance.GetPoolObject(data.typeDungeonPool)
+            : ObjectPoolEnemy.Instance.GetPoolObject(data.typePool);
+        Enemy enemy = go.GetComponent<Enemy>();
+        enemy._typeofEnemy = type;
+        enemy.transform.position = RandomLocation(side);
         enemy.gameObject.SetActive(true);
-        enemy.CurrentHealth = enemy.EnemyHealth;
-        enemyData.Add(enemy);
+        return enemy;
     }
+
+    static int RandomSide() => Random.Range(1, 5);
+    static int RandomBossSide() => Random.Range(1, 3) * 2;   // 위 또는 아래
+
+    // 예전 방식 스케일 (일반 스테이지·던전)
+    static void ApplyScale(Enemy e, float scale, bool speed)
+    {
+        e.EnemyHealth *= (1 + scale);
+        e.enemy_Money = (long)(e.enemy_Money * (1 + scale / 5));
+        e.Enemy_EXP = (int)(e.Enemy_EXP * (1 + scale / 5));
+        if(speed) {
+            e.enemyMovingSpeed *= (1 + scale / 50);
+            e.StunResistence *= (1 + scale);
+        }
+    }
+
+    void AddEnemy(Enemy e)
+    {
+        e.CurrentHealth = e.EnemyHealth;
+        enemyData.Add(e);
+    }
+
+    void AddBoss(Enemy e)
+    {
+        e.CurrentHealth = e.EnemyHealth;
+        bossData.Add(e);
+    }
+
+    public void createEnemy(Enemy _e) => AddEnemy(Spawn(_e, Enemy.typeofEnemy.normal, false, RandomSide()));
+
     public void createEnemy(Enemy _e, float scale)
     {
-        Enemy enemy = ObjectPoolEnemy.Instance.GetPoolObject(_e.typePool).GetComponent<Enemy>();
-        int Side = Random.Range(1, 5);
-        Vector2 ranLoc = RandomLocation(Side);
-        enemy._typeofEnemy = Enemy.typeofEnemy.normal;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
-        enemy.gameObject.SetActive(true);
-        enemy.EnemyHealth *= (1 + scale);
-        enemy.enemyMovingSpeed *= (1 + scale / 50);
-        enemy.enemy_Money = (long)(enemy.enemy_Money * (1 + scale / 5));
-        enemy.Enemy_EXP = (int)(enemy.Enemy_EXP * (1 + scale / 5));
-        enemy.StunResistence *= (1 + scale);
-        enemy.CurrentHealth = enemy.EnemyHealth;
-        enemyData.Add(enemy);
+        Enemy e = Spawn(_e, Enemy.typeofEnemy.normal, false, RandomSide());
+        ApplyScale(e, scale, true);
+        AddEnemy(e);
     }
 
     public void CreateBoss(Enemy _e, float scale)
     {
-        Enemy enemy = ObjectPoolEnemy.Instance.GetPoolObject(_e.typePool).GetComponent<Enemy>();
-        int Side = Random.Range(1, 3);
-        Vector2 ranLoc = RandomLocation(Side * 2);
-        enemy._typeofEnemy = Enemy.typeofEnemy.boss;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
-        enemy.gameObject.SetActive(true);
-        enemy.EnemyHealth *= (1 + scale);
-        enemy.enemy_Money = (long)(enemy.enemy_Money * (1 + scale / 5));
-        enemy.Enemy_EXP = (int)(enemy.Enemy_EXP * (1 + scale / 5));
-        enemy.CurrentHealth = enemy.EnemyHealth;
-        bossData.Add(enemy);
+        Enemy e = Spawn(_e, Enemy.typeofEnemy.boss, false, RandomBossSide());
+        ApplyScale(e, scale, false);
+        AddBoss(e);
     }
 
     public void createInfiniteEnemy(Enemy _e, float scale)
     {
-        Enemy enemy = ObjectPoolEnemy.Instance.GetPoolObject(_e.typePool).GetComponent<Enemy>();
-        int Side = Random.Range(1, 5);
-        Vector2 ranLoc = RandomLocation(Side);
-        enemy._typeofEnemy = Enemy.typeofEnemy.InfiniteStage;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
-        enemy.gameObject.SetActive(true);
-        enemy.EnemyHealth *= (1 + scale);
-        enemy.enemyMovingSpeed *= (1 + scale / 50);
+        Enemy e = Spawn(_e, Enemy.typeofEnemy.InfiniteStage, false, RandomSide());
+        if(InfiniteStage.Instance != null) {
+            // 리마스터 원정: 체력·골드·경험치는 RemasterBalance 곡선 (적 종류마다 ±10% 차이)
+            int stage = InfiniteStage.Instance.CurrentStage;
+            float variety = 0.9f + 0.2f * (((int)_e.typePool & 0xff) / 255f);
+            e.EnemyHealth = (float)(RemasterBalance.EnemyHp(stage) * variety);
+            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage));
+            e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage)));
+        } else {
+            ApplyScale(e, scale, false);
+        }
+        e.enemyMovingSpeed *= (1 + scale / 50);
         if(AugmentManager.Instance != null)
-            enemy.enemyMovingSpeed *= AugmentManager.Instance.EnemySpeedMultiplier;
-        enemy.enemy_Money = (long)(enemy.enemy_Money * (1 + scale / 5));
-        enemy.Enemy_EXP = (int)(enemy.Enemy_EXP * (1 + scale / 5));
-        enemy.StunResistence *= (1 + scale);
-        enemy.CurrentHealth = enemy.EnemyHealth;
-        enemyData.Add(enemy);
+            e.enemyMovingSpeed *= AugmentManager.Instance.EnemySpeedMultiplier;
+        e.StunResistence *= (1 + scale);
+        AddEnemy(e);
     }
 
     public void CreateInfiniteBoss(Enemy _e, float scale)
     {
-        Enemy enemy = ObjectPoolEnemy.Instance.GetPoolObject(_e.typePool).GetComponent<Enemy>();
-        int Side = Random.Range(1, 3);
-        Vector2 ranLoc = RandomLocation(Side * 2);
-        enemy._typeofEnemy = Enemy.typeofEnemy.InfiniteStageBoss;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
-        enemy.gameObject.SetActive(true);
-        enemy.EnemyHealth *= (1 + scale);
-        enemy.enemy_Money = (long)(enemy.enemy_Money * (1 + scale / 5));
-        enemy.Enemy_EXP = (int)(enemy.Enemy_EXP * (1 + scale / 5));
-        enemy.CurrentHealth = enemy.EnemyHealth;
-        bossData.Add(enemy);
+        Enemy e = Spawn(_e, Enemy.typeofEnemy.InfiniteStageBoss, false, RandomBossSide());
+        if(InfiniteStage.Instance != null) {
+            // 리마스터 원정: 10스테이지 보스 ×8, 50스테이지 신의 관문 ×15
+            int stage = InfiniteStage.Instance.CurrentStage;
+            e.EnemyHealth = (float)RemasterBalance.BossHp(stage);
+            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * 20);
+            e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage) * 20));
+        } else {
+            ApplyScale(e, scale, false);
+        }
+        AddBoss(e);
     }
 
     public void CreateDungeonEnemy(Enemy _e, Enemy.typeofEnemy type)
     {
-        Enemy enemy = ObjectPoolDungeon.Instance.GetPoolObject(_e.typeDungeonPool).GetComponent<Enemy>();
-        int Side = Random.Range(1, 5);
-        Vector2 ranLoc = RandomLocation(Side);
-        enemy._typeofEnemy = type;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
-        enemy.gameObject.SetActive(true);
-        enemyData.Add(enemy);
+        Enemy e = Spawn(_e, type, true, RandomSide());
+        enemyData.Add(e);   // 던전 적 체력은 DungeonManager 가 정해요
     }
 
     public void CreateLabMonster(Enemy data)
     {
-        Enemy enemy = null;
-        if(data._typeofEnemy == Enemy.typeofEnemy.Dungeon || data._typeofEnemy == Enemy.typeofEnemy.DungeonBoss) {
-            enemy = ObjectPoolDungeon.Instance.GetPoolObject(data.typeDungeonPool).GetComponent<Enemy>();
-        } else {
-            enemy = ObjectPoolEnemy.Instance.GetPoolObject(data.typePool).GetComponent<Enemy>();
-        }
-        int Side = Random.Range(1, 5);
-        Vector2 ranLoc = RandomLocation(Side);
-        enemy._typeofEnemy = Enemy.typeofEnemy.LabMonster;
-        enemy.transform.position = new Vector3(ranLoc.x, ranLoc.y, 0);
-        enemy.gameObject.SetActive(true);
-        enemy.CurrentHealth = enemy.EnemyHealth;
-        enemyData.Add(enemy);
+        bool dungeon = data._typeofEnemy == Enemy.typeofEnemy.Dungeon || data._typeofEnemy == Enemy.typeofEnemy.DungeonBoss;
+        AddEnemy(Spawn(data, Enemy.typeofEnemy.LabMonster, dungeon, RandomSide()));
     }
 
-    public Vector2 RandomLocation(int Side)
+    public Vector3 RandomLocation(int side)
     {
-        float pos_X;
-        float pos_Y;
-        //Left
-        if(Side == 1) {
-            pos_X = -(Camera.main.orthographicSize * Camera.main.aspect + 0.5f);
-            pos_Y = Random.Range(-Camera.main.orthographicSize, Camera.main.orthographicSize);
+        Camera cam = Camera.main;
+        float h = cam.orthographicSize;
+        float w = h * cam.aspect;
+        switch(side) {
+            case 1: return new Vector3(-(w + 0.5f), Random.Range(-h, h), 0);                                           // 왼쪽
+            case 2: return new Vector3(Random.Range(-w, w), cam.ScreenToWorldPoint(TopEnemySpawnLoc.position).y + 1f, 0); // 위
+            case 3: return new Vector3(w + 0.5f, Random.Range(-h, h), 0);                                              // 오른쪽
+            default: return new Vector3(Random.Range(-w, w), -(h + 1f), 0);                                           // 아래
         }
-        //Top
-        else if(Side == 2) {
-            pos_X = Random.Range(-(Camera.main.orthographicSize * Camera.main.aspect), Camera.main.orthographicSize * Camera.main.aspect);
-            pos_Y = Camera.main.ScreenToWorldPoint(TopEnemySpawnLoc.position).y + 1f;
-        }
-        //Right
-        else if(Side == 3) {
-            pos_X = Camera.main.orthographicSize * Camera.main.aspect + 0.5f;
-            pos_Y = Random.Range(-Camera.main.orthographicSize, Camera.main.orthographicSize);
-        }
-        //Under
-        else {
-            pos_X = Random.Range(-(Camera.main.orthographicSize * Camera.main.aspect), Camera.main.orthographicSize * Camera.main.aspect);
-            pos_Y = -(Camera.main.orthographicSize + 1f);
-        }
-
-        return new Vector2(pos_X, pos_Y);
     }
 
+    // ---- 처치
     public static void EnemyDead(Enemy enemy)
     {
         //리마스터: 증강 처치 효과(폭발, 누적 스택)
         if(AugmentManager.Instance != null)
             AugmentManager.Instance.OnEnemyKilled(enemy);
 
-        switch(enemy._typeofEnemy) {
+        var type = enemy._typeofEnemy;
+        bool rewards = type == Enemy.typeofEnemy.normal || type == Enemy.typeofEnemy.boss
+                    || type == Enemy.typeofEnemy.InfiniteStage || type == Enemy.typeofEnemy.InfiniteStageBoss;
+        long gold = rewards ? GameManager.GetTotalGoldOfEnemy(enemy) : 0;
+        int exp = rewards ? GameManager.GetTotalExpOfEnemy(enemy) : 0;
+        if(rewards) {
+            MoneyPopup.Create(enemy.transform.position, gold, 2.5f);
+            CollectionManager.Instance.addEnemyKilled(enemy);
+        }
+
+        switch(type) {
             case Enemy.typeofEnemy.normal:
-                MoneyPopup.Create(enemy.transform.position, GameManager.GetTotalGoldOfEnemy(enemy), 2.5f);
-
-                StageManager.EnemyDeadNormal(GameManager.GetTotalExpOfEnemy(enemy), GameManager.GetTotalGoldOfEnemy(enemy));
-
-                Instance.enemyKilled_Number++;
-
-                //Achievement
-                AchievementManager.instance.killedEnemyDaily++;
-                AchievementManager.instance.killedEnemyWeekly++;
-
-                CollectionManager.Instance.addEnemyKilled(enemy);
+                StageManager.EnemyDeadNormal(exp, gold);
+                Instance.CountNormalKill();
                 break;
             case Enemy.typeofEnemy.boss:
-                MoneyPopup.Create(enemy.transform.position, GameManager.GetTotalGoldOfEnemy(enemy), 2.5f);
-
-                StageManager.EnemyDeadBoss(GameManager.GetTotalExpOfEnemy(enemy), GameManager.GetTotalGoldOfEnemy(enemy));
-
+                StageManager.EnemyDeadBoss(exp, gold);
                 Instance.AddBossKilled(enemy);
-
-                //Achievement
-                AchievementManager.instance.killedBossDaily++;
-                AchievementManager.instance.killedBossWeekly++;
-
-                CollectionManager.Instance.addEnemyKilled(enemy);
-                Instance.totalBossKilled++;
+                Instance.CountBossKill();
+                break;
+            case Enemy.typeofEnemy.InfiniteStage:
+                InfiniteStage.EnemyDeadNormal(exp, gold);
+                Instance.CountNormalKill();
+                break;
+            case Enemy.typeofEnemy.InfiniteStageBoss:
+                InfiniteStage.EnemyDeadBoss(exp, gold);
+                Instance.CountBossKill();
                 break;
             case Enemy.typeofEnemy.Dungeon:
                 DungeonManager.EnemyDeadNormal();
@@ -331,36 +251,10 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
             case Enemy.typeofEnemy.DungeonBoss:
                 DungeonManager.EnemyDeadBoss();
                 break;
-            case Enemy.typeofEnemy.InfiniteStage:
-                CollectionManager.Instance.addEnemyKilled(enemy);
-                MoneyPopup.Create(enemy.transform.position, GameManager.GetTotalGoldOfEnemy(enemy), 2.5f);
-                InfiniteStage.EnemyDeadNormal(GameManager.GetTotalExpOfEnemy(enemy), GameManager.GetTotalGoldOfEnemy(enemy));
-
-                Instance.enemyKilled_Number++;
-
-                //Achievement
-                AchievementManager.instance.killedEnemyDaily++;
-                AchievementManager.instance.killedEnemyWeekly++;
-                break;
-            case Enemy.typeofEnemy.InfiniteStageBoss:
-                CollectionManager.Instance.addEnemyKilled(enemy);
-                MoneyPopup.Create(enemy.transform.position, GameManager.GetTotalGoldOfEnemy(enemy), 2.5f);
-                InfiniteStage.EnemyDeadBoss(GameManager.GetTotalExpOfEnemy(enemy), GameManager.GetTotalGoldOfEnemy(enemy));
-
-                Instance.totalBossKilled++;
-
-                //Achievement
-                AchievementManager.instance.killedBossDaily++;
-                AchievementManager.instance.killedBossWeekly++;
-
-                break;
-            case Enemy.typeofEnemy.LabMonster:
-                break;
         }
 
-        if(enemy._typeofEnemy != Enemy.typeofEnemy.LabMonster) {
+        if(type != Enemy.typeofEnemy.LabMonster)
             Instance.totalKilledEnemy++;
-        }
 
         enemy.SetEnemyToDefault();
         enemy.EnemyDeath();
@@ -368,87 +262,90 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         Instance.bossData.Remove(enemy);
     }
 
+    void CountNormalKill()
+    {
+        enemyKilled_Number++;
+        AchievementManager.instance.killedEnemyDaily++;
+        AchievementManager.instance.killedEnemyWeekly++;
+    }
+
+    void CountBossKill()
+    {
+        totalBossKilled++;
+        AchievementManager.instance.killedBossDaily++;
+        AchievementManager.instance.killedBossWeekly++;
+    }
+
+    // ---- 우주선 도착
     public static void EnemyReached(Enemy enemy)
     {
         switch(enemy._typeofEnemy) {
             case Enemy.typeofEnemy.normal:
-                MoneyPopup.Create(enemy.transform.position, (-enemy.enemy_Money / 5) + 1, 2.5f);
-                StageManager.instance.Died();
-                ObjectPoolEnemy.Instance.CoolObject(enemy.gameObject, enemy.typePool);
-                break;
-            case Enemy.typeofEnemy.InfiniteStage:
-                InfiniteStage.Instance.enemyHit(enemy);
-                ObjectPoolEnemy.Instance.CoolObject(enemy.gameObject, enemy.typePool);
-                break;
-            case Enemy.typeofEnemy.Dungeon:
-                DungeonManager.EnemyHit();
-                ObjectPoolDungeon.Instance.CoolObject(enemy.gameObject, enemy.typeDungeonPool);
-                break;
             case Enemy.typeofEnemy.boss:
                 MoneyPopup.Create(enemy.transform.position, (-enemy.enemy_Money / 5) + 1, 2.5f);
                 StageManager.instance.Died();
-                ObjectPoolEnemy.Instance.CoolObject(enemy.gameObject, enemy.typePool);
                 break;
-            case Enemy.typeofEnemy.LabMonster:
+            case Enemy.typeofEnemy.InfiniteStage:
+            case Enemy.typeofEnemy.InfiniteStageBoss:
+                // 예전엔 원정 보스가 도착하면 아무 처리도 안 돼서, 우주선 위에 멈춘 채 매 프레임 이 함수를 불렀어요
+                InfiniteStage.Instance.enemyHit(enemy);
+                break;
+            case Enemy.typeofEnemy.Dungeon:
+            case Enemy.typeofEnemy.DungeonBoss:
+                DungeonManager.EnemyHit();
                 break;
         }
+
         enemy.SetEnemyToDefault();
+        Instance.ReturnToPool(enemy);
         Instance.enemyData.Remove(enemy);
+        Instance.bossData.Remove(enemy);
+    }
+
+    void ReturnToPool(Enemy e)
+    {
+        bool dungeon = e._typeofEnemy == Enemy.typeofEnemy.Dungeon || e._typeofEnemy == Enemy.typeofEnemy.DungeonBoss
+                    || (e._typeofEnemy == Enemy.typeofEnemy.LabMonster && e.typePool == PoolObjectTypeEnemy.NONE);
+        if(dungeon) ObjectPoolDungeon.Instance.CoolObject(e.gameObject, e.typeDungeonPool);
+        else ObjectPoolEnemy.Instance.CoolObject(e.gameObject, e.typePool);
     }
 
     public void removeAllEnemies()
     {
-        for(int i = 0; i < enemyData.Count; i++) {
-            enemyData[i].SetEnemyToDefault();
-            ObjectPoolEnemy.Instance.CoolObject(enemyData[i].gameObject, enemyData[i].typePool);
-        }
+        foreach(var e in enemyData) { e.SetEnemyToDefault(); ObjectPoolEnemy.Instance.CoolObject(e.gameObject, e.typePool); }
+        foreach(var e in bossData) { e.SetEnemyToDefault(); ObjectPoolEnemy.Instance.CoolObject(e.gameObject, e.typePool); }
         enemyData.Clear();
-
-        for(int i = 0; i < bossData.Count; i++) {
-            bossData[i].SetEnemyToDefault();
-            ObjectPoolEnemy.Instance.CoolObject(bossData[i].gameObject, bossData[i].typePool);
-        }
         bossData.Clear();
     }
 
     public void removeAllDungeonEnemies()
     {
-        for(int i = 0; i < enemyData.Count; i++) {
-            enemyData[i].SetEnemyToDefault();
-            ObjectPoolDungeon.Instance.CoolObject(enemyData[i].gameObject, enemyData[i].typeDungeonPool);
-        }
+        foreach(var e in enemyData) { e.SetEnemyToDefault(); ObjectPoolDungeon.Instance.CoolObject(e.gameObject, e.typeDungeonPool); }
+        foreach(var e in bossData) { e.SetEnemyToDefault(); ObjectPoolDungeon.Instance.CoolObject(e.gameObject, e.typeDungeonPool); }
         enemyData.Clear();
-
-        for(int i = 0; i < bossData.Count; i++) {
-            bossData[i].SetEnemyToDefault();
-            ObjectPoolDungeon.Instance.CoolObject(bossData[i].gameObject, bossData[i].typeDungeonPool);
-        }
         bossData.Clear();
     }
 
+    // 보스 종류별 처치 수 (예전엔 "필드 위 보스 목록"의 번호로 세서 항상 첫 보스만 올라갔어요)
     public void AddBossKilled(Enemy enemy)
     {
-        for(int x = 0; x < bossData.Count; x++) {
-            if(bossData[x].id == enemy.id) {
-                bossKilled_number[x]++;
+        for(int i = 0; i < BossEnemies.Length; i++) {
+            if(BossEnemies[i].id == enemy.id) {
+                bossKilled_number[i]++;
+                return;
             }
         }
     }
 
-    public bool getEnemyOnField()
-    {
-        return false;
-    }
+    public bool getEnemyOnField() => false;
 
     public void LoadData(GameData data)
     {
         enemyKilled_Number = data.enemyKilled_Number;
-
-        for(int i = 0; i < bossKilled_number.Count; i++) {
+        for(int i = 0; i < BossEnemies.Length; i++) {
             data.bossKilled_Number.TryGetValue(BossEnemies[i].id, out int amount);
             bossKilled_number[i] = amount;
         }
-
         totalBossKilled = data.totalBossKill;
         totalKilledEnemy = data.totalKilledEnemy;
     }
@@ -456,13 +353,8 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
     public void SaveData(GameData data)
     {
         data.enemyKilled_Number = enemyKilled_Number;
-        for(int i = 0; i < bossKilled_number.Count; i++) {
-            if(data.bossKilled_Number.ContainsKey(BossEnemies[i].id))
-                data.bossKilled_Number.Remove(BossEnemies[i].id);
-
-            data.bossKilled_Number.Add(BossEnemies[i].id, bossKilled_number[i]);
-        }
-
+        for(int i = 0; i < BossEnemies.Length; i++)
+            data.bossKilled_Number[BossEnemies[i].id] = bossKilled_number[i];
         data.totalBossKill = totalBossKilled;
         data.totalKilledEnemy = totalKilledEnemy;
     }

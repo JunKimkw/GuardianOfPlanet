@@ -15,7 +15,7 @@ public class PoisonArea : MonoBehaviour
     public IEnumerator poisonAttack(Enemy enemy)
     {
         while(enemyOnPoison.Find(d => d.gameObject == enemy.gameObject) != null) {
-            enemy.OnHit(poisonDamage, false, PoisonPlane.instance.Poison_canCrit ? Random.Range(0, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage);
+            enemy.OnHit(poisonDamage, false, PoisonPlane.instance.Poison_canCrit ? Random.Range(1, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage);
             yield return new WaitForSeconds(PoisonPlane.instance.extraHit ? 0.35f : 0.7f);
         }
     }
@@ -23,7 +23,7 @@ public class PoisonArea : MonoBehaviour
     public IEnumerator poisonAttack(Dummy dummy)
     {
         while(dummyOnPoison.Find(d => d.gameObject == dummy.gameObject) != null) {
-            dummy.addDamage(poisonDamage, PoisonPlane.instance.Poison_canCrit ? Random.Range(0, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage);
+            dummy.addDamage(poisonDamage, PoisonPlane.instance.Poison_canCrit ? Random.Range(1, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage);
             yield return new WaitForSeconds(PoisonPlane.instance.extraHit ? 0.35f : 0.7f);
         }
     }
