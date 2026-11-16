@@ -5,7 +5,7 @@ using TMPro;
 
 public class DamagePopup : MonoBehaviour
 {
-    public static DamagePopup Create(Vector3 position, long damageAmount, bool isCriticalHit)
+    public static DamagePopup Create(Vector3 position, double damageAmount, bool isCriticalHit)
     {
         GameObject damagepopupTransform = ObjectPoolPopUp.Instance.GetPoolObject(PoolObjectTypePopUp.Damage);
         damagepopupTransform.transform.position = position;
@@ -15,7 +15,7 @@ public class DamagePopup : MonoBehaviour
 
         return damagepopup;
     }
-    public static DamagePopup Create(Vector3 position, long damageAmount , bool isCriticalHit, Color c)
+    public static DamagePopup Create(Vector3 position, double damageAmount , bool isCriticalHit, Color c)
     {
         GameObject damagepopupTransform = ObjectPoolPopUp.Instance.GetPoolObject(PoolObjectTypePopUp.Damage);
         damagepopupTransform.transform.position = position;
@@ -41,18 +41,20 @@ public class DamagePopup : MonoBehaviour
         textmesh = transform.GetComponent<TextMeshPro>();
     }
 
-    public void SetUp(long damageAmount, bool isCritical)
+    public void SetUp(double damageAmount, bool isCritical)
     {
-        textmesh.SetText(damageAmount.ToString());
+        // 우주 단위 표시 (10만부터 Sk, Cm, Mn …) + 단위가 오를수록 색이 바뀌어요
+        textmesh.SetText(BigNumber.Format(damageAmount));
+        Color tierColor = BigNumber.TierColor(damageAmount);
         transform.localScale = Vector3.one * ScreenSize.GetScreenToWorldWidth / 6f;
         if(!isCritical) {
             //NormalHit
             textmesh.fontSize = 2.1f;
-            textColor = Color.white;
+            textColor = tierColor;
         } else {
             //CritHit
             textmesh.fontSize = 3f;
-            textColor = new Color(1, 0.1686275f, 0);
+            textColor = Color.Lerp(tierColor, new Color(1, 0.1686275f, 0), 0.6f);
             
         }
         textmesh.color = textColor;

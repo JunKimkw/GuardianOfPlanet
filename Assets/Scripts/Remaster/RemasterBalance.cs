@@ -64,4 +64,12 @@ public static class RemasterBalance
     public const float OfflineCapHours = 10f;
     public const float EnemyTravelSeconds = 7f;  // 적이 화면 끝에서 우주선까지 (플레이 테스트로 보정 예정)
     public static bool IsGateStage(int stage) => stage % 50 == 0;
+
+    // ---- 구간의 힘 (2026-11-17): 깊은 스테이지일수록 적 체력과 내 피해에 같은 배율을 곱해요.
+    // 양쪽이 같으니 밸런스는 그대로, 숫자만 커져요. 골드에는 곱하지 않아요.
+    // 80스테이지(첫 벽 근처)까지는 배율 없음 → 첫 판은 한 발 몇천. 그 뒤로 완만하게: 200 ×약 400, 450 ×약 2천만, 2000 ×약 10^21, 10만 ×약 10^184
+    public const double NumberScaleK = 0.6;
+    public const int NumberScaleStart = 80;
+    public static double NumberScale(int stage) =>
+        System.Math.Pow(10, NumberScaleK * System.Math.Max(0, System.Math.Sqrt(Mathf.Max(1, stage)) - System.Math.Sqrt(NumberScaleStart)));
 }

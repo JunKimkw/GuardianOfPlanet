@@ -90,7 +90,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         CurrentStage = Mathf.Max(1, stage);
         tempEnemy = 0;
         tempHealth = StartingShield();
-        GridManager.instance.ActiveGrid(CurrentStage / 120);
+        ApplyZoneVisuals();
         stageText.text = CurrentStage.ToString();
         if(wasRunning)
             SetStageBeforeEntering();
@@ -155,6 +155,9 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
     }
     public static void EnemyDeadBoss(int exp, long gold)
     {
+        // 신의 관문 보스를 이겼으면 첫 돌파 보상
+        if(ExpeditionZones.IsGate(Instance.CurrentStage) && AugmentManager.Instance != null)
+            AugmentManager.Instance.OnGateCleared(Instance.CurrentStage);
         Instance.WarningObject.gameObject.SetActive(false);
         GameManager.Enemy_Dead_Player_EXP_UP(exp);
         GameManager.Enemy_Dead_Money_UP(gold);
@@ -203,6 +206,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         setEnemyScale();
         StartSpawningEnemy();
         GridManager.instance.ToVillage();
+        ApplyZoneVisuals();
         HealthText.text = playerHealth.ToString();
         RemainedMonsterText.text = (setEnemyNumber() - KilledEnemy).ToString();
         stageText.text = CurrentStage.ToString();
@@ -240,8 +244,9 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         setEnemyIndex();
         setSpawnSpeed();
         setEnemyScale();
-        GridManager.instance.ActiveGrid(CurrentStage / 120);
+        ApplyZoneVisuals();
         RemainedMonsterText.text = (setEnemyNumber() - KilledEnemy).ToString();
+        AnnounceZone();
         timeSlider_Cleared.maxValue = 1.5f;
         timeSlider_Cleared.value = 1.5f;
 
@@ -363,38 +368,53 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
     public int setEnemyNumber()
     {
         // 리마스터 원정: 10 + 스테이지/5, 최대 30마리 (예전: 10 + 스테이지, 끝없이 늘어남)
-        return RemasterBalance.EnemyCount(CurrentStage);
+        return Mathf.CeilToInt(RemasterBalance.EnemyCount(CurrentStage) * ExpeditionZones.CountMul(CurrentStage));
     }
 
     public void setEnemyScale()
     {
-        if(CurrentStage / 120 < StageManager.instance.planets.Count-1) {
-            EnemyScale = (CurrentStage % 120) * 0.025f;
-        } else {
-            EnemyScale = (CurrentStage - ((StageManager.instance.planets.Count-1) * 120)) * 0.005f;
-        }
+        // 구간 안에서 조금씩 빨라지고(최대 +2%) 스턴 저항이 올라가요 (예전 120스테이지 톱니 대신 구간 기준)
+        EnemyScale = (ExpeditionZones.StageInZone(CurrentStage) - 1) * 0.02f;
     }
 
+    // 구간(행성)마다 적 4종: 앞 25스테이지는 1·2번, 뒤 25스테이지는 3·4번. 보스는 10스테이지마다 중간 보스, 관문은 관문 보스
     public void setEnemyIndex()
     {
-        CurrentEnemyIndex[0] = (CurrentStage / 30);
-        CurrentEnemyIndex[1] = (CurrentStage / 30) + 1;
+        int zone = ExpeditionZones.ArtZone(ExpeditionZones.Zone(CurrentStage));
+        int half = ExpeditionZones.StageInZone(CurrentStage) > ExpeditionZones.ZoneLength / 2 ? 2 : 0;
+        int first = zone * ExpeditionZones.EnemiesPerZone + half;
+        CurrentEnemyIndex[0] = Mathf.Clamp(first, 0, enemyPrefab.Length - 1);
+        CurrentEnemyIndex[1] = Mathf.Clamp(first + 1, 0, enemyPrefab.Length - 1);
 
-        if(CurrentEnemyIndex[0] > enemyPrefab.Length - 2) {
-            CurrentEnemyIndex[0] = enemyPrefab.Length - 2;
-        }
+        int boss = zone * ExpeditionZones.BossesPerZone + (ExpeditionZones.IsGate(CurrentStage) ? 1 : 0);
+        CurrentBossIndex = Mathf.Clamp(boss, 0, bossPrefab.Length - 1);
+    }
 
-        if(CurrentEnemyIndex[1] > enemyPrefab.Length - 1) {
-            CurrentEnemyIndex[1] = enemyPrefab.Length - 1;
-        }
+    // 구간 배경 + 차원 색조
+    void ApplyZoneVisuals()
+    {
+        var gm = GridManager.instance;
+        if(gm == null || gm.grids == null || gm.grids.Length == 0) return;
+        int zone = Mathf.Min(ExpeditionZones.ArtZone(ExpeditionZones.Zone(CurrentStage)), gm.grids.Length - 1);
+        gm.ActiveGrid(zone);
+        ExpeditionZones.TintBackground(gm.grids[zone], ExpeditionZones.StageTint(CurrentStage));
+    }
 
-        // 보스 28종을 60스테이지마다 하나씩 (예전엔 이 값을 아무 데서도 바꾸지 않아서 항상 첫 보스만 나왔어요)
-        CurrentBossIndex = Mathf.Clamp(CurrentStage / 60, 0, bossPrefab.Length - 1);
+    // 새 구간·새 차원에 들어오면 알려 줘요
+    void AnnounceZone()
+    {
+        if(AugmentManager.Instance == null || AugmentManager.Instance.UI == null) return;
+        if(ExpeditionZones.StageInZone(CurrentStage) != 1) return;
+        var ui = AugmentManager.Instance.UI;
+        ui.Toast(ExpeditionZones.ZoneLabel(CurrentStage), new Color(0.75f, 0.9f, 1f), true);
+        if(ExpeditionZones.Zone(CurrentStage) == 0 && ExpeditionZones.Dimension(CurrentStage) >= 2)
+            foreach(var r in ExpeditionZones.Rules(CurrentStage))
+                ui.Toast(ExpeditionZones.RuleName(r), new Color(1f, 0.6f, 0.5f));
     }
 
     public void setSpawnSpeed()
     {
-        SpawnSpeed = RemasterBalance.SpawnSpeed(CurrentStage);
+        SpawnSpeed = RemasterBalance.SpawnSpeed(CurrentStage) * ExpeditionZones.SpawnMul(CurrentStage);
     }
 
     public void ResumeInfiniteStage()

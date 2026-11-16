@@ -41,10 +41,10 @@ public abstract class WeaponBase : MonoBehaviour
     // (1 + 패시브 % + 특성 %)
     public float DamageMultiplier => 1f + ExtraDamagePercent + Trait(TraitsData.TraitsType.DamagePercent);
 
-    // 한 발 피해 = 플레이어 공격력 + (기본 + 추가) × 배율. 21억을 넘으면 int 가 넘쳐서 음수가 되던 문제를 막아요.
-    public int HitDamage => ClampToInt(Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier);
+    // 한 발 피해 = 플레이어 공격력 + (기본 + 추가) × 배율. long 이라 후반(수십억 이상)에도 넘치지 않아요.
+    public long HitDamage => ClampDamage(Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier);
 
-    public static int ClampToInt(double v) => v >= int.MaxValue ? int.MaxValue : v <= 0 ? 0 : (int)v;
+    public static long ClampDamage(double v) => v >= 9e18 ? (long)9e18 : v <= 0 ? 0 : (long)v;
 
     // 1~100 주사위 (예전 코드 일부는 0~100 이라 확률이 1% 더 높았어요)
     protected static bool Roll(float percent) => Random.Range(1, 101) <= percent;

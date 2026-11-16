@@ -16,7 +16,7 @@ public class Enemy : MonoBehaviour
     }
 
     [Header("적 스탯")]
-    public float EnemyHealth;
+    public double EnemyHealth;   // double: 우주 단위(최대 약 10^308)까지
     public int Enemy_EXP;
     public long enemy_Money;
     public float StunResistence;
@@ -60,7 +60,10 @@ public class Enemy : MonoBehaviour
     public float distance;
 
     [Header("채력바")]
-    public float CurrentHealth;
+    public double CurrentHealth;
+
+    // 구간의 힘 배율 (원정 적만, RemasterBalance.NumberScale). 받는 피해에도 같은 배율이 곱해져요
+    [System.NonSerialized] public double NumberScale = 1;
 
     //Stunned: 남은 스턴 시간(초). 스턴 중에 다시 맞으면 1초로 갱신
     float stunLeft;
@@ -68,6 +71,14 @@ public class Enemy : MonoBehaviour
     // 매 프레임 GetComponents 를 부르지 않게 한 번만 찾아 둬요
     Collider2D[] colliders;
     SpriteRenderer[] sprites;
+
+    // 원정 차원 색조 / 보스 각성 크기 (풀로 돌아갈 때 원래대로)
+    Color baseTint = Color.white;
+
+    // 받는 피해 배율 (관문 보스 보호막 패턴 등)
+    [System.NonSerialized] public float DamageTakenMul = 1f;
+    Vector3 baseScale;
+    bool baseScaleSaved;
 
     //Range Related
     Vector3 screenPos;
@@ -135,7 +146,7 @@ public class Enemy : MonoBehaviour
             IsInRange = screenPos.x > 0f && screenPos.x < Screen.width && screenPos.y > 0f && screenPos.y < Screen.height;
         }
         if(Healthbar != null) {
-            Healthbar.SetHealth(CurrentHealth, EnemyHealth);
+            Healthbar.SetHealth(EnemyHealth > 0 ? (float)(CurrentHealth / EnemyHealth) : 0f, 1f);
             Healthbar.slider.transform.position = Camera.main.WorldToScreenPoint(transform.position + Healthbar.Offset);
         }
 
@@ -165,7 +176,22 @@ public class Enemy : MonoBehaviour
         StunResistence = initialValue.StunResistence;
         enemyMovingSpeed = initialValue.initialSpeed;
         distance = 0;
+        baseTint = Color.white;
+        if(baseScaleSaved) transform.localScale = baseScale;
+        DamageTakenMul = 1f;
+        NumberScale = 1;
+        if(TryGetComponent(out GateBossAbilities gate)) gate.enabled = false;
         ResetVisuals();
+    }
+
+    // 차원 색조와 크기 배율 적용 (생성 직후 EnemyManager 가 불러요)
+    public void ApplyLook(Color tint, float scaleMul)
+    {
+        if(!baseScaleSaved) { baseScale = transform.localScale; baseScaleSaved = true; }
+        transform.localScale = baseScale * scaleMul;
+        baseTint = tint;
+        foreach(var r in sprites)
+            if(r != null && r.name != "Shadow") r.color = tint;
     }
 
     // 충돌 켜기 + 색 원래대로 (그림자는 반투명 검정)
@@ -173,7 +199,7 @@ public class Enemy : MonoBehaviour
     {
         foreach(var c in colliders) c.enabled = true;
         foreach(var r in sprites)
-            r.color = r.name != "Shadow" ? Color.white : new Color(0, 0, 0, 0.62f);
+            r.color = r.name != "Shadow" ? baseTint : new Color(0, 0, 0, 0.62f);
         StopAllCoroutines();
     }
 
@@ -197,11 +223,10 @@ public class Enemy : MonoBehaviour
         if(_state == EnemyState.dead || !gameObject.activeInHierarchy)
             return;
 
-        long totalDamage = 0;
-        if(Critical) 
-            totalDamage = (long)(DealtDamage * (2 + CritDamage));
-        else 
-            totalDamage = DealtDamage;
+        // 기본 피해(구간 배율 전) → 증강 효과(분열 등)에 넘겨요. 실제로 깎이는 피해는 구간 배율을 곱한 값
+        long baseDamage = Critical ? (long)(DealtDamage * (2 + CritDamage)) : DealtDamage;
+        if(DamageTakenMul != 1f) baseDamage = (long)(baseDamage * (double)DamageTakenMul);
+        double totalDamage = baseDamage * NumberScale;
         
 
         if(Stunned)
@@ -215,11 +240,11 @@ public class Enemy : MonoBehaviour
 
         //리마스터: 적중 증강 효과(분열 등)
         if(AugmentManager.Instance != null)
-            AugmentManager.Instance.OnEnemyHit(this, totalDamage);
+            AugmentManager.Instance.OnEnemyHit(this, baseDamage);
 
         // 오프라인 진행 계산용 초당 피해 측정 (원정 적만, 넘친 피해 제외)
         if(_typeofEnemy == typeofEnemy.InfiniteStage || _typeofEnemy == typeofEnemy.InfiniteStageBoss)
-            OfflineProgress.RecordDamage(System.Math.Min(totalDamage, (double)CurrentHealth));
+            OfflineProgress.RecordDamage(System.Math.Min(totalDamage, CurrentHealth) / NumberScale);
 
         //Dead
         if(CurrentHealth - totalDamage > 0) {
@@ -240,7 +265,7 @@ public class Enemy : MonoBehaviour
     {
         SetTint(Color.red);
         yield return new WaitForSeconds(0.25f);
-        SetTint(Color.white);
+        SetTint(baseTint);
     }
 
     // 그림자(Circle)는 빼고 색 바꾸기
@@ -289,7 +314,7 @@ public class Enemy : MonoBehaviour
 }
 public class InitialValues
 {
-    public float EnemyHealth;
+    public double EnemyHealth;
 
     public int Enemy_EXP;
 
@@ -299,7 +324,7 @@ public class InitialValues
 
     public float initialSpeed;
 
-    public void SetInitialValues(float health, int exp, long money, float stun, float speed)
+    public void SetInitialValues(double health, int exp, long money, float stun, float speed)
     {
         EnemyHealth = health;
         Enemy_EXP = exp;

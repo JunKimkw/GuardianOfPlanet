@@ -54,7 +54,7 @@ public abstract class WeaponShopBase : MonoBehaviour
         if(w == null) return;
 
         WeaponStat.text = w.UpgradeLevel > 0
-            ? $"{StatLabel} {w.DamageMultiplier * 100:F0}%로 공격\n{DamageLabel}: {w.HitDamage}"
+            ? $"{StatLabel} {w.DamageMultiplier * 100:F0}%로 공격\n{DamageLabel}: {BigNumber.Format(w.HitDamage * CurrentNumberScale)}"
             : Intro;
         LevelText.text = "Lv." + w.UpgradeLevel;
         TotalPrice = getTotalMoney(w.UpgradeLevel, purchaseSize);
@@ -65,6 +65,9 @@ public abstract class WeaponShopBase : MonoBehaviour
             if(buyButtonImage != null) buyButtonImage.color = GameManager.GetMoney() >= TotalPrice ? Affordable : Color.white;
         }
     }
+
+    // 지금 원정 스테이지의 구간 배율 (적 체력과 똑같이 곱해져서 실제로 보이는 데미지)
+    static double CurrentNumberScale => InfiniteStage.Instance != null ? RemasterBalance.NumberScale(InfiniteStage.Instance.CurrentStage) : 1;
 
     // 강화 버튼 (씬에서 연결됨)
     public void LevelUP()

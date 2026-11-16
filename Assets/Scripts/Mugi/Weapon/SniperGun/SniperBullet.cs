@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class SniperBullet : Bullet
 {
-    public int Bullet_Damage;
+    public long Bullet_Damage;
     public bool penetrateEffect;
     public float critDamage_Bullet;
 
@@ -15,7 +15,7 @@ public class SniperBullet : Bullet
         if(IsOffScreen()) DestroyBullet();
     }
 
-    public void setBulletStats(int damage, bool penetrate, float critDamage)
+    public void setBulletStats(long damage, bool penetrate, float critDamage)
     {
         Bullet_Damage = damage;
         penetrateEffect = penetrate;

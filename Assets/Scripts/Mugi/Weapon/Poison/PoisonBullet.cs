@@ -5,7 +5,7 @@ using UnityEngine;
 public class PoisonBullet : MonoBehaviour
 {
     [HideInInspector]
-    public int BulletDamage;
+    public long BulletDamage;
 
     public GameObject bulletAni;
     public GameObject BlastAni;

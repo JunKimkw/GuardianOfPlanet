@@ -5,7 +5,7 @@ using UnityEngine;
 public class BomberBullet : Bullet
 {
     [HideInInspector] public bool hasScaled;
-    [HideInInspector] public int Bullet_Damage;
+    [HideInInspector] public long Bullet_Damage;
 
     public SpriteRenderer sprite;
     public Sprite DefaultSprite;
@@ -53,7 +53,7 @@ public class BomberBullet : Bullet
         if(changeRadius) circleCollider.radius = 10f;
     }
 
-    public void setBulletStats(int a) => Bullet_Damage = a;
+    public void setBulletStats(long a) => Bullet_Damage = a;
 
     public IEnumerator PlayExplosionEffect()
     {
@@ -80,7 +80,7 @@ public class BomberBullet : Bullet
                 StartCoroutine(PlayExplosionEffect());
             }
         } else {
-            Hit(collision.gameObject, (int)(Bullet_Damage * 0.95f), PlayerCritDamage);
+            Hit(collision.gameObject, (long)(Bullet_Damage * 0.95), PlayerCritDamage);
         }
     }
 }

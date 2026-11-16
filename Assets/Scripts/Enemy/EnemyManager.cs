@@ -157,8 +157,9 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
             // 리마스터 원정: 체력·골드·경험치는 RemasterBalance 곡선 (적 종류마다 ±10% 차이)
             int stage = InfiniteStage.Instance.CurrentStage;
             float variety = 0.9f + 0.2f * (((int)_e.typePool & 0xff) / 255f);
-            e.EnemyHealth = (float)(RemasterBalance.EnemyHp(stage) * variety);
-            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage));
+            e.NumberScale = RemasterBalance.NumberScale(stage);
+            e.EnemyHealth = RemasterBalance.EnemyHp(stage) * variety * ExpeditionZones.HpMul(stage) * e.NumberScale;
+            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * ExpeditionZones.GoldMul(stage));
             e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage)));
         } else {
             ApplyScale(e, scale, false);
@@ -166,6 +167,11 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         e.enemyMovingSpeed *= (1 + scale / 50);
         if(AugmentManager.Instance != null)
             e.enemyMovingSpeed *= AugmentManager.Instance.EnemySpeedMultiplier;
+        if(InfiniteStage.Instance != null) {
+            int stage = InfiniteStage.Instance.CurrentStage;
+            e.enemyMovingSpeed *= ExpeditionZones.SpeedMul(stage);
+            e.ApplyLook(ExpeditionZones.StageTint(stage), 1f);
+        }
         e.StunResistence *= (1 + scale);
         AddEnemy(e);
     }
@@ -176,8 +182,17 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         if(InfiniteStage.Instance != null) {
             // 리마스터 원정: 10스테이지 보스 ×8, 50스테이지 신의 관문 ×15
             int stage = InfiniteStage.Instance.CurrentStage;
-            e.EnemyHealth = (float)RemasterBalance.BossHp(stage);
-            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * 20);
+            e.NumberScale = RemasterBalance.NumberScale(stage);
+            e.EnemyHealth = RemasterBalance.BossHp(stage) * ExpeditionZones.HpMul(stage) * e.NumberScale;
+            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * 20 * ExpeditionZones.GoldMul(stage));
+            // 차원 색조 + 관문 보스 각성(차원 2 = ★1, 15%씩 커져요)
+            float awaken = ExpeditionZones.IsGate(stage) ? 1f + 0.15f * ExpeditionZones.Awakening(stage) : 1f;
+            e.ApplyLook(ExpeditionZones.StageTint(stage), awaken);
+            // 신의 관문 보스: 돌진·소환·보호막 패턴
+            if(ExpeditionZones.IsGate(stage)) {
+                if(!e.TryGetComponent(out GateBossAbilities gate)) gate = e.gameObject.AddComponent<GateBossAbilities>();
+                gate.Setup(ExpeditionZones.Zone(stage), ExpeditionZones.Awakening(stage));
+            }
             e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage) * 20));
         } else {
             ApplyScale(e, scale, false);

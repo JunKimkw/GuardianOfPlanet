@@ -4,7 +4,7 @@ public class MainBullet : Bullet
 {
     public Sprite DiamondSprite;
 
-    public int Bullet_Damage;
+    public long Bullet_Damage;
     public float Bullet_CritDamage;
 
     protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.Main;
@@ -17,7 +17,7 @@ public class MainBullet : Bullet
         if(IsOffScreen()) DestroyBullet();
     }
 
-    public void setBulletStats(int damage, float critDamage)
+    public void setBulletStats(long damage, float critDamage)
     {
         Bullet_Damage = damage;
         Bullet_CritDamage = critDamage;

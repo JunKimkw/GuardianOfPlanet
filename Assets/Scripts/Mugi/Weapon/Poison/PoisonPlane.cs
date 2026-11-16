@@ -33,7 +33,7 @@ public class PoisonPlane : WeaponBase
         TimerAs += Time.deltaTime;
         if(TimerAs >= 10 * (1 - Trait(TraitsData.TraitsType.AttackSpeed))) {
             TimerAs = 0;
-            int dmg = HitDamage;
+            long dmg = HitDamage;
             foreach(int a in extraBullet ? Angles4 : Angles3)
                 CreateBullet(a, dmg);
         }
@@ -41,7 +41,7 @@ public class PoisonPlane : WeaponBase
 
     public void CreateBullet(int angle) => CreateBullet(angle, HitDamage);
 
-    void CreateBullet(int angle, int dmg)
+    void CreateBullet(int angle, long dmg)
     {
         PoisonBullet b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Poison).GetComponent<PoisonBullet>();
         b.BulletDamage = dmg;

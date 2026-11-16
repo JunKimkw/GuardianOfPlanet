@@ -23,7 +23,7 @@ public class Bomber : GunWeapon
 
     public override void CreateBullet()
     {
-        int dmg = HitDamage;
+        long dmg = HitDamage;
         SpawnBomb(Vector3.zero, dmg);
 
         //리마스터: 융단 폭격 - 진행 방향과 수직으로 폭탄을 일렬 추가
@@ -36,7 +36,7 @@ public class Bomber : GunWeapon
         }
     }
 
-    void SpawnBomb(Vector3 offset, int dmg)
+    void SpawnBomb(Vector3 offset, long dmg)
     {
         var b = TakeBullet<BomberBullet>(PoolObjectTypeBullet.Bomber, ShootingPoint.position + offset, rotate);
         b.setBulletStats(dmg);

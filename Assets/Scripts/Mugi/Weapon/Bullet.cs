@@ -34,7 +34,7 @@ public abstract class Bullet : MonoBehaviour
     public virtual void DestroyBullet() => ObjectPoolBullet.Instance.CoolObject(gameObject, PoolType);
 
     // 적이나 더미를 맞혔으면 true
-    protected bool Hit(GameObject target, int damage, float critDamage)
+    protected bool Hit(GameObject target, long damage, float critDamage)
     {
         if(target.TryGetComponent(out Enemy enemy)) {
             enemy.OnHit(damage, isStunning, isCritical, critDamage);

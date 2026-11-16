@@ -145,26 +145,28 @@ public class OfflineProgress : MonoBehaviour
         for(int s = startStage; ; s++) {
             if(RemasterBalance.IsGateStage(s)) { r.stop = Stop.Gate; r.stopStage = s; break; }
 
-            int n = RemasterBalance.EnemyCount(s);
-            double hp = RemasterBalance.EnemyHp(s);
-            double spawn = n * RemasterBalance.SpawnSpeed(s) / 2.0;   // 적 종류 2개가 번갈아 나와요
+            // 차원 규칙(강철·무리·광란)까지 게임과 똑같이
+            int n = Mathf.CeilToInt(RemasterBalance.EnemyCount(s) * ExpeditionZones.CountMul(s));
+            double hp = RemasterBalance.EnemyHp(s) * ExpeditionZones.HpMul(s);
+            double spawn = n * RemasterBalance.SpawnSpeed(s) * ExpeditionZones.SpawnMul(s) / 2.0;   // 적 종류 2개가 번갈아 나와요
             double canKill = dps / hp * (spawn + RemasterBalance.EnemyTravelSeconds);
             if(n - canKill >= leakLimit) { r.stop = Stop.Wall; r.stopStage = s; break; }
 
             double t = Math.Max(spawn * 0.6, n * hp / dps);
             bool boss = s % 10 == 0;
             if(boss) {
-                double bt = RemasterBalance.BossHp(s) / (dps * BossDpsShare);
+                double bt = RemasterBalance.BossHp(s) * ExpeditionZones.HpMul(s) / (dps * BossDpsShare);
                 if(bt > 30) { r.stop = Stop.Wall; r.stopStage = s; break; }
                 t += bt;
             }
             if(t > seconds) break;
             seconds -= t;
 
-            double g = n * (RemasterBalance.EnemyGold(s) + goldFlat) * goldMul + RemasterBalance.StageClearGold(s);
+            double zoneGold = ExpeditionZones.GoldMul(s);
+            double g = n * (RemasterBalance.EnemyGold(s) * zoneGold + goldFlat) * goldMul + RemasterBalance.StageClearGold(s);
             double x = n * (RemasterBalance.EnemyExp(s) + expFlat) * expMul;
             if(boss) {
-                g += (RemasterBalance.EnemyGold(s) * 20 + goldFlat) * goldMul;
+                g += (RemasterBalance.EnemyGold(s) * 20 * zoneGold + goldFlat) * goldMul;
                 x += (RemasterBalance.EnemyExp(s) * 20 + expFlat) * expMul;
                 r.bosses++;
             }

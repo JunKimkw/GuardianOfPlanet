@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class PoisonArea : MonoBehaviour
 {
-    public int poisonDamage;
+    public long poisonDamage;
 
     [HideInInspector]
     public bool hasScaled;

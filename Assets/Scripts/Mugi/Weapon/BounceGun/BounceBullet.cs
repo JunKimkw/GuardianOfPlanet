@@ -5,7 +5,7 @@ public class BounceBullet : Bullet
 {
     public BounceEnemy bounceEnemy;
     public int BounceTime;
-    public int bullet_Damage;
+    public long bullet_Damage;
     public Enemy TargetEnemy;
 
     protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.BounceBullet;
@@ -52,18 +52,18 @@ public class BounceBullet : Bullet
         base.DestroyBullet();
     }
 
-    public void setBulletStats(int damage) => bullet_Damage = damage;
+    public void setBulletStats(long damage) => bullet_Damage = damage;
 
     public void CreateBullet()
     {
         BounceBullet b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.BounceBullet).GetComponent<BounceBullet>();
 
         if(AugmentManager.Instance != null && AugmentManager.Instance.BounceExtraCount > 0)
-            b.setBulletStats((int)Mathf.Min(int.MaxValue, bullet_Damage * 1.2f));
+            b.setBulletStats((long)System.Math.Min(9e18, bullet_Damage * 1.2));
         else if(BounceGun.instance.NoDamageReduce)
             b.setBulletStats(bullet_Damage);
         else
-            b.setBulletStats((int)(bullet_Damage * Mathf.Pow(0.9f, BounceTime)));
+            b.setBulletStats((long)(bullet_Damage * System.Math.Pow(0.9, BounceTime)));
 
         b.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
         b.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;

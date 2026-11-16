@@ -118,6 +118,33 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     }
 
     public bool IsLoaded => loaded;
+
+    // ---- 신의 관문 (처음 이긴 관문 번호 = 스테이지/50)
+    readonly HashSet<int> clearedGates = new HashSet<int>();
+    public bool IsGateCleared(int gateNumber) => clearedGates.Contains(gateNumber);
+    public static long GateDiamondReward(int gateNumber) => 100 + 20L * (gateNumber - 1);
+
+    public void OnGateCleared(int stage)
+    {
+        int gate = ExpeditionZones.GateNumber(stage);
+        string god = ExpeditionZones.PlanetName(ExpeditionZones.Zone(stage)) + "의 신";
+        if(!clearedGates.Add(gate)) {
+            ui.Toast($"{god} 처치!", new Color(1f, 0.85f, 0.4f));
+            return;
+        }
+        long dia = GateDiamondReward(gate);
+        GameManager.SetDiamond((int)Mathf.Min(int.MaxValue, dia));
+        ui.Toast($"신의 관문 첫 돌파! {god} 처치\n다이아 +{dia}", new Color(1f, 0.85f, 0.4f), true);
+    }
+
+    // 예전 세이브: 깬 행성은 그 구간의 관문도 깬 것으로 (설계서 2-2)
+    void MigrateGatesFromPlanets()
+    {
+        var sm = StageManager.instance;
+        if(sm == null || sm.planets == null) return;
+        for(int z = 0; z < ExpeditionZones.ArtZoneCount && z < sm.planets.Count; z++)   // 예전 행성 14개만
+            if(sm.planets[z] != null && sm.planets[z].PlanetCleared) clearedGates.Add(z + 1);
+    }
     public RemasterUI UI => ui;
     public IReadOnlyList<string> OwnedOrder => order;
     public int TreeLevel(int node) => tree[node];
@@ -878,6 +905,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
                 if(InfiniteStage.Instance != null) InfiniteStage.Instance.CurrentStage = 1;
             }
             data.expeditionVersion = 1;
+        data.clearedGates = new List<int>(clearedGates);
         } else {
             levels.Clear();
             order.Clear();
@@ -918,6 +946,9 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             rebirthStartStage = Mathf.Max(1, data.expPendingStartStage);
             if(pendingRebirthStart) pendingSetup = true;
         }
+        clearedGates.Clear();
+        if(data.clearedGates != null) foreach(var g in data.clearedGates) clearedGates.Add(g);
+        else MigrateGatesFromPlanets();
         if(!loadoutSet) EnsureLoadout();
         loaded = true;
         ui.RefreshHUD();

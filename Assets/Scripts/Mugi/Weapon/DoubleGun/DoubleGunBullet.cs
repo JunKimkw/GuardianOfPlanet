@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class DoubleGunBullet : Bullet
 {
-    public int bullet_Damage;
+    public long bullet_Damage;
     public float bullet_BulletSpeedScale;
 
     protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.Double;
@@ -15,7 +15,7 @@ public class DoubleGunBullet : Bullet
         if(IsOffScreen()) DestroyBullet();
     }
 
-    public void setBulletStats(int damage, float bulletSpeedScale)
+    public void setBulletStats(long damage, float bulletSpeedScale)
     {
         bullet_Damage = damage;
         bullet_BulletSpeedScale = bulletSpeedScale;

@@ -218,6 +218,7 @@ public class GameData
     public int rebirthCount;
     public long pendingMigrationStardust;
     public int expPendingStartStage;   // 환생 후 출발 대기 중이면 출발 스테이지 (0 = 없음)
+    public List<int> clearedGates;      // 처음 이긴 신의 관문 번호 (스테이지/50). null = 아직 기록 없음(예전 세이브)
 
     //Default values
     public GameData()

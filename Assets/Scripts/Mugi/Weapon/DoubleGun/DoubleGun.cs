@@ -41,13 +41,13 @@ public class DoubleGun : GunWeapon
 
     public override void CreateBullet()
     {
-        int dmg = HitDamage;
+        long dmg = HitDamage;
         // 예전엔 두 번째 탄의 피해를 첫 번째 탄에 다시 넣어서, 두 번째 탄은 지난번 피해(처음엔 0)로 날아갔어요
         Shoot(ShootingPoint1, Barrel1, dmg);
         Shoot(ShootingPoint2, Barrel0, dmg);
     }
 
-    void Shoot(Transform point, Transform barrel, int dmg)
+    void Shoot(Transform point, Transform barrel, long dmg)
     {
         var b = TakeBullet<DoubleGunBullet>(PoolObjectTypeBullet.Double, point.position, barrel.rotation);
         b.setBulletStats(dmg, ExtraBulletSpeedScale);

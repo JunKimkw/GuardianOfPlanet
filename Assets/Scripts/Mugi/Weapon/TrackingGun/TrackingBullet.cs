@@ -8,7 +8,7 @@ public class TrackingBullet : Bullet
     public float RotationControl;
 
     [Header("#----Stats")]
-    public int bullet_Damage;
+    public long bullet_Damage;
     public float missileSpeedScale;
     public float bullet_CritDamage;
 
@@ -36,7 +36,7 @@ public class TrackingBullet : Bullet
         if(IsOffScreen()) DestroyBullet();
     }
 
-    public void setBulletStats(int a, float b, float c)
+    public void setBulletStats(long a, float b, float c)
     {
         bullet_Damage = a;
         missileSpeedScale = b;
