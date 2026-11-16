@@ -707,25 +707,48 @@ public class RemasterUI : MonoBehaviour
             Label(info.transform, $"{mgr.RebirthThreshold:N0}스테이지부터 환생할 수 있어요\n(지금 {stage:N0}스테이지)\n환생하면 별의 먼지로 영구 강화를 해요.", new Vector2(840, 180), Vector2.zero, 32, TextDim);
 
         Title(p, "환생 트리", 275, 42, 900);
-        string[] nodeIcons = { "bless_split", "bless_chain", "bless_curse", "bless_split" };
-        int nodes = AugmentManager.TreeNames.Length;
-        for(int n = 0; n < nodes; n++) {
-            int node = n;
-            // 4칸: 칸 높이 160, 간격 172 → 위 끝 230(제목 아래), 아래 끝 -446(버튼 위 -595)
-            float y = 150 - n * 172;
-            var row = Row(p, new Vector2(900, 160), new Vector2(0, y), "Node");
+        // 갈래별 순서로 보여 줘요 (뽑기 → 출발 → 원정 → 보상). 칸이 많아서 스크롤
+        string[] branchIcons = { "bless_split", "bless_chain", "bless_curse", "bless_split" };
+        var order = new List<int>();
+        for(int br = 0; br < AugmentManager.BranchNames.Length; br++)
+            for(int n = 0; n < AugmentManager.TreeNames.Length; n++)
+                if(AugmentManager.TreeBranch[n] == br) order.Add(n);
+
+        // 스크롤 영역: 제목 아래(230)부터 버튼 위(-585)까지
+        const float viewH = 815f, rowH = 150f, step = 162f;
+        float contentH = order.Count * step;
+        var viewport = Rect("TreeView", p, new Vector2(920, viewH), new Vector2(0, 230 - viewH / 2));
+        var vpImg = viewport.gameObject.AddComponent<Image>();
+        vpImg.color = new Color(0, 0, 0, 0.001f);   // 드래그를 받기 위한 투명 배경
+        viewport.gameObject.AddComponent<RectMask2D>();
+        var content = Rect("Content", viewport, new Vector2(920, contentH), new Vector2(0, (viewH - contentH) / 2));
+        var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+        scroll.viewport = viewport;
+        scroll.content = content;
+        scroll.horizontal = false;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 40f;
+
+        for(int i = 0; i < order.Count; i++) {
+            int node = order[i];
+            float y = contentH / 2 - rowH / 2 - i * step;
+            var row = Row(content, new Vector2(900, rowH), new Vector2(0, y), "Node");
             int lv = mgr.TreeLevel(node);
             bool max = lv >= AugmentManager.TreeMax[node];
             bool star = node == AugmentManager.StarPowerNode;
+            bool open = mgr.TreeUnlocked(node);
+            int br = AugmentManager.TreeBranch[node];
             string lvText = star ? $"Lv.{lv}" : $"Lv.{lv}/{AugmentManager.TreeMax[node]}";
-            IconTile(row.transform, nodeIcons[node % nodeIcons.Length], 104, new Vector2(-362, 0), max || star ? TextGold : new Color(0.55f, 0.6f, 0.9f));
-            Label(row.transform, $"{AugmentManager.TreeNames[node]}  <color=#FFD54A>{lvText}</color>", new Vector2(440, 56), new Vector2(-55, 36), 32, Color.white, FontStyles.Bold);
-            Label(row.transform, mgr.TreeDesc(node), new Vector2(440, 74), new Vector2(-55, -32), 24, TextDim);
-            var b = Btn(row.transform, max ? "최대" : $"강화\n<size=80%>먼지 {mgr.TreeCost(node):N0}</size>", new Vector2(230, 130), new Vector2(315, 0), max ? BGray : BBlue, () => {
+            IconTile(row.transform, branchIcons[br], 96, new Vector2(-366, 0), !open ? new Color(0.35f, 0.35f, 0.4f) : max || star ? TextGold : new Color(0.55f, 0.6f, 0.9f));
+            Label(row.transform, $"<color=#9FB4FF>[{AugmentManager.BranchNames[br]}]</color> {AugmentManager.TreeNames[node]}  <color=#FFD54A>{lvText}</color>", new Vector2(450, 54), new Vector2(-55, 34), 30, Color.white, FontStyles.Bold);
+            string desc = open ? mgr.TreeDesc(node) : $"먼저 '{AugmentManager.TreeNames[AugmentManager.TreeRequires[node]]}'를 찍어야 열려요";
+            Label(row.transform, desc, new Vector2(450, 70), new Vector2(-55, -32), 23, TextDim);
+            string label = !open ? "잠김" : max ? "최대" : $"강화\n<size=80%>먼지 {mgr.TreeCost(node):N0}</size>";
+            var b = Btn(row.transform, label, new Vector2(220, 124), new Vector2(320, 0), !open || max ? BGray : BBlue, () => {
                 if(mgr.UpgradeTree(node)) BuildRebirth(p, close);
                 else Toast("별의 먼지가 부족해요", Color.white);
-            }, 32);
-            b.interactable = !max;
+            }, 30);
+            b.interactable = open && !max;
         }
 
         var rb = Btn(p, "환생하기", new Vector2(420, 140), new Vector2(-215, -665), mgr.CanRebirth ? BYellow : BGray, () => {

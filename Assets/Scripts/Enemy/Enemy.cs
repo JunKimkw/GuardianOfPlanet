@@ -226,6 +226,9 @@ public class Enemy : MonoBehaviour
         // 기본 피해(구간 배율 전) → 증강 효과(분열 등)에 넘겨요. 실제로 깎이는 피해는 구간 배율을 곱한 값
         long baseDamage = Critical ? (long)(DealtDamage * (2 + CritDamage)) : DealtDamage;
         if(DamageTakenMul != 1f) baseDamage = (long)(baseDamage * (double)DamageTakenMul);
+        // 환생 트리 "보스 사냥꾼"
+        if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && AugmentManager.Instance != null)
+            baseDamage = (long)(baseDamage * (double)AugmentManager.Instance.BossDamageMul);
         double totalDamage = baseDamage * NumberScale;
         
 

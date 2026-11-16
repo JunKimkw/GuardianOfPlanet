@@ -16,10 +16,19 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     const int PityLimit = 8;
 
     // 환생 트리: 0 행운, 1 출발 가속, 2 첫 선물
-    public static readonly string[] TreeNames = { "행운", "출발 가속", "첫 선물", "별의 가호" };
-    public static readonly int[] TreeMax = { 10, 5, 3, 99 };
-    static readonly int[] TreeBaseCost = { 5, 20, 40, 0 };
+    // 환생 트리 (설계서 3-2): 4갈래 11칸. 번호는 저장 데이터 순서라 바꾸지 말고 뒤에만 추가해요.
+    public static readonly string[] TreeNames = { "행운", "출발 가속", "첫 선물", "별의 가호", "리롤 주머니", "예비 실드", "관문의 선물", "먼지 수집", "가벼운 환생", "천장 단축", "보스 사냥꾼" };
+    public static readonly int[] TreeMax = { 10, 5, 3, 99, 3, 2, 1, 5, 4, 2, 5 };
+    static readonly int[] TreeBaseCost = { 5, 20, 40, 0, 30, 60, 80, 25, 50, 60, 15 };
+    // 갈래: 0 증강, 1 출발, 2 원정, 3 보상
+    public static readonly int[] TreeBranch = { 0, 1, 1, 3, 0, 2, 2, 3, 3, 0, 2 };
+    public static readonly string[] BranchNames = { "증강", "출발", "원정", "보상" };
+    // 먼저 찍어야 하는 칸 (-1 = 없음)
+    public static readonly int[] TreeRequires = { -1, -1, 1, -1, 0, -1, 5, 3, 7, 4, 6 };
     public const int StarPowerNode = 3;
+    int T(int node) => node < tree.Length ? tree[node] : 0;
+    public bool TreeUnlocked(int node) => TreeRequires[node] < 0 || T(TreeRequires[node]) > 0;
+    public float BossDamageMul => 1f + 0.1f * T(10);
     // 별의 가호: 원정 피해 ×1.15 / 레벨 (환생할수록 확실히 강해지는 축)
     public float StarPowerMultiplier => Mathf.Pow(RemasterBalance.StarPowerPerLevel, tree.Length > StarPowerNode ? tree[StarPowerNode] : 0);
 
@@ -127,6 +136,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     public void OnGateCleared(int stage)
     {
         int gate = ExpeditionZones.GateNumber(stage);
+        if(T(6) > 0) QueuePull(1);   // 환생 트리 "관문의 선물": 관문을 이길 때마다 증강 1개
         string god = ExpeditionZones.PlanetName(ExpeditionZones.Zone(stage)) + "의 신";
         if(!clearedGates.Add(gate)) {
             ui.Toast($"{god} 처치!", new Color(1f, 0.85f, 0.4f));
@@ -223,7 +233,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     public int ShieldBonus {
         get {
             if(!loaded) return 0;
-            int b = Level("spareshield");
+            int b = Level("spareshield") + T(5);
             if(Level("bloodprice") > 0) b -= 1;
             return b;
         }
@@ -587,7 +597,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
         float r = UnityEngine.Random.value;
         grade = r < prism ? AugGrade.Prism : r < prism + gold ? AugGrade.Gold : AugGrade.Silver;
         if(minGrade < 0) {
-            if(grade == AugGrade.Silver && pity >= PityLimit) grade = AugGrade.Gold;
+            if(grade == AugGrade.Silver && pity >= PityLimit - 2 * T(9)) grade = AugGrade.Gold;
             pity = grade == AugGrade.Silver ? pity + 1 : 0;
         } else if((int)grade < minGrade) {
             grade = (AugGrade)minGrade;
@@ -741,7 +751,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
     #endregion
 
     #region 원정 시작 / 환생
-    public int RebirthThreshold => rebirthCount == 0 ? RemasterBalance.FirstRebirthStage : Mathf.Max(50, bestStage / 2);
+    public int RebirthThreshold => rebirthCount == 0 ? RemasterBalance.FirstRebirthStage : Mathf.Max(40, Mathf.FloorToInt(bestStage * (0.5f - 0.05f * T(8))));
     public bool CanRebirth => loaded && CurrentStage >= RebirthThreshold;
 
     public static long StardustFor(int stage)
@@ -755,6 +765,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             long g = StardustFor(CurrentStage);
             int c = Level("collector");
             if(c > 0) g = (long)(g * (1f + AugmentDefs.CollectorBonus(c)));
+            if(T(7) > 0) g = (long)(g * (1f + 0.1f * T(7)));   // 환생 트리 "먼지 수집"
             return g;
         }
     }
@@ -763,6 +774,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
 
     public bool UpgradeTree(int node)
     {
+        if(!TreeUnlocked(node)) return false;
         if(tree[node] >= TreeMax[node]) return false;
         int cost = TreeCost(node);
         if(stardust < cost) return false;
@@ -780,6 +792,13 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
             case 1: return l == 0 ? "원정 시작 시 최고 기록의 일부를 건너뛰어요" : $"최고 기록의 {l * 10}%부터 출발 (건너뛴 만큼 증강 지급)";
             case 2: return l == 0 ? "원정 시작 시 증강 1개를 들고 출발" : $"{(l == 1 ? "실버" : l == 2 ? "골드" : "프리즘")} 이상 증강 1개를 들고 출발";
             case 3: return $"원정 피해 ×{StarPowerMultiplier:0.##} (레벨마다 ×{RemasterBalance.StarPowerPerLevel:0.##})";
+            case 4: return $"원정마다 리롤 +{Mathf.Max(1, l)}회로 출발";
+            case 5: return $"원정 시작 실드 +{Mathf.Max(1, l)}";
+            case 6: return "신의 관문을 이길 때마다 증강 1개 추가";
+            case 7: return $"환생할 때 별의 먼지 +{Mathf.Max(1, l) * 10}%";
+            case 8: return $"환생 조건: 최고 기록의 {(int)((0.5f - 0.05f * Mathf.Max(1, l)) * 100)}%만 가면 환생 가능";
+            case 9: return $"실버 연속 {PityLimit - 2 * Mathf.Max(1, l)}번이면 다음은 골드 이상 (기본 {PityLimit}번)";
+            case 10: return $"보스·관문 보스에게 주는 피해 +{Mathf.Max(1, l) * 10}%";
         }
         return "";
     }
@@ -791,7 +810,7 @@ public class AugmentManager : MonoBehaviour, IDataPersistence
         expKills = 0;
         expBossKills = 0;
         soulStack = slaughterStack = wraithStack = stardustSizeStack = 0;
-        rerollBag = 0;
+        rerollBag = T(4);   // 환생 트리 "리롤 주머니"
         pity = 0;
         extraWeapon = SideWeapon.None;
         supplyWeapon = SideWeapon.None;
