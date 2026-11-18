@@ -377,6 +377,10 @@ public class RemasterUI : MonoBehaviour
         hudStack = Label(hud, "", new Vector2(164, 56), new Vector2(0, -60), 22, TextDim);
         Btn(hud, "증강", new Vector2(160, 76), new Vector2(0, -132), BBlue, ShowAugmentList, 30);
         hudRebirthBtn = Btn(hud, "환생", new Vector2(160, 76), new Vector2(0, -210), BGray, ShowRebirth, 30);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // 개발용: 증강 테스트 창 (출시 빌드에는 없어요)
+        Btn(hud, "테스트", new Vector2(160, 66), new Vector2(0, -292), BPurple, ShowDebugAugments, 28);
+#endif
     }
 
     float hudTimer;
@@ -392,12 +396,14 @@ public class RemasterUI : MonoBehaviour
                     && (StartScreenScript.Instance == null || !StartScreenScript.Instance.gameObject.activeInHierarchy);
         if(hud.gameObject.activeSelf != show) hud.gameObject.SetActive(show);
         if(show) RefreshHUD();
+        else if(weaponHudShown) RefreshWeaponHud(false);
     }
 
     public void RefreshHUD()
     {
         if(hud == null || mgr == null || !mgr.Loaded) return;
         hudStardust.text = $"{mgr.Stardust:N0}";
+        RefreshWeaponHud(hud.gameObject.activeSelf);
         var top = TopTags(3);
         for(int i = 0; i < 3; i++) {
             if(hudTileTag[i] != top[i]) {
@@ -414,6 +420,75 @@ public class RemasterUI : MonoBehaviour
             hudRebirthReady = can;
             SetBtnStyle(hudRebirthBtn, can ? BYellow : BGray);
         }
+    }
+    #endregion
+
+    #region 출격 무기 표시 (오른쪽)
+    RectTransform weaponHud;
+    string weaponHudKey;
+    bool weaponHudShown;
+
+    // 지금 싸우는 무기 목록: 기본총 + 왼쪽·오른쪽 + 추가 무장 + 보급
+    void RefreshWeaponHud(bool show)
+    {
+        weaponHudShown = show;
+        if(!show) {
+            if(weaponHud != null) weaponHud.gameObject.SetActive(false);
+            return;
+        }
+        var rows = new List<(string text, Color color)>();
+        rows.Add(("기본총", new Color(0.55f, 0.6f, 0.75f)));
+        if(mgr.DebugPickMode) {
+            foreach(var w in mgr.OwnedWeapons()) if(mgr.IsEquipped(w)) AddWeaponRow(rows, w, "");   // 개발용: 고른 무기
+        } else if(mgr.DebugEquipAll) {
+            foreach(var w in mgr.OwnedWeapons()) AddWeaponRow(rows, w, "");   // 개발용: 전부 출격
+        } else {
+            AddWeaponRow(rows, mgr.LoadoutLeft, "");
+            AddWeaponRow(rows, mgr.LoadoutRight, "");
+        }
+        AddWeaponRow(rows, mgr.ExtraWeapon, "<size=70%>추가</size> ");
+        if(mgr.SupplyWeapon != SideWeapon.None) {
+            int left = Mathf.Max(0, mgr.SupplyUntil - (InfiniteStage.Instance != null ? InfiniteStage.Instance.CurrentStage : 0));
+            AddWeaponRow(rows, mgr.SupplyWeapon, "<size=70%>보급</size> ", $"\n<size=65%>{left}스테이지 남음</size>");
+        }
+        var sb = new System.Text.StringBuilder();
+        foreach(var r in rows) sb.Append(r.text).Append('|');
+        string key = sb.ToString();
+        if(weaponHud != null && key == weaponHudKey) {
+            if(!weaponHud.gameObject.activeSelf) weaponHud.gameObject.SetActive(true);
+            return;
+        }
+        weaponHudKey = key;
+        if(weaponHud != null) Destroy(weaponHud.gameObject);
+
+        float rowH = rows.Count > 6 ? 54f : 70f, step = rowH + 6f;
+        float h = 64f + rows.Count * step + 8f;
+        weaponHud = Rect("WeaponHud", hudRoot, new Vector2(200, h), Vector2.zero);
+        weaponHud.anchorMin = weaponHud.anchorMax = new Vector2(1f, 0.6f);
+        weaponHud.pivot = new Vector2(1f, 0.5f);
+        weaponHud.anchoredPosition = new Vector2(-10, 0);
+        var bg = weaponHud.gameObject.AddComponent<Image>();
+        ApplySprite(bg, Skin("ItemFrame02_Single_Navy"), weaponHud.sizeDelta);
+        bg.color = new Color(1f, 1f, 1f, 0.88f);
+        bg.raycastTarget = false;
+        Label(weaponHud, "출격 무기", new Vector2(180, 40), new Vector2(0, h / 2 - 34), 28, Color.white, FontStyles.Bold);
+        for(int i = 0; i < rows.Count; i++) {
+            float y = h / 2 - 64f - rowH / 2 - i * step;
+            var card = ColorCard(weaponHud, new Vector2(180, rowH), new Vector2(0, y), rows[i].color, "Weapon");
+            card.raycastTarget = false;
+            Label(card.transform, rows[i].text, new Vector2(166, rowH - 8), new Vector2(0, 1), 26, Color.white, FontStyles.Bold);
+        }
+    }
+
+    void AddWeaponRow(List<(string, Color)> rows, SideWeapon w, string prefix, string suffix = "")
+    {
+        if(w == SideWeapon.None || !mgr.Owned(w)) return;
+        var tag = AugmentDefs.WeaponTag(w);
+        Color c = tag.HasValue ? AugmentDefs.TagColor(tag.Value) : AugmentDefs.TagColor(AugTag.Split);
+        string lv = suffix.Length > 0 ? suffix : $" <size=70%>Lv.{mgr.WeaponLevel(w)}</size>";
+        int f = mgr.FusionOf(w);
+        string name = f >= 0 ? $"<color=#E9A6FF>{AugmentDefs.Fusions[f].name}</color>" : AugmentDefs.WeaponName(w);   // 합체 무기는 합체 이름
+        rows.Add(($"{prefix}{name}{lv}", c * new Color(0.85f, 0.85f, 0.85f, 1f)));
     }
     #endregion
 
@@ -658,6 +733,242 @@ public class RemasterUI : MonoBehaviour
             var tag = AugmentDefs.WeaponTag(w);
             card.color = tag.HasValue ? AugmentDefs.TagColor(tag.Value) : AugmentDefs.TagColor(AugTag.Split);
         }
+    }
+    #endregion
+
+    #region 개발용 증강 테스트 창 (F10)
+    static readonly AugTag[] DebugTags = {
+        AugTag.Chain, AugTag.Curse, AugTag.Split, AugTag.Crit, AugTag.Plague, AugTag.Thunder,
+        AugTag.Frost, AugTag.Gravity, AugTag.Guard, AugTag.Treasure, AugTag.Weapon
+    };
+
+    // 계열마다 화면에서 눈으로 확인할 것
+    static string DebugHint(AugTag t)
+    {
+        switch(t) {
+            case AugTag.Chain: return "적을 잡으면 주황 폭발 · 잔불은 주황 원이 깜빡여요";
+            case AugTag.Curse: return "왼쪽 원정 칸의 '누적 피해 %'가 올라가요";
+            case AugTag.Split: return "파란 선(파편) · 탄 크기·개수 · 화면 끝에서 튕김";
+            case AugTag.Crit: return "치명타 숫자가 자주 뜨고 · 낮은 체력 적이 바로 죽어요";
+            case AugTag.Plague: return "초록 선으로 독이 옮고 · 독 피해 숫자가 계속 떠요";
+            case AugTag.Thunder: return "노란 선이 적 사이로 튀고 · 위에서 낙뢰가 떨어져요";
+            case AugTag.Frost: return "적이 느려지고 · 하늘색으로 멈춰요(빙결)";
+            case AugTag.Gravity: return "보라색 원(블랙홀)이 적을 모아요 · 적이 뭉쳐요";
+            case AugTag.Guard: return "적이 우주선에 닿을 때(실드가 깎일 때) 확인해요";
+            case AugTag.Treasure: return "실드·리롤·무기 칸 같은 보상이에요";
+            default: return "출격한 무기 것만 동작해요 · 프리즘 [합체] 카드 +1 = 바로 합체 · 합체 증강은 합체 뒤에만 동작";
+        }
+    }
+
+    AugTag debugTag = AugTag.Chain;
+
+    // [개발] 무기 고르기: 출격할 무기와 합체 무기를 직접 골라요 (테스트 창 위에 떠요)
+    void ShowDebugWeapons(Action onClose)
+    {
+        var p = OpenModal(new Vector2(980, 1640), out Action close);
+        BuildDebugWeapons(p, () => { close(); onClose?.Invoke(); });
+    }
+
+    void BuildDebugWeapons(RectTransform p, Action close)
+    {
+        for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
+        Title(p, "[개발] 무기 고르기", 730, 50, 940);
+        Label(p, mgr.DebugPickMode ? "고른 무기만 싸워요 (없는 무기는 Lv.1 로 받아요)" : "지금은 원정 준비에서 고른 무기로 싸워요\n무기를 누르면 고른 무기만 싸워요", new Vector2(900, 90), new Vector2(0, 640), 26, TextDim);
+
+        Label(p, "무기 (누르면 켜고 끄기)", new Vector2(900, 50), new Vector2(0, 560), 30, Color.white, FontStyles.Bold);
+        var weapons = new List<SideWeapon>();
+        foreach(SideWeapon w in Enum.GetValues(typeof(SideWeapon))) if(w != SideWeapon.None) weapons.Add(w);
+        for(int i = 0; i < weapons.Count; i++) {
+            var w = weapons[i];
+            int row = i / 3, col = i % 3;
+            bool on = mgr.DebugPicked(w);
+            int f = mgr.FusionOf(w);
+            string label = AugmentDefs.WeaponName(w) + (f >= 0 ? $"\n<size=70%>({AugmentDefs.Fusions[f].name})</size>" : "");
+            float y = 480 - row * 130;
+            Btn(p, label, new Vector2(290, 80), new Vector2((col - 1) * 300f, y), on ? BGreen : BGray, () => { mgr.DebugToggleWeapon(w); BuildDebugWeapons(p, close); }, 28);
+            Btn(p, "증강 보기", new Vector2(290, 42), new Vector2((col - 1) * 300f, y - 64), BBlue, () => ShowDebugWeaponAugs(w, () => BuildDebugWeapons(p, close)), 22);
+        }
+
+        Label(p, "합체 무기 (누르면 합체 · 다시 누르면 풀기)", new Vector2(900, 50), new Vector2(0, 80), 30, Color.white, FontStyles.Bold);
+        for(int i = 0; i < AugmentDefs.Fusions.Length; i++) {
+            int f = i;
+            var fd = AugmentDefs.Fusions[i];
+            bool on = mgr.FusionOwned(f) && mgr.DebugPicked(fd.a);
+            int row = i / 2, col = i % 2;
+            string label = $"{fd.name}\n<size=65%>{AugmentDefs.WeaponName(fd.a)} + {AugmentDefs.WeaponName(fd.b)}</size>";
+            float y = -5 - row * 125;
+            Btn(p, label, new Vector2(440, 80), new Vector2(col == 0 ? -225f : 225f, y), on ? BPurple : BGray, () => { mgr.DebugPickFusion(f); BuildDebugWeapons(p, close); }, 26);
+            Btn(p, "증강 보기", new Vector2(440, 38), new Vector2(col == 0 ? -225f : 225f, y - 62), BBlue, () => ShowDebugWeaponAugs(fd.a, () => BuildDebugWeapons(p, close)), 22);
+        }
+
+        Btn(p, "전부 출격", new Vector2(290, 110), new Vector2(-310, -620), BGreen, () => { mgr.DebugPickAll(); BuildDebugWeapons(p, close); }, 32);
+        Btn(p, "모두 끄기", new Vector2(290, 110), new Vector2(0, -620), BRed, () => { mgr.DebugPickClear(false); BuildDebugWeapons(p, close); }, 32);
+        Btn(p, "원래대로", new Vector2(290, 110), new Vector2(310, -620), BBlue, () => { mgr.DebugPickClear(true); BuildDebugWeapons(p, close); }, 32);
+        Btn(p, "닫기", new Vector2(440, 100), new Vector2(0, -740), BGray, () => close(), 36);
+    }
+
+    // [개발] 무기 하나의 증강만: 전용 3개 + 합체 카드 + 합체 전용 증강
+    void ShowDebugWeaponAugs(SideWeapon w, Action onClose)
+    {
+        var p = OpenModal(new Vector2(980, 1700), out Action close);
+        BuildDebugWeaponAugs(p, w, () => { close(); onClose?.Invoke(); });
+    }
+
+    void BuildDebugWeaponAugs(RectTransform p, SideWeapon w, Action close)
+    {
+        for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
+        Action refresh = () => BuildDebugWeaponAugs(p, w, close);
+        int fused = mgr.FusionOf(w);
+        Title(p, $"[개발] {AugmentDefs.WeaponName(w)} 증강", 780, 50, 940);
+        string state = (mgr.IsEquipped(w) ? "<color=#7CFF8A>출격 중</color>" : "<color=#FF8A8A>출격 안 함 (증강이 동작 안 해요)</color>")
+                     + (fused >= 0 ? $" · <color=#E9A6FF>합체: {AugmentDefs.Fusions[fused].name}</color>" : "");
+        Label(p, state, new Vector2(900, 50), new Vector2(0, 700), 28, Color.white);
+
+        var defs = new List<AugmentDef>(AugmentDefs.WeaponAugs(w));
+        for(int f = 0; f < AugmentDefs.Fusions.Length; f++) {
+            var fd = AugmentDefs.Fusions[f];
+            if(fd.a != w) continue;
+            defs.Add(AugmentDefs.Get(fd.card));
+            foreach(var id in fd.augs) defs.Add(AugmentDefs.Get(id));
+            defs.Add(AugmentDefs.Get(AugmentDefs.UltIds[f]));   // 종결 증강
+        }
+
+        const float rowH = 150f, step = 158f, viewH = 1180f;
+        float contentH = Mathf.Max(viewH, defs.Count * step);
+        var viewport = Rect("WeaponAugView", p, new Vector2(940, viewH), new Vector2(0, 655 - viewH / 2));
+        viewport.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.001f);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        var content = Rect("Content", viewport, new Vector2(920, contentH), new Vector2(0, (viewH - contentH) / 2));
+        var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+        scroll.viewport = viewport;
+        scroll.content = content;
+        scroll.horizontal = false;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 40f;
+
+        for(int i = 0; i < defs.Count; i++) {
+            var def = defs[i];
+            int lv = mgr.Level(def.id);
+            bool max = lv >= def.maxLevel;
+            bool waiting = def.fusion >= 0 && !def.fusionCard && !mgr.FusionOwned(def.fusion);   // 합체 전용인데 아직 합체 안 함
+            bool ultLocked = def.ultimate && !(mgr.FusionOwned(def.fusion) && mgr.AllFusionAugs(def.fusion));   // 종결: 합체 전용 3개를 모은 뒤 뽑기에 나와요
+            float y = contentH / 2 - rowH / 2 - i * step;
+            var row = Row(content, new Vector2(900, rowH), new Vector2(0, y), "Aug");
+            IconTile(row.transform, def.icon, 96, new Vector2(-386, 0), AugmentDefs.GradeColor(def.grade));
+            string lvText = lv > 0 ? $"<color=#FFD54A>★{lv}/{def.maxLevel}</color>" : $"<color=#6B6F8A>없음</color>";
+            string kind = def.fusionCard ? "<color=#E9A6FF>[합체 카드]</color> " : def.ultimate ? "<color=#FFD54A>[종결]</color> " + (ultLocked ? "<color=#6B6F8A>(전용 3개 뒤)</color> " : "") : waiting ? "<color=#6B6F8A>(합체 후 동작)</color> " : "";
+            var name = Label(row.transform, $"{kind}{def.name}  <size=75%>{AugmentDefs.GradeName(def.grade)}</size>  {lvText}", new Vector2(470, 50), new Vector2(-60, 42), 28, Color.white, FontStyles.Bold);
+            name.alignment = TextAlignmentOptions.MidlineLeft;
+            var desc = Label(row.transform, def.describe(Mathf.Max(1, lv)), new Vector2(470, 84), new Vector2(-60, -24), 22, TextDim);
+            desc.alignment = TextAlignmentOptions.MidlineLeft;
+            var b1 = Btn(row.transform, def.fusionCard ? "합체" : "+1", new Vector2(120, 110), new Vector2(255, 0), max ? BGray : BGreen, () => { mgr.DebugAddAugment(def, false); refresh(); }, 32);
+            b1.interactable = !max;
+            if(def.ultimate) {
+                // 종결 증강: 두 번째 버튼은 "지금 발동" (게이지 기다리지 않고 바로 보기)
+                int uf = def.fusion;
+                var bu = Btn(row.transform, "발동", new Vector2(120, 110), new Vector2(385, 0), lv > 0 ? BYellow : BGray, () => { mgr.DebugTriggerUltimate(uf); }, 30);
+                bu.interactable = lv > 0;
+            } else {
+                var b2 = Btn(row.transform, "최대", new Vector2(120, 110), new Vector2(385, 0), max ? BGray : BPurple, () => { mgr.DebugAddAugment(def, true); refresh(); }, 30);
+                b2.interactable = !max && !def.fusionCard;
+            }
+        }
+
+        Btn(p, mgr.IsEquipped(w) ? "출격 끄기" : "출격 켜기", new Vector2(290, 110), new Vector2(-310, -720), mgr.IsEquipped(w) ? BRed : BGreen, () => { mgr.DebugToggleWeapon(w); refresh(); }, 32);
+        Btn(p, "전용 3개 최대", new Vector2(290, 110), new Vector2(0, -720), BPurple, () => {
+            foreach(var d in AugmentDefs.WeaponAugs(w)) mgr.DebugAddAugment(d, true);
+            refresh();
+        }, 30);
+        Btn(p, "닫기", new Vector2(290, 110), new Vector2(310, -720), BGray, () => close(), 36);
+    }
+
+    public void ShowDebugAugments()
+    {
+        if(!EnsureBuilt() || mgr == null || !mgr.Loaded) return;
+        mgr.PauseForUI();
+        var p = OpenModal(new Vector2(980, 1820), out Action close);
+        BuildDebugAugments(p, () => { close(); mgr.ResumeFromUI(); });
+    }
+
+    void BuildDebugAugments(RectTransform p, Action close)
+    {
+        for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
+        Title(p, "[개발] 증강 테스트", 780, 50, 940);
+
+        // 계열 버튼 (6 + 5)
+        for(int i = 0; i < DebugTags.Length; i++) {
+            var t = DebugTags[i];
+            int row = i / 6, col = i % 6;
+            int perRow = row == 0 ? 6 : DebugTags.Length - 6;
+            float x = (col - (perRow - 1) / 2f) * 152f;
+            string label = AugmentDefs.IsMain(t) ? $"{AugmentDefs.TagName(t)} {mgr.TagCount(t)}" : AugmentDefs.TagName(t);
+            var b = Btn(p, label, new Vector2(144, 76), new Vector2(x, 690 - row * 86), t == debugTag ? BYellow : BBlue, () => { debugTag = t; BuildDebugAugments(p, close); }, 26);
+        }
+
+        // 고른 계열: 세트 단계 + 확인할 것
+        string setLine = "";
+        if(AugmentDefs.IsMain(debugTag)) {
+            int c = mgr.TagCount(debugTag);
+            var sb = new System.Text.StringBuilder();
+            foreach(int tier in AugmentDefs.SetTiers)
+                sb.Append(c >= tier ? "<color=#FFD54A>●</color>" : "<color=#6B6F8A>○</color>").Append(tier).Append(' ');
+            setLine = $"세트 {sb}\n";
+        }
+        var info = Row(p, new Vector2(900, 116), new Vector2(0, 500), "Info");
+        Label(info.transform, $"{setLine}<size=85%>{DebugHint(debugTag)}</size>", new Vector2(860, 104), Vector2.zero, 28, Color.white);
+
+        // 증강 목록 (스크롤)
+        var defs = AugmentDefs.All.FindAll(d => d.tag == debugTag);
+        if(debugTag == AugTag.Weapon) {
+            // 출격한 무기 것을 위로 (순서는 그대로)
+            var on = defs.FindAll(d => mgr.IsEquipped(d.requiredWeapon));
+            on.AddRange(defs.FindAll(d => !mgr.IsEquipped(d.requiredWeapon)));
+            defs = on;
+        }
+        const float rowH = 150f, step = 158f, viewH = 960f;
+        float contentH = Mathf.Max(viewH, defs.Count * step);
+        var viewport = Rect("DebugView", p, new Vector2(940, viewH), new Vector2(0, 432 - viewH / 2));
+        viewport.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.001f);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        var content = Rect("Content", viewport, new Vector2(920, contentH), new Vector2(0, (viewH - contentH) / 2));
+        var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+        scroll.viewport = viewport;
+        scroll.content = content;
+        scroll.horizontal = false;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 40f;
+
+        for(int i = 0; i < defs.Count; i++) {
+            var def = defs[i];
+            int lv = mgr.Level(def.id);
+            bool max = lv >= def.maxLevel;
+            float y = contentH / 2 - rowH / 2 - i * step;
+            var row = Row(content, new Vector2(900, rowH), new Vector2(0, y), "Aug");
+            IconTile(row.transform, def.icon, 96, new Vector2(-386, 0), AugmentDefs.GradeColor(def.grade));
+            string lvText = lv > 0 ? $"<color=#FFD54A>★{lv}/{def.maxLevel}</color>" : $"<color=#6B6F8A>없음</color>";
+            var name = Label(row.transform, $"{def.name}  <size=75%>{AugmentDefs.GradeName(def.grade)}</size>  {lvText}", new Vector2(470, 50), new Vector2(-60, 42), 28, Color.white, FontStyles.Bold);
+            name.alignment = TextAlignmentOptions.MidlineLeft;
+            var desc = Label(row.transform, def.describe(Mathf.Max(1, lv)), new Vector2(470, 84), new Vector2(-60, -24), 22, TextDim);
+            desc.alignment = TextAlignmentOptions.MidlineLeft;
+            var b1 = Btn(row.transform, "+1", new Vector2(120, 110), new Vector2(255, 0), max ? BGray : BGreen, () => { mgr.DebugAddAugment(def, false); BuildDebugAugments(p, close); }, 34);
+            b1.interactable = !max;
+            var b2 = Btn(row.transform, "최대", new Vector2(120, 110), new Vector2(385, 0), max ? BGray : BPurple, () => { mgr.DebugAddAugment(def, true); BuildDebugAugments(p, close); }, 30);
+            b2.interactable = !max;
+        }
+
+        // 아래 버튼
+        Btn(p, "이 계열 전부", new Vector2(290, 120), new Vector2(-310, -640), BGreen, () => {
+            foreach(var d in defs) mgr.DebugAddAugment(d, false);
+            BuildDebugAugments(p, close);
+        }, 32);
+        Btn(p, "모두 지우기", new Vector2(290, 120), new Vector2(0, -640), BRed, () => { mgr.DebugClearAugments(); BuildDebugAugments(p, close); }, 32);
+        Btn(p, "닫기", new Vector2(290, 120), new Vector2(310, -640), BGray, () => close(), 36);
+        Btn(p, "무기 전부 열기", new Vector2(440, 96), new Vector2(-230, -750), BYellow, () => { mgr.DebugUnlockAllWeapons(); BuildDebugAugments(p, close); }, 30);
+        Btn(p, "무기 고르기 (합체 포함)", new Vector2(440, 96), new Vector2(230, -750), BPurple, () => ShowDebugWeapons(() => BuildDebugAugments(p, close)), 30);
+        Btn(p, AugmentManager.DebugTestMode ? "테스트: 켜짐" : "테스트: 꺼짐", new Vector2(290, 76), new Vector2(-310, -840), AugmentManager.DebugTestMode ? BGreen : BGray, () => { mgr.DebugToggleTestMode(); BuildDebugAugments(p, close); }, 28);
+        Btn(p, AugmentManager.DebugManyEnemies ? "적 3배: 켜짐" : "적 3배: 꺼짐", new Vector2(290, 76), new Vector2(0, -840), AugmentManager.DebugManyEnemies ? BGreen : BGray, () => { AugmentManager.DebugManyEnemies = !AugmentManager.DebugManyEnemies; BuildDebugAugments(p, close); }, 28);
+        Btn(p, "보스 소환", new Vector2(290, 76), new Vector2(310, -840), BRed, () => mgr.DebugSpawnBoss(), 28);
+        Label(p, "F7 게임 속도 · F2 +20스테이지 · F9 골드 +10억 · F5 원정 준비(무기 칸 바꾸기)", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
     }
     #endregion
 

@@ -105,7 +105,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
     private void Update()
     {
-        if(InBattle) {
+        if(InBattle && !AugmentManager.DebugTestMode) {   // 테스트 모드: 스테이지가 넘어가지 않아요
             if(KilledEnemy >= setEnemyNumber() && !BossSpawned) {
                 if(CurrentStage % 10 == 0) {
                     BossSpawned = true;
@@ -117,6 +117,16 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
                 }
             }
         }
+    }
+
+    // 개발용 (테스트 창 "보스 소환"): 지금 스테이지의 보스를 하나 더 불러요. 체력은 스테이지를 다 잡았을 때 나오는 보스와 같아요.
+    // 테스트 모드가 꺼져 있으면 이 보스를 잡을 때 다음 스테이지로 넘어가요
+    public bool DebugSpawnBoss()
+    {
+        if(!InBattle || bossPrefab == null || bossPrefab.Length == 0) return false;
+        var prefab = bossPrefab[Mathf.Clamp(CurrentBossIndex, 0, bossPrefab.Length - 1)];
+        EnemyManager.Instance.CreateInfiniteBoss(prefab, setEnemyNumber() * 0.005f);
+        return true;
     }
 
     public void StartSpawningEnemy()
@@ -134,10 +144,12 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         while(SpawningEnemy) {
             // 처치가 늘수록 조금씩 빨라지지만 최소 30% 간격은 지켜요 (예전엔 0초·음수가 되어 막판에 한꺼번에 쏟아졌어요)
             float speedUp = 0.1f * (KilledEnemy / Mathf.Max(1f, setEnemyNumber() / 8f));
-            yield return new WaitForSeconds(SpawnSpeed * Mathf.Max(0.3f, 1f - speedUp));
+            yield return new WaitForSeconds(SpawnSpeed * Mathf.Max(0.3f, 1f - speedUp) / AugmentManager.DebugSpawnMul);
+            // 테스트 모드: 끝없이 나와요 (화면에 너무 많으면 잠깐 쉬어요)
+            if(AugmentManager.DebugTestMode && EnemyManager.Instance.enemyData.Count >= Tuning.GetInt("test_max_enemies", 80)) continue;
             SpawnedEnemy++;
             EnemyManager.Instance.createInfiniteEnemy(e, EnemyScale);
-            if(SpawnedEnemy >= setEnemyNumber()) {
+            if(SpawnedEnemy >= setEnemyNumber() && !AugmentManager.DebugTestMode) {
                 SpawningEnemy = false;
                 StopAllCoroutines();
             }
@@ -178,6 +190,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
     public void enemyHit(Enemy data)
     {
+        if(AugmentManager.DebugTestMode) return;   // 테스트 모드: 우주선에 닿은 적은 그냥 사라져요 (실드·처치 수 그대로)
         if(data._typeofEnemy == Enemy.typeofEnemy.InfiniteStageBoss) {
             // 보스가 우주선에 닿으면 실드 -2, 살아 있으면 보스가 처음부터 다시 나와요
             // (예전엔 보스 도착을 처리하지 않아서 스테이지가 멈췄어요)
@@ -379,7 +392,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
     public int setEnemyNumber()
     {
         // 리마스터 원정: 10 + 스테이지/5, 최대 30마리 (예전: 10 + 스테이지, 끝없이 늘어남)
-        return Mathf.CeilToInt(RemasterBalance.EnemyCount(CurrentStage) * ExpeditionZones.CountMul(CurrentStage));
+        return Mathf.CeilToInt(RemasterBalance.EnemyCount(CurrentStage) * ExpeditionZones.CountMul(CurrentStage) * AugmentManager.DebugSpawnMul);
     }
 
     public void setEnemyScale()

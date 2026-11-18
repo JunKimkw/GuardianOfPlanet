@@ -18,6 +18,7 @@ public class BounceGun : GunWeapon
     public List<BounceEnemy> bounceEnemyList_Bullet = new List<BounceEnemy>();
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.BounceGun;
+    public override SideWeapon Side => SideWeapon.BounceGun;
     public override int BaseDamage => Damage;
 
     void Awake() => instance = this;
@@ -45,7 +46,7 @@ public class BounceGun : GunWeapon
         b.AimAtNext(transform.rotation);
         if(b.TargetEnemy != null) bounceEnemyList_Bullet.Add(be);
         b.gameObject.SetActive(true);
-        b.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+        BounceBullet.ApplyScale(b.transform);
     }
 }
 

@@ -264,8 +264,12 @@ public partial class Enemy : MonoBehaviour
             OfflineProgress.RecordDamage(System.Math.Min(totalDamage, CurrentHealth) / NumberScale);
 
         // 처형: 남을 체력이 기준 이하면 바로 처치
-        if(aug != null && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))
+        if(aug != null && !AugmentManager.DebugTestMode && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))
             totalDamage = CurrentHealth;
+
+        // 개발용 테스트 모드: 체력이 다 닳으면 다시 채워요 (우주선에 닿아야 사라져요)
+        if(AugmentManager.DebugTestMode && CurrentHealth - totalDamage <= 0)
+            CurrentHealth = EnemyHealth + totalDamage;
 
         //Dead
         if(CurrentHealth - totalDamage > 0) {

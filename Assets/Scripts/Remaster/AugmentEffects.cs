@@ -53,6 +53,7 @@ public partial class AugmentManager
         invulnLeft = revengeLeft = 0;
         stormTimer = horizonTimer = northwindTimer = hasteClock = nemesisCheck = nemesisCooldown = 0;
         nemesisAt = -1f;
+        ResetUltimates();
     }
 
     void LoadStacks(GameData data)
@@ -250,7 +251,15 @@ public partial class AugmentManager
     float PoisonSeconds => (L("infect") > 0 ? AugmentDefs.InfectSeconds(L("infect")) : 2f) + (Synergy(AugTag.Plague, 2) ? 1f : 0f);
 
     public int CarpetBombCount => Active && L("carpet") > 0 && IsEquipped(SideWeapon.Bomber) ? AugmentDefs.CarpetBombs(L("carpet")) : 0;
-    public int BounceExtraCount => Active && L("bouncegrow") > 0 && IsEquipped(SideWeapon.BounceGun) ? AugmentDefs.BounceExtra(L("bouncegrow")) : 0;
+    public int BounceExtraCount => Active && L("bn_more") > 0 && IsEquipped(SideWeapon.BounceGun) ? AugmentDefs.BounceExtra(L("bn_more")) : 0;
+
+    // 폭격기 폭탄에도 같은 폭발 범위 증강(화약 연구, 연쇄 세트 2)을 곱해요
+    public static float BombRadiusMultiplier {
+        get {
+            var m = Instance;
+            return m != null && m.Active ? m.ExplosionRadius / 1.3f : 1f;
+        }
+    }
 
     float ExplosionRadius {
         get {
@@ -361,8 +370,9 @@ public partial class AugmentManager
         bool direct = effectDepth == 0 && splitGen == 0 && !IsPoisonHit;
         lastHitCrit = crit;
 
-        // 독 비행기 독 지대: 전염 증강이 하나라도 있으면 독 상태를 묻혀요
-        if(CurrentHitKind == HitKind.PoisonArea && TagCount(AugTag.Plague) > 0)
+        // 독 비행기 독 지대: 때릴 때마다 독 1중첩 (2026-11-18: 예전엔 전염 증강이 있어야 했어요.
+        // 독 무기 기본 특성 "독 중첩 1당 피해 +2%"가 독 비행기 혼자서도 켜지게)
+        if(CurrentHitKind == HitKind.PoisonArea)
             enemy.AddPoison(1, PoisonSeconds);
 
         if(direct) {
@@ -666,7 +676,7 @@ public partial class AugmentManager
             }
         }
 
-        if(loaded && Active) TickEffects(Time.deltaTime);
+        if(loaded && Active) { TickEffects(Time.deltaTime); TickUltimates(Time.deltaTime); }
         else { fires.Clear(); blackHoles.Clear(); }
 
         if(loaded) {

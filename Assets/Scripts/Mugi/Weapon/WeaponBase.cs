@@ -17,6 +17,9 @@ public abstract class WeaponBase : MonoBehaviour
     public int ExtraDamage;
     public float ExtraDamagePercent;
 
+    // 증강 시스템에서 이 무기를 가리키는 종류 (기본총은 None)
+    public virtual SideWeapon Side => SideWeapon.None;
+
     // 특성(Traits)에서 이 무기를 가리키는 종류
     protected abstract TraitsData.WeaponType TraitType { get; }
 
@@ -42,7 +45,8 @@ public abstract class WeaponBase : MonoBehaviour
     public float DamageMultiplier => 1f + ExtraDamagePercent + Trait(TraitsData.TraitsType.DamagePercent);
 
     // 한 발 피해 = 플레이어 공격력 + (기본 + 추가) × 배율. long 이라 후반(수십억 이상)에도 넘치지 않아요.
-    public long HitDamage => ClampDamage(Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier);
+    // 증강: 무기 합체 위력(×3~×5)과 무기 전용 증강 보너스 (AugmentManager.WeaponPower)
+    public long HitDamage => ClampDamage((Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier) * AugmentManager.WeaponPower(Side));
 
     public static long ClampDamage(double v) => v >= 9e18 ? (long)9e18 : v <= 0 ? 0 : (long)v;
 
@@ -141,6 +145,8 @@ public abstract class GunWeapon : WeaponBase
 }
 
 // 닿아 있는 동안 일정 간격으로 피해를 주는 무기 (360 레이저, 직선 레이저, 궤도)
+// 리마스터: 예전엔 적마다 코루틴을 돌렸는데, 적이 판정에서 잠깐 빠졌다 들어오면 코루틴이 하나 더 생겨
+// 공격 속도가 2배·3배로 불어났어요. 이제 대상마다 "다음에 때릴 시각"만 기억하고 TickContacts 에서 한 번에 처리해요.
 public abstract class ContactWeapon : WeaponBase
 {
     public List<Enemy> enemyOnLaser = new List<Enemy>();
@@ -151,38 +157,51 @@ public abstract class ContactWeapon : WeaponBase
 
     protected abstract float HitInterval { get; }
     protected virtual bool RollHitStun() => false;
+    protected virtual double ContactDamageMul => 1;   // 직선 레이저 "관통 증폭"
 
-    IEnumerator HitEnemy(Enemy enemy)
+    readonly Dictionary<Object, float> nextHit = new Dictionary<Object, float>();
+    readonly List<Enemy> enemyBuffer = new List<Enemy>();
+    readonly List<Dummy> dummyBuffer = new List<Dummy>();
+
+    // 닿아 있는 대상마다 HitInterval 간격으로 한 번씩 때려요 (무기의 Update 에서 불러요)
+    protected void TickContacts()
     {
-        while(enemyOnLaser.Contains(enemy) && enemy != null && enemy.gameObject.activeInHierarchy) {
+        enemyOnLaser.RemoveAll(e => e == null || e._state == Enemy.EnemyState.dead || !e.gameObject.activeInHierarchy);
+        dummyOnLaser.RemoveAll(d => d == null);
+        float now = Time.time;
+
+        enemyBuffer.Clear();
+        enemyBuffer.AddRange(enemyOnLaser);   // 때리는 중에 목록이 바뀌어도 안전하게
+        foreach(var e in enemyBuffer) {
+            if(e == null || !Due(e, now)) continue;
             AugmentManager.CurrentHitKind = HitKind.Laser;   // 증강 "굴절"
-            try { enemy.OnHit(HitDamage, RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage); }
+            try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage); }
             finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
-            yield return new WaitForSeconds(HitInterval);
         }
-        enemyOnLaser.Remove(enemy);
+
+        dummyBuffer.Clear();
+        dummyBuffer.AddRange(dummyOnLaser);
+        foreach(var d in dummyBuffer)
+            if(d != null && Due(d, now))
+                d.addDamage(HitDamage, RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage);
     }
 
-    IEnumerator HitDummy(Dummy dummy)
+    // 때릴 차례면 다음 시각을 정하고 true (판정에서 나갔다 들어와도 간격은 그대로 지켜요)
+    bool Due(Object target, float now)
     {
-        while(dummyOnLaser.Contains(dummy) && dummy != null) {
-            dummy.addDamage(HitDamage, RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage);
-            yield return new WaitForSeconds(HitInterval);
-        }
+        if(nextHit.TryGetValue(target, out float t) && now < t) return false;
+        nextHit[target] = now + HitInterval;
+        return true;
     }
 
     public void addEnemyToList(Enemy e)
     {
-        if(e == null || enemyOnLaser.Contains(e)) return;
-        enemyOnLaser.Add(e);
-        StartCoroutine(HitEnemy(e));
+        if(e != null && !enemyOnLaser.Contains(e)) enemyOnLaser.Add(e);
     }
 
     public void addDummyToList(Dummy d)
     {
-        if(d == null || dummyOnLaser.Contains(d)) return;
-        dummyOnLaser.Add(d);
-        StartCoroutine(HitDummy(d));
+        if(d != null && !dummyOnLaser.Contains(d)) dummyOnLaser.Add(d);
     }
 
     // 레이저 범위(Player 레이어)에서 벗어난 적은 목록에서 빼요
@@ -192,11 +211,49 @@ public abstract class ContactWeapon : WeaponBase
         enemyOnLaser.RemoveAll(e => e == null || Physics2D.OverlapPoint(e.transform.position, mask) == null);
     }
 
+    // 원 안에 조금이라도 닿은 적·더미를 HitInterval 간격으로 때려요 (궤도처럼 판정이 작은 무기용).
+    // 적의 "중심"이 판정 안에 있어야 하는 레이저용 검사(doubleCheckEnemyOnLazer)를 안 써요.
+    // timers: 판정 원마다 따로 (본체·위성). 맞힌 수를 돌려줘요
+    protected int HitInCircle(Vector2 center, float radius, Dictionary<Object, float> timers)
+    {
+        int hits = 0;
+        float now = Time.time;
+        if(timers.Count > 300) {   // 죽은 적 기록 정리
+            var stale = new List<Object>();
+            foreach(var kv in timers) if(kv.Key == null || kv.Value < now) stale.Add(kv.Key);
+            foreach(var k in stale) timers.Remove(k);
+        }
+        foreach(var c in Physics2D.OverlapCircleAll(center, radius)) {
+            if(c == null) continue;
+            if(c.TryGetComponent(out Enemy e)) {
+                if(e._state == Enemy.EnemyState.dead || !e.gameObject.activeInHierarchy) continue;
+                if(timers.TryGetValue(e, out float t) && now < t) continue;
+                timers[e] = now + HitInterval;
+                AugmentManager.CurrentHitKind = HitKind.Laser;
+                try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage); }
+                finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
+                hits++;
+                OnCircleHit(e, center);
+            } else if(c.TryGetComponent(out Dummy d)) {
+                if(timers.TryGetValue(d, out float t) && now < t) continue;
+                timers[d] = now + HitInterval;
+                d.addDamage(HitDamage, RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage);
+                hits++;
+            }
+        }
+        return hits;
+    }
+
+    protected virtual void OnCircleHit(Enemy e, Vector2 center) { }
+
     protected void ClearTargets()
     {
         enemyOnLaser.Clear();
         dummyOnLaser.Clear();
+        nextHit.Clear();
     }
+
+    protected virtual void OnDisable() => ClearTargets();
 
     void OnCollisionStay2D(Collision2D collision)
     {

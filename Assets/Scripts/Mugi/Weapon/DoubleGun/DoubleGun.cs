@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 // 쌍발총: 총구 두 개가 각각 조준해서 쏴요
+// 증강: 쌍둥이 연사(공속), 탄 가속(탄속), 교차 사격(두 총구가 다른 적), 합체 "분열 쌍발"(DoubleGunBullet)
 public class DoubleGun : GunWeapon
 {
     public static DoubleGun instance;
@@ -16,6 +17,7 @@ public class DoubleGun : GunWeapon
     public bool doubleAttack;
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.DoubleGun;
+    public override SideWeapon Side => SideWeapon.DoubleGun;
     public override int BaseDamage => Damage;
 
     Transform Barrel0 => transform.GetChild(0);
@@ -25,6 +27,12 @@ public class DoubleGun : GunWeapon
 
     public override void SetDamage() =>
         Damage = Tiered(UpgradeLevel, 5, (0, 1), (50, 1), (100, 2), (200, 3), (300, 2), (500, 1));
+
+    public override float getAttackSpeed()
+    {
+        int l = AugmentManager.WL("dg_rapid");
+        return base.getAttackSpeed() / (l > 0 ? 1f + AugmentDefs.DgRapid(l) : 1f);
+    }
 
     protected override void Fire()
     {
@@ -47,10 +55,21 @@ public class DoubleGun : GunWeapon
         Shoot(ShootingPoint2, Barrel0, dmg);
     }
 
+    float SpeedScale {
+        get {
+            int l = AugmentManager.WL("dg_accel");
+            return ExtraBulletSpeedScale + (l > 0 ? AugmentDefs.DgAccel(l) : 0f);
+        }
+    }
+
     void Shoot(Transform point, Transform barrel, long dmg)
     {
         var b = TakeBullet<DoubleGunBullet>(PoolObjectTypeBullet.Double, point.position, barrel.rotation);
-        b.setBulletStats(dmg, ExtraBulletSpeedScale);
+        b.setBulletStats(dmg, SpeedScale);
+        b.splitGen = 0;
+        b.rootSpeedScale = b.bullet_BulletSpeedScale;   // 갈라진 탄들의 속도 기준
+        b.ignore = null;
+        b.SetSplitLook();
         b.gameObject.SetActive(true);
     }
 
@@ -76,6 +95,12 @@ public class DoubleGun : GunWeapon
     {
         Face(target);
         Barrel0.rotation = LookRotation(Barrel0.position, target);
-        Barrel1.rotation = LookRotation(Barrel1.position, target);
+        Vector3 second = target;
+        // 교차 사격: 두 번째 총구는 첫 목표 다음으로 가까운 다른 적을 노려요
+        if(AugmentManager.WL("dg_cross") > 0) {
+            var near = AugmentManager.NearestInRange(target, 2);
+            if(near.Count >= 2) second = near[1].pos;
+        }
+        Barrel1.rotation = LookRotation(Barrel1.position, second);
     }
 }

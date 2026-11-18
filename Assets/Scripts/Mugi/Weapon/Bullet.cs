@@ -18,8 +18,26 @@ public abstract class Bullet : MonoBehaviour
         (1 + Player.instance.FinalAttack_Bullet_SpeedPercent) *
         (1 + TraitsManager.instance.GetStats(TraitType, TraitsData.TraitsType.BulletSpeed));
 
+    Rigidbody2D body;
+    bool bodyChecked;
+
     protected void MoveForward(float extraScale = 0f)
     {
+        // 코드로 움직이는 탄은 물리엔진이 밀지 못하게 Kinematic 으로 바꿔요 (충돌 알림은 그대로 받아요).
+        // 예전: 질량 0.0001 의 Dynamic 이라 적 충돌체와 조금만 겹쳐도 엄청난 속도로 튕겨 나갔어요
+        // (갈라진 탄·관통탄이 순간적으로 엄청 빨라지거나 휘던 문제)
+        if(!bodyChecked) {
+            bodyChecked = true;
+            body = GetComponent<Rigidbody2D>();
+            if(body != null && body.bodyType == RigidbodyType2D.Dynamic) {
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.useFullKinematicContacts = true;   // 적(움직이지 않는 충돌체)과 닿아도 OnCollisionEnter2D 가 오게
+            }
+        }
+        if(body != null) {
+            body.linearVelocity = Vector2.zero;
+            body.angularVelocity = 0f;
+        }
         transform.Translate(Vector3.up * BulletSpeed * SpeedMultiplier * (1 + extraScale) * Time.deltaTime);
     }
 

@@ -189,6 +189,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     public bool IsEquipped(SideWeapon w)
     {
         if(w == SideWeapon.None) return false;
+        if(debugPickMode) return Owned(w) && debugPicked.Contains(w);   // 개발용: 테스트 창에서 고른 무기만
+        if(debugEquipAll && Owned(w)) return true;   // 개발용: 가진 무기 전부 출격
         return w == loadoutLeft || w == loadoutRight || w == extraWeapon || w == supplyWeapon;
     }
 
@@ -363,6 +365,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             if(grade.HasValue && d.grade != grade.Value) continue;
             if(Level(d.id) >= d.maxLevel) continue;
             if(d.requiredWeapon != SideWeapon.None && !IsEquipped(d.requiredWeapon)) continue;
+            if(!WeaponAugAllowed(d)) continue;   // 무기 합체 조건 (WeaponAugments.cs)
             if(d.id == "extraarms" && FreeWeaponsForExtra().Count == 0) continue;
             if(d.id == "supply" && (supplyWeapon != SideWeapon.None || FreeWeaponsForExtra().Count == 0)) continue;
             float w = 1f;
@@ -395,6 +398,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         levels[def.id] = before + 1;
         if(before == 0) order.Add(def.id);
         OnAugmentsChanged();
+
+        if(def.fusionCard) DoFuse(def, announce);
 
         switch(def.id) {
             case "armor":
@@ -801,6 +806,96 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             GameManager.Enemy_Dead_Money_UP(1000000000L);
             ui.Toast("[개발] 골드 +10억", Color.white);
         }
+        // ` 키(숫자 1 왼쪽): 증강 테스트 창. F10은 녹화 프로그램 단축키와 겹쳐서 바꿨어요. 화면의 [테스트] 버튼도 같아요
+        if(Input.GetKeyDown(KeyCode.BackQuote)) ui.ShowDebugAugments();
+#endif
+    }
+
+    // ---- 개발용: 증강 테스트 창에서 불러요 (에디터 / 개발 빌드에서만 동작)
+    public void DebugAddAugment(AugmentDef def, bool toMax)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if(def == null) return;
+        if(def.fusionCard) { DebugFuse(def.fusion); return; }   // 합체 카드: 조건 없이 바로 합체
+        do {
+            if(Level(def.id) >= def.maxLevel) break;
+            Apply(def, true);
+        } while(toMax);
+#endif
+    }
+
+    bool debugEquipAll;
+    bool debugPickMode;
+    readonly HashSet<SideWeapon> debugPicked = new HashSet<SideWeapon>();
+
+    // 개발용 (에디터에서만, 처음부터 켜져 있어요)
+    // 테스트 모드: 적이 죽지 않고(체력이 다시 차요), 우주선에 닿으면 사라져요. 실드 안 깎임, 스테이지 멈춤, 적이 끝없이 나와요
+    // 적 3배: 나오는 속도 3배
+#if UNITY_EDITOR
+    public static bool DebugTestMode = true;
+    public static bool DebugManyEnemies = true;
+#else
+    public static bool DebugTestMode = false;
+    public static bool DebugManyEnemies = false;
+#endif
+    public void DebugSpawnBoss()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        bool ok = InfiniteStage.Instance != null && InfiniteStage.Instance.DebugSpawnBoss();
+        ui.Toast(ok ? "[개발] 보스 소환" : "[개발] 원정 전투 중에만 부를 수 있어요", Color.white);
+#endif
+    }
+
+    public void DebugToggleTestMode()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        DebugTestMode = !DebugTestMode;
+        if(InfiniteStage.Instance != null) InfiniteStage.Instance.JumpToStage(InfiniteStage.Instance.CurrentStage);   // 생성을 다시 시작
+        ui.Toast("[개발] 테스트 모드: " + (DebugTestMode ? "켜짐 (적이 안 죽고 끝없이 나와요)" : "꺼짐 (스테이지 다시 시작)"), Color.white);
+#endif
+    }
+    public static float DebugSpawnMul => DebugManyEnemies ? Tuning.Get("test_spawn_mul", 3f) : 1f;
+    public bool DebugEquipAll => debugEquipAll;
+
+    // 무기 상점 잠금을 풀고, 아직 없는 무기는 Lv.1 로 줘요 (Lv.1은 저장돼요)
+    public void DebugUnlockAllWeapons()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        WeaponShopBase.DebugUnlockAll = true;
+        int given = 0;
+        if(WeaponManager.instance != null)
+            foreach(var w in WeaponManager.instance.Weapons)
+                if(w.UpgradeLevel <= 0) { w.UpgradeLevel = 1; w.SetDamage(); given++; }
+        foreach(var s in FindObjectsByType<WeaponShopBase>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if(s.LockCover != null) s.LockCover.SetActive(false);
+        ui.Toast($"[개발] 무기 전부 열기 (새로 받은 무기 {given}개)", Color.white);
+        ui.RefreshHUD();
+#endif
+    }
+
+    public void DebugToggleEquipAll()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        debugEquipAll = !debugEquipAll;
+        ui.Toast("[개발] 가진 무기 전부 출격: " + (debugEquipAll ? "켜짐" : "꺼짐"), Color.white);
+        ui.RefreshHUD();
+#endif
+    }
+
+    public void DebugClearAugments()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        int shieldDiff = ShieldBonus;
+        levels.Clear();
+        order.Clear();
+        ResetEffectState();
+        OnAugmentsChanged();
+        extraWeapon = SideWeapon.None;
+        supplyWeapon = SideWeapon.None;
+        shieldDiff -= ShieldBonus;
+        if(shieldDiff != 0 && InfiniteStage.Instance != null) InfiniteStage.Instance.AddShieldNow(-shieldDiff);
+        ui.Toast("[개발] 증강을 모두 지웠어요", Color.white);
+        ui.RefreshHUD();
 #endif
     }
     #endregion

@@ -5,6 +5,7 @@ public class SniperBullet : Bullet
     public long Bullet_Damage;
     public bool penetrateEffect;
     public float critDamage_Bullet;
+    [HideInInspector] public int pierceLeft;   // 철갑탄: 더 뚫을 수 있는 적 수
 
     protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.Sniper;
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.SniperGun;
@@ -24,7 +25,8 @@ public class SniperBullet : Bullet
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        if(Hit(collision.gameObject, Bullet_Damage, PlayerCritDamage + critDamage_Bullet) && !penetrateEffect)
-            DestroyBullet();
+        if(!Hit(collision.gameObject, Bullet_Damage, PlayerCritDamage + critDamage_Bullet) || penetrateEffect) return;
+        if(pierceLeft > 0) { pierceLeft--; return; }
+        DestroyBullet();
     }
 }

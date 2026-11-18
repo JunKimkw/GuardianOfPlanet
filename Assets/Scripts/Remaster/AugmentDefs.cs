@@ -18,12 +18,27 @@ public class AugmentDef
     public int maxLevel;
     public string icon;
     public SideWeapon requiredWeapon = SideWeapon.None;
+    public int fusion = -1;           // 합체 번호 (AugmentDefs.Fusions). 카드 또는 합체 무기 전용 증강
+    public bool fusionCard;           // 합체 카드 (고르면 무기 A + B 합체)
+    public bool ultimate;             // 합체 무기 종결 증강 (합체 전용 3개를 다 모으면 나와요)
     public System.Func<int, string> describe;
 
     public AugmentDef(string id, string name, AugTag tag, AugGrade grade, int maxLevel, string icon, System.Func<int, string> describe, SideWeapon req = SideWeapon.None)
     {
         this.id = id; this.name = name; this.tag = tag; this.grade = grade;
         this.maxLevel = maxLevel; this.icon = icon; this.describe = describe; requiredWeapon = req;
+    }
+}
+
+// 무기 합체 (설계서 2-4-1): 무기 A 전용 증강 3개를 모두 모으면 짝 무기 B 카드가 나와요
+public class FusionDef
+{
+    public SideWeapon a, b;
+    public string name, card, effect;
+    public string[] augs;      // 합체 무기 전용 증강 3개
+    public FusionDef(SideWeapon a, SideWeapon b, string name, string card, string effect, params string[] augs)
+    {
+        this.a = a; this.b = b; this.name = name; this.card = card; this.effect = effect; this.augs = augs;
     }
 }
 
@@ -141,8 +156,55 @@ public static class AugmentDefs
     public static int SupplyStages(int L) => 30 + 10 * (L - 1);
     public static float CollectorBonus(int L) => Lin(L, 0.25f, 0.10f);
     public static float HarvestChance(int L) => Lin(L, 0.10f, 0.05f);
-    // 무기 전용
-    public static int BounceExtra(int L) => 1 + L;
+    // 무기 전용 (무기마다 3개, 설계서 2-4-1)
+    public static float QualityBonus(int L) => 0.15f * (L - 1);              // 효과가 숫자 없는 증강: ★2부터 그 무기 피해 +15%씩
+    public static float DgRapid(int L) => Lin(L, 0.15f, 0.05f);              // 쌍발총 공격속도
+    public static float DgAccel(int L) => Lin(L, 0.30f, 0.10f);              // 쌍발총 탄속
+    public static float BmBig(int L) => Lin(L, 0.25f, 0.08f);                // 폭격기 폭발 범위
+    public static float BmSecond(int L) => Lin(L, 0.40f, 0.15f);             // 2차 폭발 피해
+    public static int TkMulti(int L) => 1 + (L - 1) / 2;                     // 미사일 추가
+    public static float TkHoming(int L) => Lin(L, 0.50f, 0.15f);             // 선회 속도
+    public static float TkWarhead(int L) => Lin(L, 0.30f, 0.10f);            // 명중 폭발 피해
+    public static float PsLong(int L) => Lin(L, 2f, 0.5f);                   // 독 지대 지속 (초)
+    public static float PsToxic(int L) => Lin(L, 0.50f, 0.15f);              // 독 지대 피해
+    public static float ObFast(int L) => Lin(L, 0.30f, 0.10f);               // 드론 공격속도 (속사)
+    public static float ObShock(int L) => Lin(L, 15f, 5f);                   // (예전 충격탄, 지금은 안 써요)
+    public static float LzLong(int L) => Lin(L, 2f, 0.5f);                   // 360 레이저 지속 (초)
+    public static float BeamWidth(int L) => Lin(L, 0.30f, 0.10f);            // 레이저 폭
+    public static float SlCharge(int L) => Lin(L, 3f, 0.75f);                // 직선 레이저 대기 감소 (초)
+    public static float SlPierce(int L) => Lin(L, 0.10f, 0.03f);             // 뚫은 적 1마리당 피해
+    public static float SnFast(int L) => Lin(L, 0.20f, 0.05f);               // 저격총 장전 감소
+    public static float SnHead(int L) => Lin(L, 1.0f, 0.3f);                 // 저격총 치명 피해
+    public static float BnAccel(int L) => Lin(L, 0.20f, 0.05f);              // 튈 때마다 탄속
+    public static float BounceGrowDamage(int L) => Lin(L, 0.20f, 0.05f);     // 튈 때마다 피해
+    public static int BounceExtra(int L) => 1 + L;                           // 튕김 강화
+
+    // 합체 무기 전용
+    public const float FusionPower = 3f, FusionPowerFull = 5f;               // 합체 직후 A의 3배, 전용 증강 3개를 다 모으면 5배
+    public static float GbDouble(int L) => Lin(L, 1.0f, 0.2f);
+    public static int GbMissile(int L) => 2 + (L - 1) / 2;
+    public static int GbFleet(int L) => 4 + L;
+    public static int SatMore(int L) => 2 + (L - 1) / 2;
+    public static float SatLong(int L) => Lin(L, 3f, 1f);
+    public static float SatFocus(int L) => Lin(L, 1.5f, 0.5f);
+    public static float RgCharge(int L) => Lin(L, 0.25f, 0.05f);
+    public static float RgBlast(int L) => Lin(L, 0.30f, 0.10f);
+    public static int RgMegaEvery(int L) => 5 - L;
+    public static float PbArea(int L) => Lin(L, 0.30f, 0.10f);
+    public static float PbToxic(int L) => Lin(L, 1.0f, 0.3f);
+    public static int PbSpread(int L) => L;
+    public static int SdMore(int L) => 1 + (L - 1) / 2;
+    public static float SdAccel(int L) => Lin(L, 0.30f, 0.10f);
+    public static float SdEndless(int L) => Lin(L, 0.15f, 0.10f);
+    public static int HdBounce(int L) => 2 + (L - 1) / 2;
+    public static float HdBoss(int L) => Lin(L, 0.30f, 0.10f);
+    public static float HdPack(int L) => Lin(L, 0.20f, 0.10f);
+    public static float TsTrail(int L) => Lin(L, 0.50f, 0.15f);
+    public static int TsMore(int L) => 1 + (L - 1) / 2;
+    public static float TsRing(int L) => Lin(L, 2.5f, 0.5f);
+    public static int PrMore(int L) => 2 + (L - 1) / 2;
+    public static float PrSpin(int L) => Lin(L, 0.30f, 0.10f);
+    public static float PrStormEvery(int L) => Lin(L, 20f, -4f);
 
     static string P(float v) => $"{v * 100:0.#}%";
 
@@ -250,10 +312,127 @@ public static class AugmentDefs
         A("spareshield", "예비 실드", AugTag.Treasure, S, L => "실드 +1", 3),
         A("harvest", "풍년", AugTag.Treasure, G, L => $"증강을 받을 때 {P(HarvestChance(L))} 확률로\n하나 더 뽑아요", 3),
 
-        // ---- 무기 전용 (3단계에서 무기마다 3개로 늘려요)
+        // ---- 무기 전용 (무기마다 3개. 원정 준비에서 고른 무기 것만 나와요. 3개를 다 모으면 합체 카드)
+        A("dg_rapid", "쌍둥이 연사", AugTag.Weapon, S, L => $"[쌍발총] 공격속도 +{P(DgRapid(L))}", 0, SideWeapon.DoubleGun),
+        A("dg_accel", "탄 가속", AugTag.Weapon, S, L => $"[쌍발총] 탄속 +{P(DgAccel(L))}", 0, SideWeapon.DoubleGun),
+        A("dg_cross", "교차 사격", AugTag.Weapon, G, L => $"[쌍발총] 두 총구가 서로 다른 적을 조준{Q(L)}", 3, SideWeapon.DoubleGun),
+        A("bm_big", "대형 폭탄", AugTag.Weapon, S, L => $"[폭격기] 폭발 범위 +{P(BmBig(L))}", 0, SideWeapon.Bomber),
+        A("bm_second", "2차 폭발", AugTag.Weapon, S, L => $"[폭격기] 0.5초 뒤 한 번 더 터져요\n(피해 {P(BmSecond(L))})", 0, SideWeapon.Bomber),
         A("carpet", "융단 폭격", AugTag.Weapon, G, L => $"[폭격기] 폭탄을 쏠 때 {CarpetBombs(L)}발을 일렬로 추가 투하", 4, SideWeapon.Bomber),
-        A("bouncegrow", "증식 튕김", AugTag.Weapon, G, L => $"[튕김총] 튕김 +{BounceExtra(L)}회,\n튕길 때마다 피해 +20%", 5, SideWeapon.BounceGun),
+        A("tk_multi", "다탄두", AugTag.Weapon, S, L => $"[유도탄] 미사일 +{TkMulti(L)}발", 0, SideWeapon.TrackingGun),
+        A("tk_homing", "추적 강화", AugTag.Weapon, S, L => $"[유도탄] 선회 속도 +{P(TkHoming(L))}", 0, SideWeapon.TrackingGun),
+        A("tk_warhead", "폭발 탄두", AugTag.Weapon, G, L => $"[유도탄] 명중하면 작은 폭발\n(미사일 피해의 {P(TkWarhead(L))})", 0, SideWeapon.TrackingGun),
+        A("ps_spread", "살포 확장", AugTag.Weapon, S, L => $"[독 비행기] 독 발사 방향 +{L}", 3, SideWeapon.Poison),
+        A("ps_long", "오래가는 독", AugTag.Weapon, S, L => $"[독 비행기] 독 지대 지속 +{PsLong(L):0.#}초", 0, SideWeapon.Poison),
+        A("ps_toxic", "맹독 지대", AugTag.Weapon, G, L => $"[독 비행기] 독 지대 피해 +{P(PsToxic(L))}", 0, SideWeapon.Poison),
+        A("ob_extra", "드론 추가", AugTag.Weapon, S, L => $"[드론] 드론 +{L}대", 3, SideWeapon.Orbital),
+        A("ob_fast", "속사", AugTag.Weapon, S, L => $"[드론] 공격속도 +{P(ObFast(L))}", 0, SideWeapon.Orbital),
+        A("ob_multi", "추가 발사", AugTag.Weapon, G, L => $"[드론] 쏠 때 탄 +{L}발이 부채꼴로 더 나가요\n(추가 탄 피해 70%)", 3, SideWeapon.Orbital),
+        A("lz_long", "지속 연장", AugTag.Weapon, S, L => $"[360 레이저] 쏘는 시간 +{LzLong(L):0.#}초", 0, SideWeapon.Lazer),
+        A("lz_thick", "굵은 광선", AugTag.Weapon, S, L => $"[360 레이저] 광선 폭 +{P(BeamWidth(L))}", 0, SideWeapon.Lazer),
+        A("lz_twin", "2중 회전", AugTag.Weapon, G, L => $"[360 레이저] 반대 방향 광선 추가{Q(L)}", 3, SideWeapon.Lazer),
+        A("sl_charge", "빠른 충전", AugTag.Weapon, S, L => $"[직선 레이저] 대기 시간 -{SlCharge(L):0.##}초", 0, SideWeapon.StrLaser),
+        A("sl_wide", "넓은 빔", AugTag.Weapon, S, L => $"[직선 레이저] 빔 폭 +{P(BeamWidth(L))}", 0, SideWeapon.StrLaser),
+        A("sl_pierce", "관통 증폭", AugTag.Weapon, G, L => $"[직선 레이저] 빔에 닿은 적 1마리마다\n피해 +{P(SlPierce(L))} (최대 20마리)", 0, SideWeapon.StrLaser),
+        A("sn_fast", "속사 장전", AugTag.Weapon, S, L => $"[저격총] 장전 시간 -{P(SnFast(L))}", 0, SideWeapon.Sniper),
+        A("sn_ap", "철갑탄", AugTag.Weapon, S, L => $"[저격총] 관통 +{L}", 3, SideWeapon.Sniper),
+        A("sn_head", "헤드샷", AugTag.Weapon, G, L => $"[저격총] 치명 피해 +{P(SnHead(L))}", 0, SideWeapon.Sniper),
+        A("bn_more", "튕김 강화", AugTag.Weapon, S, L => $"[튕김총] 튕김 +{BounceExtra(L)}회", 0, SideWeapon.BounceGun),
+        A("bn_accel", "탄성 가속", AugTag.Weapon, S, L => $"[튕김총] 튈 때마다 탄속 +{P(BnAccel(L))}", 0, SideWeapon.BounceGun),
+        A("bouncegrow", "증식 튕김", AugTag.Weapon, G, L => $"[튕김총] 튈 때마다 피해 +{P(BounceGrowDamage(L))}\n(튈수록 약해지지 않아요)", 0, SideWeapon.BounceGun),
+
+        // ---- 합체 카드 (프리즘). 합체 무기 전용 증강은 아래 FusionAugs 에서 만들어요
     };
+
+    static string Q(int L) => L > 1 ? $"\n그 무기 피해 +{P(QualityBonus(L))}" : "";
+
+    // 합체 8종 (A + B). 같은 A 가 둘이면 (360 레이저) 하나를 고르면 다른 하나는 그 원정에서 안 나와요
+    public static readonly FusionDef[] Fusions = {
+        new FusionDef(SideWeapon.Bomber, SideWeapon.TrackingGun, "유도 폭격", "fz_guided", "폭탄이 적을 쫓아가서 더 크게 터져요", "gb_double", "gb_missile", "gb_fleet"),
+        new FusionDef(SideWeapon.Lazer, SideWeapon.Orbital, "위성 레이저", "fz_satlaser", "우주선 주위를 도는 드론 2대가 레이저를 쏴요", "sat_more", "sat_long", "sat_focus"),
+        new FusionDef(SideWeapon.Sniper, SideWeapon.StrLaser, "레일건", "fz_railgun", "탄 대신 화면 끝까지 꿰뚫는 빔을 쏴요", "rg_charge", "rg_blast", "rg_mega"),
+        new FusionDef(SideWeapon.Poison, SideWeapon.Bomber, "역병 폭탄", "fz_plague", "독탄이 적을 조준해서 날아가 폭발하고, 독 지대가 1.5배 커지고 적을 30% 느리게 해요", "pb_area", "pb_toxic", "pb_spread"),
+        new FusionDef(SideWeapon.DoubleGun, SideWeapon.BounceGun, "분열 쌍발", "fz_splitdbl", "탄이 적을 맞히면 주변 적 2마리에게 갈라져요 (1발당 피해 70%)", "sd_more", "sd_accel", "sd_endless"),
+        new FusionDef(SideWeapon.TrackingGun, SideWeapon.BounceGun, "사냥개 탄", "fz_hound", "미사일이 적을 맞히고 다음 적을 쫓아가요 (2번). 물 때마다 그 미사일 피해·속도 +15%", "hd_bounce", "hd_boss", "hd_pack"),
+        new FusionDef(SideWeapon.Orbital, SideWeapon.Poison, "독안개 드론", "fz_toxsat", "드론 탄에 맞은 적이 30% 느려지고 독에 걸리며, 주변 적에게 독이 퍼져요", "ts_trail", "ts_more", "ts_ring"),
+        new FusionDef(SideWeapon.Lazer, SideWeapon.StrLaser, "프리즘 빔", "fz_prism", "360 레이저가 3갈래 무지개 빔이 돼요", "pr_more", "pr_spin", "pr_storm"),
+    };
+    public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzHound = 5, FzToxSat = 6, FzPrism = 7;
+
+    static AugmentDef F(int fusion, string id, string name, AugGrade grade, System.Func<int, string> d)
+    {
+        var f = Fusions[fusion];
+        var def = A(id, name, AugTag.Weapon, grade, L => $"[{f.name}] " + d(L), 0, f.a);
+        def.fusion = fusion;
+        return def;
+    }
+
+    static List<AugmentDef> FusionAugs()
+    {
+        var list = new List<AugmentDef>();
+        for(int i = 0; i < Fusions.Length; i++) {
+            var f = Fusions[i];
+            var card = A(f.card, f.name, AugTag.Weapon, R, L =>
+                $"[합체] {WeaponName(f.a)} + {WeaponName(f.b)}\n{f.effect}\n{WeaponName(f.a)} 위력 ×{FusionPower:0} (전용 증강 3개는 사라져요)", 1, f.a);
+            card.fusion = i;
+            card.fusionCard = true;
+            list.Add(card);
+        }
+        list.Add(F(FzGuided, "gb_double", "이중 폭발", G, L => $"폭탄이 0.5초 뒤 더 크게 한 번 더 터져요\n(피해 {P(GbDouble(L))})"));
+        list.Add(F(FzGuided, "gb_missile", "미사일 추가", G, L => $"다른 적을 쫓는 폭탄 +{GbMissile(L)}발"));
+        list.Add(F(FzGuided, "gb_fleet", "폭격 편대", R, L => $"쏠 때마다 폭탄 {GbFleet(L)}발이\n서로 다른 적에게 동시에 날아가요"));
+        list.Add(F(FzSatLaser, "sat_more", "위성 추가", G, L => $"레이저 드론 +{SatMore(L)}대"));
+        list.Add(F(FzSatLaser, "sat_long", "레이저 연장", G, L => $"360 레이저 쏘는 시간 +{SatLong(L):0.#}초"));
+        list.Add(F(FzSatLaser, "sat_focus", "궤도 일제 사격", R, L => $"모든 드론이 가장 강한 적 하나를 노려요\n(드론 피해 ×{SatFocus(L):0.#})"));
+        list.Add(F(FzRailgun, "rg_charge", "충전 가속", G, L => $"장전 시간 -{P(RgCharge(L))}"));
+        list.Add(F(FzRailgun, "rg_blast", "관통 폭발", G, L => $"빔에 뚫린 적마다 작은 폭발\n(빔 피해의 {P(RgBlast(L))})"));
+        list.Add(F(FzRailgun, "rg_mega", "초전자포", R, L => $"{RgMegaEvery(L)}번째 발사마다 4배 굵기,\n3배 피해의 거대 빔"));
+        list.Add(F(FzPlague, "pb_area", "독 장판 확대", G, L => $"독 지대 크기 +{P(PbArea(L))}"));
+        list.Add(F(FzPlague, "pb_toxic", "맹독 폭발", G, L => $"독탄 폭발 피해 +{P(PbToxic(L))},\n맞은 적은 독 3중첩"));
+        list.Add(F(FzPlague, "pb_spread", "역병 확산", R, L => $"독 지대가 사라질 때 가까운 적 자리에\n작은 독 지대 {PbSpread(L)}개가 이어져요"));
+        list.Add(F(FzSplitDbl, "sd_more", "분열 추가", G, L => $"갈라진 탄이 한 번 더 갈라져요 (+{SdMore(L)}세대)"));
+        list.Add(F(FzSplitDbl, "sd_accel", "튕김 가속", G, L => $"갈라진 탄 탄속 +{P(SdAccel(L))} (쌍발총 탄 기준),\n갈라진 탄 피해 70% → 85%"));
+        list.Add(F(FzSplitDbl, "sd_endless", "무한 분열", R, L => $"{P(SdEndless(L))} 확률로 탄이 맞혀도 사라지지 않아요"));
+        list.Add(F(FzHound, "hd_bounce", "추적 튕김", G, L => $"다음 적을 쫓는 횟수 +{HdBounce(L)}"));
+        list.Add(F(FzHound, "hd_boss", "사냥 본능", G, L => $"보스를 먼저 쫓고, 보스 피해 +{P(HdBoss(L))}"));
+        list.Add(F(FzHound, "hd_pack", "무리 사냥", R, L => $"튈 때 {P(HdPack(L))} 확률로 새 미사일이 생겨요"));
+        list.Add(F(FzToxSat, "ts_trail", "독안개 확대", G, L => $"독이 퍼지는 범위 +{P(TsTrail(L))}"));
+        list.Add(F(FzToxSat, "ts_more", "드론 추가", G, L => $"드론 +{TsMore(L)}대"));
+        list.Add(F(FzToxSat, "ts_ring", "역병의 고리", R, L => $"독이 반경 {TsRing(L):0.#}칸까지 3중첩으로 퍼져요"));
+        list.Add(F(FzPrism, "pr_more", "갈래 추가", G, L => $"빔 +{PrMore(L)}갈래"));
+        list.Add(F(FzPrism, "pr_spin", "회전 가속", G, L => $"회전 속도 +{P(PrSpin(L))}"));
+        list.Add(F(FzPrism, "pr_storm", "무지개 폭풍", R, L => $"{PrStormEvery(L):0}초마다 3초 동안 빔 12갈래"));
+        // 종결 증강 (합체마다 1개, 프리즘 ★1). 게이지가 차면(약 30초) 자동 발동, 그 무기가 맞힐 때 1% 확률로 바로 발동
+        for(int i = 0; i < Fusions.Length; i++) {
+            int f = i;
+            var u = F(f, UltIds[f], UltNames[f], R, L => UltDescs[f] + "\n(게이지가 차면 자동 발동 · 맞힐 때 1% 확률로 바로)");
+            u.maxLevel = 1;
+            u.ultimate = true;
+            list.Add(u);
+        }
+        return list;
+    }
+
+    // 종결 증강 (Fusions 순서와 같아요)
+    public static readonly string[] UltIds = { "ult_guided", "ult_satlaser", "ult_railgun", "ult_plague", "ult_splitdbl", "ult_hound", "ult_toxsat", "ult_prism" };
+    public static readonly string[] UltNames = { "융단 공습", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "사냥개 무리", "독의 장막", "무지개 심판" };
+    static readonly string[] UltDescs = {
+        "폭격기 편대가 화면을 가로지르며\n줄줄이 폭탄을 떨어뜨려요",
+        "거대 레이저가 화면을 위에서 아래로 쓸어요",
+        "우주선에서 사방으로 거대 빔이 차례로 꿰뚫어요",
+        "화면 전체에 독비가 내려 모든 적이 독 10중첩,\n곳곳에 독 지대",
+        "하늘에서 탄이 소나기처럼 쏟아지고\n맞을 때마다 갈라져요",
+        "사냥개 떼가 화면을 달려가며\n지나가는 적을 모두 물어뜯고 잠깐 기절",
+        "우주선에서 독의 고리가 화면 끝까지 퍼지며\n모든 적에게 피해와 독",
+        "화면 전체가 무지개빛으로 3번 번쩍이며\n모든 적에게 큰 피해",
+    };
+
+    static AugmentDefs() => All.AddRange(FusionAugs());
+
+    public static FusionDef FusionOfCard(AugmentDef d) => d != null && d.fusion >= 0 ? Fusions[d.fusion] : null;
+
+    // 무기 A 의 전용 증강 3개 (합체 증강 제외)
+    public static List<AugmentDef> WeaponAugs(SideWeapon w) => All.FindAll(d => d.tag == AugTag.Weapon && d.fusion < 0 && d.requiredWeapon == w);
 
     // ---- 조합 계열 9개 (설계서 2-4-3). 메인 계열마다 정확히 두 조합에 들어가요
     public static readonly ComboDef[] Combos = {
@@ -408,7 +587,7 @@ public static class AugmentDefs
             case SideWeapon.Bomber: return "폭격기";
             case SideWeapon.TrackingGun: return "유도탄";
             case SideWeapon.Poison: return "독 비행기";
-            case SideWeapon.Orbital: return "궤도";
+            case SideWeapon.Orbital: return "드론";
             case SideWeapon.Lazer: return "360 레이저";
             case SideWeapon.StrLaser: return "직선 레이저";
             case SideWeapon.Sniper: return "저격총";

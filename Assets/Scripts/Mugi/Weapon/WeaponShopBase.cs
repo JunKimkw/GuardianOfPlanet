@@ -34,7 +34,10 @@ public abstract class WeaponShopBase : MonoBehaviour
 
     static readonly Color Affordable = new Color(0, 1, 0.2204754f);
 
-    public bool IsUnlocked => UnlockPlanetIndex < 0 || StageManager.instance.planets[UnlockPlanetIndex].PlanetCleared;
+    // 개발용: 테스트 창의 "무기 전부 열기" (저장되지 않아요)
+    public static bool DebugUnlockAll;
+
+    public bool IsUnlocked => DebugUnlockAll || UnlockPlanetIndex < 0 || StageManager.instance.planets[UnlockPlanetIndex].PlanetCleared;
 
     Image buyButtonImage;
 
@@ -43,7 +46,7 @@ public abstract class WeaponShopBase : MonoBehaviour
         setPassiveValues();
         if(UnlockPlanetIndex >= 0 && LockCover != null) {
             var planet = StageManager.instance.planets[UnlockPlanetIndex];
-            LockCover.SetActive(!planet.PlanetCleared);
+            LockCover.SetActive(!IsUnlocked);
             if(LockText != null) LockText.text = planet.PlanetName + " 행성 클리어";
         }
     }

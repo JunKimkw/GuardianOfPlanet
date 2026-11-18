@@ -13,7 +13,9 @@ public class BounceBullet : Bullet
 
     void Update()
     {
-        MoveForward();
+        // 탄성 가속: 튈 때마다 탄속 +
+        int acc = AugmentManager.WL("bn_accel");
+        MoveForward(acc > 0 ? AugmentDefs.BnAccel(acc) * BounceTime : 0f);
 
         if(IsOffScreen()) {
             Finish();
@@ -24,7 +26,7 @@ public class BounceBullet : Bullet
             HandleBounce();
     }
 
-    // 튕김 처리 (리마스터: 증식 튕김 증강으로 추가 튕김. 추가분은 1발씩만 이어져서 탄이 폭증하지 않아요)
+    // 튕김 처리 (리마스터: 튕김 강화 증강으로 추가 튕김. 추가분은 1발씩만 이어져서 탄이 폭증하지 않아요)
     void HandleBounce()
     {
         BounceTime++;
@@ -58,8 +60,9 @@ public class BounceBullet : Bullet
     {
         BounceBullet b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.BounceBullet).GetComponent<BounceBullet>();
 
-        if(AugmentManager.Instance != null && AugmentManager.Instance.BounceExtraCount > 0)
-            b.setBulletStats((long)System.Math.Min(9e18, bullet_Damage * 1.2));
+        int grow = AugmentManager.WL("bouncegrow");   // 증식 튕김: 튈 때마다 피해 +
+        if(grow > 0)
+            b.setBulletStats(WeaponBase.ClampDamage(bullet_Damage * (1.0 + AugmentDefs.BounceGrowDamage(grow))));
         else if(BounceGun.instance.NoDamageReduce)
             b.setBulletStats(bullet_Damage);
         else
@@ -72,6 +75,14 @@ public class BounceBullet : Bullet
         b.BounceTime = BounceTime;
         b.AimAtNext(transform.rotation);
         b.gameObject.SetActive(true);
+        ApplyScale(b.transform);
+    }
+
+    // 첫 탄과 튕긴 탄 크기를 똑같이 (예전엔 첫 탄 0.2, 튕긴 탄은 프리팹 크기 0.5였어요) + 증강 탄 크기
+    public static void ApplyScale(Transform t)
+    {
+        float mult = AugmentManager.Instance != null ? AugmentManager.Instance.BulletScaleMultiplier : 1f;
+        t.localScale = Vector3.one * (0.2f * mult);
     }
 
     // 아직 안 맞힌 가장 가까운 적을 향해요 (없으면 그대로 직진)
