@@ -334,8 +334,9 @@ public partial class AugmentManager
     }
 
     // ---- 개발용 연습장 (2026-11-20 사용자 요청): 멈춰 있는 적을 많이 세워 두고 무기를 하나씩 바꿔 가며 봐요
-    // 켜는 동안 새 적은 안 나오고(InfiniteStage), 테스트 모드라 적이 죽지 않아요(체력이 다시 차요). 같은 개수면 늘 같은 자리
+    // 켜는 동안 새 적은 안 나오고(InfiniteStage), 테스트 모드라 적이 죽지 않아요(체력이 다시 차요). 누를 때마다 자리를 새로 섞어요 (작은 적으로)
     public static bool DebugArena;
+    public static bool DebugArenaInvincible;   // 연습장 "적 무적" (2026-11-21): 켜면 적이 안 죽고 체력이 다시 차요 (예전 연습장처럼)
 
     public void DebugArenaStart(int count)
     {
@@ -349,30 +350,132 @@ public partial class AugmentManager
         DebugArena = true;
         DebugTestMode = true;
         em.removeAllEnemies();
+        arenaTarget = count;
+        var spots = ArenaSpots();
+        int n = Mathf.Min(count, spots.Count);
+        for(int i = 0; i < n; i++) SpawnArenaEnemy(spots[i]);
+        ui.Toast($"[개발] 연습장: 멈춘 적 {n}마리 (지금 무기로 약 {Tuning.GetInt("arena_hits", 15)}대에 죽고, 죽으면 새로 나와요)", Color.white);
+#endif
+    }
+
+    // ---- 연습장 적 (2026-11-21 사용자: "지금 데미지로 15대쯤 맞으면 죽는 체력, 죽으면 새로 소환")
+    int arenaTarget;
+    float arenaTick;
+
+    // 화면을 7 x 13 칸으로 나눈 자리 (우주선 둘레 1.6칸 빼고), 섞어서
+    List<Vector3> ArenaSpots()
+    {
         var cam = GameManager.instance.mainCamera;
         float w = cam.orthographicSize * cam.aspect, h = cam.orthographicSize;
         Vector3 c = cam.transform.position;
         c.z = 0f;
         Vector3 ship = WeaponManager.instance != null && WeaponManager.instance.mainWeapon != null ? WeaponManager.instance.mainWeapon.transform.position : c;
         ship.z = 0f;
-        // 화면을 7 x 13 칸으로 나눠 우주선 둘레(1.6칸)를 뺀 자리 중에서 고르게 (섞는 순서 고정)
         var spots = new List<Vector3>();
         for(int gy = 0; gy < 13; gy++) for(int gx = 0; gx < 7; gx++) {
             var p = new Vector3(c.x + Mathf.Lerp(-w + 0.5f, w - 0.5f, gx / 6f), c.y + Mathf.Lerp(-h + 0.8f, h - 0.8f, gy / 12f), 0f);
             if((p - ship).magnitude >= 1.6f) spots.Add(p);
         }
-        var rng = new System.Random(1);
-        for(int i = spots.Count - 1; i > 0; i--) { int j = rng.Next(i + 1); (spots[i], spots[j]) = (spots[j], spots[i]); }
-        var prefab = stage.enemyPrefab[Mathf.Clamp(stage.CurrentEnemyIndex.Count > 0 ? stage.CurrentEnemyIndex[0] : 0, 0, stage.enemyPrefab.Length - 1)];
-        int n = Mathf.Min(count, spots.Count);
-        for(int i = 0; i < n; i++) {
-            em.createInfiniteEnemy(prefab, stage.EnemyScale);
-            var e = em.enemyData[em.enemyData.Count - 1];
-            e.transform.position = spots[i];
-            e.DebugFrozen = true;
+        for(int i = spots.Count - 1; i > 0; i--) { int j = Random.Range(0, i + 1); (spots[i], spots[j]) = (spots[j], spots[i]); }
+        return spots;
+    }
+
+    // 작은 적 하나: 가장 작은 종류(그래도 크면 arena_enemy_size 칸으로 줄임), 멈춤, 체력 = 지금 무기 1발 × arena_hits, 방어력 0 (몇 대에 죽는지 보이게)
+    void SpawnArenaEnemy(Vector3 at)
+    {
+        var stage = InfiniteStage.Instance;
+        var em = EnemyManager.Instance;
+        if(stage == null || em == null || stage.enemyPrefab == null || stage.enemyPrefab.Length == 0) return;
+        em.createInfiniteEnemy(SmallestPrefab(stage.enemyPrefab), stage.EnemyScale);
+        var e = em.enemyData[em.enemyData.Count - 1];
+        e.transform.position = at + new Vector3(Random.Range(-0.15f, 0.15f), Random.Range(-0.15f, 0.15f), 0f);
+        float want = Tuning.Get("arena_enemy_size", 0.7f), size = VisualSize(e.gameObject);
+        if(size > want) e.ApplyLook(ExpeditionZones.StageTint(stage.CurrentStage), want / size);
+        e.Armor = 0;
+        e.EnemyHealth = e.CurrentHealth = System.Math.Max(1.0, ArenaRefDamage() * e.NumberScale * Tuning.Get("arena_hits", 15f));
+        e.DebugFrozen = true;
+    }
+
+    // 기준 피해: 연습장에서 혼자 싸우는 무기 1발 (합체 위력 포함). 여러 개면 그중 가장 센 것 (기본총 포함)
+    double ArenaRefDamage()
+    {
+        var wm = WeaponManager.instance;
+        if(wm == null) return 1;
+        var solo = DebugSoloWeapon();
+        var sw = solo != SideWeapon.None ? SideWeaponOf(solo) : null;
+        if(sw != null) return System.Math.Max(1, sw.HitDamage * ArenaHitScale(FusionOf(solo)));
+        long best = wm.mainWeapon != null ? wm.mainWeapon.HitDamage : 1;
+        foreach(var w in wm.Weapons) if(w != null && w.gameObject.activeSelf) best = System.Math.Max(best, w.HitDamage);
+        return System.Math.Max(1, best);
+    }
+
+    // 합체 무기 중 "1발"이 무기 피해(HitDamage)와 크게 다른 것 (2026-11-21 사용자: 위성 레이저가 15대를 맞아도 안 죽어요)
+    //  위성 레이저: 위성 1틱 = 360 레이저 1발 × satlaser_tick_mul (세기 1배 기준) / 혜성탄: 머리 1번 = × comet_hit_mul / 별의 낙인: 운석 1발 = ÷ brand_damage_div
+    //  나머지 무기·합체는 1발(또는 1틱) ≈ HitDamage 라서 그대로
+    static double ArenaHitScale(int fusion)
+    {
+        switch(fusion) {
+            case AugmentDefs.FzSatLaser: return Tuning.Get("satlaser_tick_mul", 0.0072f);
+            case AugmentDefs.FzConstellation: return Tuning.Get("comet_hit_mul", 0.4f);
+            case AugmentDefs.FzBrand: return 1.0 / Mathf.Max(1f, Tuning.Get("brand_damage_div", 3f));
+            case AugmentDefs.FzMicro: return Tuning.Get("micro_damage_mul", 0.3f);
         }
-        ui.Toast($"[개발] 연습장: 멈춘 적 {n}마리", Color.white);
-#endif
+        return 1.0;
+    }
+
+    // 죽은 만큼 빈자리(다른 적에서 0.6칸, 우주선에서 1.6칸 밖)에 새 적 (0.3초마다 확인, AugmentManager.LateUpdate)
+    void DebugArenaTick()
+    {
+        if(!DebugArena || arenaTarget <= 0) return;
+        arenaTick -= Time.deltaTime;
+        if(arenaTick > 0f) return;
+        arenaTick = 0.3f;
+        var em = EnemyManager.Instance;
+        if(em == null) return;
+        var alive = new List<Vector3>();
+        foreach(var e in em.enemyData)
+            if(e != null && e.DebugFrozen && e._state != Enemy.EnemyState.dead && e.gameObject.activeInHierarchy) alive.Add(e.transform.position);
+        int missing = arenaTarget - alive.Count;
+        if(missing <= 0) return;
+        foreach(var p in ArenaSpots()) {
+            if(missing <= 0) break;
+            bool free = true;
+            foreach(var q in alive) if(((Vector2)(q - p)).sqrMagnitude < 0.36f) { free = false; break; }
+            if(!free) continue;
+            SpawnArenaEnemy(p);
+            alive.Add(p);
+            missing--;
+        }
+    }
+
+    // 그림이 가장 작은 적 종류 (스프라이트 크기 × 프리팹 크기)
+    static Enemy SmallestPrefab(Enemy[] prefabs)
+    {
+        Enemy best = null;
+        float bestSize = float.MaxValue;
+        foreach(var p in prefabs) {
+            if(p == null) continue;
+            float s = 0f;
+            foreach(var sr in p.GetComponentsInChildren<SpriteRenderer>(true)) {
+                if(sr.sprite == null || sr.name == "Shadow") continue;
+                Vector3 b = sr.sprite.bounds.size, sc = sr.transform.lossyScale;
+                s = Mathf.Max(s, Mathf.Max(b.x * Mathf.Abs(sc.x), b.y * Mathf.Abs(sc.y)));
+            }
+            if(s > 0f && s < bestSize) { bestSize = s; best = p; }
+        }
+        return best != null ? best : prefabs[0];
+    }
+
+    // 화면에 보이는 크기 (그림자 빼고 가장 큰 그림의 가로·세로 중 큰 쪽)
+    static float VisualSize(GameObject go)
+    {
+        float s = 0f;
+        foreach(var sr in go.GetComponentsInChildren<SpriteRenderer>()) {
+            if(sr.sprite == null || sr.name == "Shadow") continue;
+            Vector3 b = sr.bounds.size;
+            s = Mathf.Max(s, Mathf.Max(b.x, b.y));
+        }
+        return s;
     }
 
     // 보스를 위쪽 가운데에 멈춰 세워요
@@ -385,6 +488,7 @@ public partial class AugmentManager
         var cam = GameManager.instance.mainCamera;
         b.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y + cam.orthographicSize * 0.55f, 0f);
         b.DebugFrozen = DebugArena;
+        if(DebugArena) { b.Armor = 0; b.EnemyHealth = b.CurrentHealth = System.Math.Max(1.0, ArenaRefDamage() * b.NumberScale * Tuning.Get("arena_hits", 15f) * Tuning.Get("arena_boss_mul", 10f)); }   // 연습장 보스: 일반 적의 arena_boss_mul 배 (죽으면 다시 안 나와요)
 #endif
     }
 
@@ -392,6 +496,7 @@ public partial class AugmentManager
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         DebugArena = false;
+        arenaTarget = 0;
         var em = EnemyManager.Instance;
         if(em != null) {
             foreach(var e in em.enemyData) if(e != null) e.DebugFrozen = false;

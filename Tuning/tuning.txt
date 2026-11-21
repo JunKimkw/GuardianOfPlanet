@@ -6,6 +6,8 @@
 bomber_fly_speed = 2.5      # 폭탄 기본 비행 속도 (칸/초). 탄속 능력치·특성만큼 빨라져요
 bomber_radius = 0.6         # 폭발 기본 반경 (칸). 패시브·증강이 여기에 곱해져요
 bomber_contact_radius = 0.18 # 날아가는 폭탄이 적에 "닿았다"고 보는 반경 (칸). 크면 더 일찍 터져요
+guided_crowd_radius = 1     # 유도 폭격: 무리 크기를 셀 때 반경 (칸)
+guided_crowd_gap = 1.5      # 유도 폭격: 폭탄마다 고르는 무리끼리 떨어진 거리 (칸, 폭발이 안 겹치게)
 # 운석 (2026-11-21 새 무기): 서로 다른 적 위로 하늘에서 떨어져 그 구역에 피해
 meteor_reload = 1           # 운석: 장전 시간 (초). 2026-11-21 사용자: 피해 줄이고 더 자주 (4 → 2 → 1)
 meteor_reload_min = 0.4     # 운석: 장전 시간 최소 (초)
@@ -25,13 +27,13 @@ brand_sky_jitter = 0.9      # 별의 낙인: 운석 출발점을 흔드는 정�
 brand_gap = 0.15            # 별의 낙인: 같은 적에게 운석이 차례로 떨어지는 간격 (초)
 brand_chain_fall = 0.3      # 별의 낙인 처형 낙인: 옮겨 간 낙인 운석이 떨어지는 시간 (초)
 impact_hole_interval = 5    # 대충돌: 블랙홀이 열리는 간격 (초). 보통 운석은 이것과 따로 계속 떨어져요
-impact_avoid_last = 2       # 대충돌: 다음 블랙홀은 직전 블랙홀 자리에서 블랙홀 반경 × 이 값 안은 피해요 (피할 곳이 없으면 그냥 가장 몰린 곳)
-impact_scatter = 0.5        # 대충돌: 큰 운석이 떨어질 때 모인 적을 사방으로 튕겨 내는 거리 (칸, 보스는 30%). 2026-11-21 사용자: 덜 튕기게 1.5 → 0.75 → 0.5
+impact_avoid_last = 2.9     # 대충돌: 다음 블랙홀은 직전 블랙홀 자리에서 블랙홀 반경 × 이 값(약 3.6칸) 안은 피해요. 피할 곳이 없으면 그 회차는 블랙홀 없이 큰 운석만
+impact_scatter = 0.35       # 대충돌: 큰 운석이 떨어질 때 모인 적을 사방으로 튕겨 내는 거리 (칸, 보스는 30%). 2026-11-21 사용자가 0.35 로 정함
 impact_scatter_radius = 1.3 # 대충돌: 튕겨 내는 범위 (큰 운석 범위의 배수)
 impact_wells = 1            # 대충돌: 블랙홀이 열릴 때 여는 수 (적이 가장 몰린 곳부터)
 impact_min_dist = 3         # 대충돌: 중력 우물이 생기는 자리는 우주선에서 이 거리(칸) 밖
 impact_max_dist = 5         # 대충돌: 블랙홀은 우주선에서 이 거리(칸) 안의 적 중에서 가장 몰린 곳에 열려요 (없으면 가장 가까운 적 쪽)
-impact_well_radius = 2      # 대충돌: 중력 우물 반경 (운석 범위의 배수)
+impact_well_radius = 1.4    # 대충돌: 블랙홀 반경 (운석 범위의 배수). 2026-11-21 사용자: 블랙홀이 커서 퍼진 적을 다시 모아 → 2 에서 1.4
 impact_well_time = 1        # 대충돌: 블랙홀이 먼저 끌어모으는 시간 (초)
 impact_drop_delay = 1       # 대충돌: 다 모은 뒤 운석이 떨어지기까지 텀 (초). 그동안에도 블랙홀이 붙잡고 있어요
 impact_more_gap = 0.12      # 대충돌 소행성대: 더 떨어지는 운석 간격 (초)
@@ -44,7 +46,28 @@ impact_core_fall = 0.5      # 대충돌: 거대 운석이 떨어지는 시간 (�
 
 # ---- 유도탄 (사냥개 탄 합체 포함)
 tracking_speed_mul = 1.2    # 미사일 속도 배율 (1 = 예전 속도). 유도하는 무기라 조금만 올렸어요
-hound_frenzy = 0.15         # 사냥개 탄 "흥분": 물 때마다 그 미사일 피해·속도 +15%
+lockon_count = 3            # 유도탄(록온 일제 사격): 장전마다 록온하는 적 수 (+ 다탄두, + 탄 추가 증강)
+lockon_reload_mul = 3       # 유도탄: 예전 장전 × 이 값 (한 번에 lockon_count 발이라, 같은 값이면 DPS 그대로)
+lockon_mark_gap = 0.08      # 록온 미사일: 표식이 하나씩 찍히는 간격 (초)
+lockon_fire_delay = 0.12    # 록온 미사일: 다 찍힌 뒤 발사까지 (초)
+lockon_spread = 140         # 록온 미사일: 발사할 때 퍼지는 부채꼴 각도 (도)
+lockon_ignite = 0.18        # 록온 미사일: 툭 튀어나가 흩어지다 점화하기까지 (초, 그동안 선회 없음)
+lockon_speed_mul = 2        # 록온 미사일: 점화 뒤 속도 배율 (유도탄 기준)
+lockon_turn_mul = 3         # 록온 미사일: 점화 뒤 선회 배율
+lockon_retarget_angle = 70  # 록온 미사일: 목표가 먼저 죽으면 진행 방향 ± 이 각도 안의 적만 새로 노려요 (없으면 곧게)
+lockon_smoke_time = 0.45    # 록온 미사일: 연기 꼬리 길이 (초)
+lockon_smoke_width = 0.12   # 록온 미사일: 연기 꼬리 굵기 (칸)
+lockon_blast_radius = 0.9   # 록온 미사일 고폭 탄두: 폭발 반경 (칸)
+micro_per_target = 5        # 마이크로 미사일(유도탄 + 쌍발총): 록온한 적마다 미사일 수 (+ 미사일 포드)
+micro_gap = 0.05            # 마이크로 미사일: 연달아 쏘는 간격 (초)
+micro_damage_mul = 0.3      # 마이크로 미사일: 1발 피해 (유도탄 1발의 배수, 임시)
+micro_size = 0.6            # 마이크로 미사일: 크기 배율
+micro_speed = 1.3           # 마이크로 미사일: 속도 배율
+ult_lockon_max = 40         # 전탄 발사: 록온하는 적 수 (가까운 순)
+ult_lockon_mul = 0.6        # 전탄 발사: 미사일 1발 피해 (유도탄 1발의 배수, 대신 훨씬 많이 쏴요)
+ult_lockon_per = 3          # 전탄 발사: 록온한 적마다 미사일 수
+ult_lockon_gap = 0.12       # 전탄 발사: 한 바퀴(적마다 1발씩)마다 간격 (초)
+ult_lockon_spread = 200     # 전탄 발사: 발사할 때 퍼지는 부채꼴 각도 (도)
 
 # ---- 합체: 분열 쌍발
 split_bullet_speed = 1      # 갈라진 탄 속도 (원래 탄 대비, 1 = 쌍발총 탄과 같음)
@@ -77,7 +100,9 @@ ult_railgun_mul = 3         # 천공: 연사 1발 피해 (모두 치명타)
 ult_railgun_shots = 4       # 천공: 연사 수 (적이 가장 많이 늘어선 방향, 매번 다른 줄)
 ult_railgun_width = 0.8     # 천공: 연사 빔 굵기 (칸)
 ult_railgun_charge = 0.7    # 천공: 전기를 모으는 시간 (초)
-ult_railgun_mega_width = 0.9  # 천공: 360도 초전자포 빔 한 줄 굵기 (칸)
+ult_railgun_mega_width = 0.9  # 천공: 360도 저격 한 줄 판정 굵기 (칸)
+ult_railgun_aim = 0.5       # 천공: 360도 빨간 조준선을 겨누는 시간 (초, 조준선이 다 생긴 뒤)
+ult_railgun_beam_width = 0.3 # 천공: 360도 저격 탄도선 그림 굵기 (칸)
 ult_railgun_mega_mul = 8    # 천공: 초전자포 피해 (치명타)
 ult_railgun_zip_mul = 1.5   # 천공: 빔 길을 따라 줄줄이 터지는 폭발 피해
 ult_railgun_rays = 16       # 천공: 360도 초전자포 빔 줄 수
@@ -89,17 +114,11 @@ ult_plague_burst_mul = 2    # 역병의 비: 독 걸린 채 죽은 적이 터질
 ult_plague_time = 3.2       # 역병의 비: 비 오는 시간 (초)
 ult_plague_drops = 40       # 역병의 비: 1초에 빗방울 수
 ult_plague_puddles = 8      # 역병의 비: 독 장판 수
+ult_plague_bloom_mul = 1.5  # 역병의 비 마무리 "역병 개화": 독 걸린 적이 터지는 피해
+ult_plague_bloom_per_stack = 0.05 # 역병 개화: 독 중첩 1당 피해 + (최대 30중첩)
 ult_splitdbl_mul = 2        # 별똥별 폭풍(분열 유성우): 유성 1개 폭발 피해 (조각은 60%씩, 거대 유성은 3배)
 ult_splitdbl_meteors = 12   # 별똥별 폭풍: 유성 수
 ult_splitdbl_time = 1.6     # 별똥별 폭풍: 유성이 다 떨어지는 시간 (초)
-ult_hound_mul = 1.2         # 사냥개 무리(추격): 한 번 물 때 피해
-ult_hound_count = 8         # 사냥개 무리: 사냥개 수
-ult_hound_time = 2.2        # 사냥개 무리: 사냥 시간 (초). 그다음 포위 0.3초 → 일제 돌격 → 한 방
-ult_hound_speed = 9         # 사냥개 무리: 처음 속도 (물 때마다 +12%)
-ult_hound_max_speed = 22    # 사냥개 무리: 최고 속도
-ult_hound_final_mul = 6     # 사냥개 무리: 마지막 한 방 피해 (반경 ult_hound_final_radius, 기절 0.8초)
-ult_hound_final_radius = 2.5 # 사냥개 무리: 마지막 한 방 반경 (칸)
-ult_hound_mark_mul = 1.5    # 사냥개 무리: 사냥 표식이 터질 때 피해
 ult_toxsat_mul = 1.5        # 독의 그물(전염): 옮을 때 피해
 ult_toxsat_pulse_mul = 1    # 독의 그물: 마지막 맥동 피해 (2번)
 ult_toxsat_hop = 0.1        # 독의 그물: 한 번 옮는 시간 (초)
@@ -262,13 +281,16 @@ ult_impact_gather = 1.3     # 소행성 충돌: 소행성 전에 블랙홀이 �
 ult_impact_hole = 2.4       # 소행성 충돌: 블랙홀 그림 크기 (지름, 칸)
 ult_impact_time = 1          # 소행성 충돌: 다 모인 뒤 소행성이 내려오는 시간 (초)
 ult_impact_radius = 4.5     # 소행성 충돌: 큰 피해 반경 (칸)
-ult_impact_min_dist = 4     # 소행성 충돌: 떨어질 자리는 우주선에서 이 거리(칸) 밖
+ult_impact_dist = 4.5        # 소행성 충돌: 블랙홀(떨어질 자리)은 항상 우주선 바로 위(북쪽) 이 거리(칸)
 ult_impact_pull = 8          # 소행성 충돌: 블랙홀이 끌어당기는 속도 (칸/초, 보스는 약하게)
 ult_impact_orbit = 0.8       # 소행성 충돌: 적들이 블랙홀 둘레를 도는 거리 (칸, 적마다 0.7~1.3배)
 ult_impact_mul = 12         # 소행성 충돌: 반경 안 피해
 ult_impact_edge_mul = 3     # 소행성 충돌: 반경 밖 화면 적 충격파 피해
 ult_impact_shake = 0.35     # 소행성 충돌: 화면 흔들림 세기
 ult_impact_shake_time = 0.45 # 소행성 충돌: 화면 흔들림 시간 (초)
+ult_impact_scatter = 3.5    # 소행성 충돌: 충돌이 모인 적을 흩어 놓는 거리 (칸, 적마다 60~100%, 보스 30%). 우주선 쪽으로는 안 보내요
+ult_impact_scatter_radius = 1 # 소행성 충돌: 흩어 놓는 범위 (큰 피해 반경의 배수)
+ult_impact_ship_safe = 2.5  # 소행성 충돌: 충돌 순간 우주선에서 이 거리(칸) 안의 적은 우주선 반대쪽으로 이만큼 밀어내요 (0.8초 동안 우주선에 닿아도 피해 없음)
 ult_zodiac_launch = 0.35     # 종결: 우주선에서 별 자리까지 날아가는 시간 (초)
 ult_zodiac_seg = 0.25        # 종결: 별자리 선 한 칸 그리는 시간 (초)
 singularity_hit_width = 0.6        # 특이점 저격: 저격 빔이 지나가는 길의 판정 폭 (칸)
@@ -288,3 +310,6 @@ ult_prism_spread = 70        # 부채 펼친 각도 (도)
 ult_prism_width = 0.75       # 빔 굵기 (칸)
 ult_prism_hit_mul = 0.6      # 빔 하나가 지나갈 때 피해 = 360 레이저 1발 × 이 값 (빔마다 한 번, 피해 숫자는 나중에)
 ult_prism_final_mul = 2      # 마지막 충격파 피해 (화면 전체)
+arena_enemy_size = 0.7     # 연습장: 적이 이 크기(칸)보다 크면 줄여요 (서로 겹쳐 보이지 않게)
+arena_hits = 15             # 연습장: 적 체력 = 지금 무기 1발 × 이 값 (방어력 0, 치명타면 더 빨리 죽어요). 죽으면 빈자리에 새로 나와요
+arena_boss_mul = 10         # 연습장: 보스 추가 체력 = 일반 적의 이 배수 (보스는 다시 안 나와요)

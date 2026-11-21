@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // 폭격기: 적이 가장 많이 모인 곳으로 폭탄을 던져요
@@ -65,19 +66,38 @@ public class Bomber : GunWeapon
         }
     }
 
-    // 합체 "유도 폭격": 폭탄이 적을 쫓아가요. 미사일 추가 / 폭격 편대면 서로 다른 적에게 여러 발
+    // 합체 "유도 폭격": 폭탄이 적을 쫓아가요. 미사일 추가 / 폭격 편대면 여러 발
+    // 노리는 적 (2026-11-21 사용자 결정: "무리로 통일"): 폭탄마다 서로 다른 무리.
+    //  - 화면 안 적마다 반경 guided_crowd_radius(1칸) 안 적 수를 세서 많은 순(같으면 우주선에 가까운 순)으로,
+    //    이미 고른 무리와 guided_crowd_gap(1.5칸) 이상 떨어진 곳만 골라요 (폭발끼리 안 겹치게)
+    //  - 2마리 이상 모인 무리가 모자라면 남은 폭탄은 아직 안 고른 가까운 적에게. 적이 폭탄보다 적으면 같은 적에게 여러 발
     void GuidedVolley(long dmg)
     {
         int count = 1;
         int ml = AugmentManager.WL("gb_missile"), fl = AugmentManager.WL("gb_fleet");
         if(ml > 0) count += AugmentDefs.GbMissile(ml);
         if(fl > 0) count = Mathf.Max(count, AugmentDefs.GbFleet(fl));
-        var targets = AugmentManager.NearestInRange(transform.position, count);
-        if(aimEnemy != null && aimEnemy.IsInRange && !targets.Contains(aimEnemy)) {
-            targets.Insert(0, aimEnemy);
-            if(targets.Count > count) targets.RemoveAt(targets.Count - 1);
+        var all = AugmentManager.NearestInRange(transform.position, 999);   // 화면 안, 가까운 순
+        if(all.Count == 0) { SpawnBomb(ClampToScreen(aimPoint), dmg); return; }
+        float cr = Tuning.Get("guided_crowd_radius", 1f), gap = Tuning.Get("guided_crowd_gap", 1.5f);
+        var scored = new List<(Enemy e, int n, int order)>();
+        for(int i = 0; i < all.Count; i++) {
+            int n = 0;
+            foreach(var o in all) if(((Vector2)(o.pos - all[i].pos)).sqrMagnitude <= cr * cr) n++;
+            scored.Add((all[i], n, i));
         }
-        if(targets.Count == 0) { SpawnBomb(ClampToScreen(aimPoint), dmg); return; }
+        scored.Sort((x, y) => x.n != y.n ? y.n.CompareTo(x.n) : x.order.CompareTo(y.order));
+        var targets = new List<Enemy>();
+        foreach(var sc in scored) {
+            if(targets.Count >= count || sc.n < 2) break;
+            bool apart = true;
+            foreach(var t in targets) if(((Vector2)(t.pos - sc.e.pos)).sqrMagnitude < gap * gap) { apart = false; break; }
+            if(apart) targets.Add(sc.e);
+        }
+        foreach(var e in all) {   // 무리가 모자라면 가까운 적
+            if(targets.Count >= count) break;
+            if(!targets.Contains(e)) targets.Add(e);
+        }
         for(int i = 0; i < count; i++) {
             var e = targets[i % targets.Count];
             SpawnBomb(ClampToScreen(e.pos), dmg, e);

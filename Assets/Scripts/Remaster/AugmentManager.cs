@@ -251,6 +251,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             EnsureLoadout();
             if(EffectsActive && pauseCount == 0 && !pullShowing) ResumeEmptyFusionSlot();   // 흡수된 B 칸이 비어 있으면 다시 고르게
         }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        DebugArenaTick();   // 연습장: 죽은 적 다시 채우기
+#endif
         foreach(SideWeapon w in Enum.GetValues(typeof(SideWeapon))) {
             if(w == SideWeapon.None) continue;
             var go = WeaponObject(w);

@@ -182,7 +182,7 @@ public static class AugmentDefs
     // 레이저 폭 (2026-11-20: +30~70% 는 빔이 원래 가늘어서 눈에 안 띄었어요 → 배율 3 = ★1 +90%, ★5 +210%. tuning.txt beam_width_mul)
     public static float BeamWidth(int L) => Lin(L, 0.30f, 0.10f) * Tuning.Get("beam_width_mul", 3f);
     // 블랙홀 (2026-11-20, 예전 직선 레이저 자리)
-    public static float BhBig(int L) => Lin(L, 0.20f, 0.10f);                // 반경 +
+    public static float BhBig(int L) => Lin(L, 0.10f, 0.05f);                // 반경 + (2026-11-21 사용자: 만렙이 너무 커서 20~60% → 10~30%)
     public static float BhLong(int L) => Lin(L, 0.5f, 0.25f);                // 열려 있는 시간 + (초)
     public static float BhCollapse(int L) => Lin(L, 0.5f, 0.25f);            // 붕괴 폭발 피해 +
     // 블랙홀 합체 (2026-11-20)
@@ -212,15 +212,16 @@ public static class AugmentDefs
     public static float RgCharge(int L) => Lin(L, 0.25f, 0.05f);
     public static float RgBlast(int L) => Lin(L, 0.30f, 0.10f);
     public static int RgMegaEvery(int L) => 5 - L;
-    public static float PbArea(int L) => Lin(L, 0.30f, 0.10f);
+    public static int PbMore(int L) => L;                                    // 역병 폭탄 역병 살포 (최대 ★3): 독탄 +1·2·3 (2026-11-21, "독 장판 확대" 대신)
     public static float PbToxic(int L) => Lin(L, 1.0f, 0.3f);
     public static int PbSpread(int L) => L;
     public static int SdMore(int L) => 1 + (L - 1) / 2;
     public static float SdAccel(int L) => Lin(L, 0.30f, 0.10f);
     public static float SdEndless(int L) => Lin(L, 0.15f, 0.10f);
-    public static int HdBounce(int L) => 2 + (L - 1) / 2;
-    public static float HdBoss(int L) => Lin(L, 0.30f, 0.10f);
-    public static float HdPack(int L) => Lin(L, 0.20f, 0.10f);
+    // 록온 미사일 (2026-11-21, 예전 사냥개 탄 자리)
+    public static int LkMore(int L) => 1 + (L - 1) / 2;                      // 다중 록온: 록온 +
+    public static int McPod(int L) => 1 + (L - 1) / 2;                       // 마이크로 미사일 미사일 포드: 적마다 미사일 +
+    public static float LkBlast(int L) => Lin(L, 0.5f, 0.25f);               // 고폭 탄두 (R ★3): 꽂힐 때 범위 폭발 피해 (미사일 피해의 비율)
     public static float TsTrail(int L) => Lin(L, 0.50f, 0.15f);
     public static int TsMore(int L) => 1 + (L - 1) / 2;
     public static float TsRing(int L) => Lin(L, 2.5f, 0.5f);
@@ -340,7 +341,7 @@ public static class AugmentDefs
         A("bm_big", "대형 폭탄", AugTag.Weapon, S, L => $"[폭격기] 폭발 범위 +{P(BmBig(L))}", 0, SideWeapon.Bomber),
         A("bm_second", "2차 폭발", AugTag.Weapon, S, L => $"[폭격기] 0.5초 뒤 한 번 더 터져요\n(피해 {P(BmSecond(L))})", 0, SideWeapon.Bomber),
         A("carpet", "연속 투하", AugTag.Weapon, G, L => $"[폭격기] 폭탄을 쏠 때 {CarpetBombs(L)}발을 일렬로 추가 투하", 4, SideWeapon.Bomber),
-        A("tk_multi", "다탄두", AugTag.Weapon, S, L => $"[유도탄] 미사일 +{TkMulti(L)}발", 0, SideWeapon.TrackingGun),
+        A("tk_multi", "다탄두", AugTag.Weapon, S, L => $"[유도탄] 록온하는 적 +{TkMulti(L)} (미사일 +{TkMulti(L)}발)", 0, SideWeapon.TrackingGun),
         A("tk_homing", "추적 강화", AugTag.Weapon, S, L => $"[유도탄] 선회 속도 +{P(TkHoming(L))}", 0, SideWeapon.TrackingGun),
         A("tk_warhead", "폭발 탄두", AugTag.Weapon, G, L => $"[유도탄] 명중하면 작은 폭발\n(미사일 피해의 {P(TkWarhead(L))})", 0, SideWeapon.TrackingGun),
         A("ps_spread", "살포 확장", AugTag.Weapon, S, L => $"[독 비행기] 독 발사 방향 +{L}", 3, SideWeapon.Poison),
@@ -375,9 +376,9 @@ public static class AugmentDefs
         new FusionDef(SideWeapon.Bomber, SideWeapon.TrackingGun, "유도 폭격", "fz_guided", "폭탄이 적을 쫓아가서 더 크게 터져요", "gb_double", "gb_missile", "gb_fleet"),
         new FusionDef(SideWeapon.Lazer, SideWeapon.Orbital, "위성 레이저", "fz_satlaser", "우주선 양쪽 날개의 위성 2대가 가장 가까운 적을 레이저로 계속 비춰요. 같은 적을 오래 비출수록 세져요 (최대 4배)", "sat_more", "sat_long", "sat_focus"),
         new FusionDef(SideWeapon.Sniper, SideWeapon.None, "레일건", "fz_railgun", "탄 대신 화면 끝까지 꿰뚫는 빔을 쏴요", "rg_charge", "rg_blast", "rg_mega"),
-        new FusionDef(SideWeapon.Poison, SideWeapon.Bomber, "역병 폭탄", "fz_plague", "독탄이 적을 조준해서 날아가 폭발하고, 독 지대가 1.5배 커지고 적을 30% 느리게 해요", "pb_area", "pb_toxic", "pb_spread"),
+        new FusionDef(SideWeapon.Poison, SideWeapon.Bomber, "역병 폭탄", "fz_plague", "독탄이 적을 조준해서 날아가 폭발하고, 독 지대가 1.5배 커지고 적을 30% 느리게 해요", "pb_more", "pb_toxic", "pb_spread"),
         new FusionDef(SideWeapon.DoubleGun, SideWeapon.BounceGun, "분열 쌍발", "fz_splitdbl", "탄이 적을 맞히면 주변 적 2마리에게 갈라져요 (1발당 피해 70%)", "sd_more", "sd_accel", "sd_endless"),
-        new FusionDef(SideWeapon.TrackingGun, SideWeapon.BounceGun, "사냥개 탄", "fz_hound", "미사일이 적을 맞히고 다음 적을 쫓아가요 (2번). 물 때마다 그 미사일 피해·속도 +15%", "hd_bounce", "hd_boss", "hd_pack"),
+        new FusionDef(SideWeapon.TrackingGun, SideWeapon.DoubleGun, "마이크로 미사일", "fz_micro", "록온한 적마다 작고 빠른 미사일이 5발씩 연달아 날아가 꽂혀요", "lk_more", "mc_pod", "lk_blast"),   // 2026-11-21 사용자 결정: 사냥개 탄 → (록온은 기본 유도탄으로) → 유도탄 + 쌍발총 마이크로 미사일
         new FusionDef(SideWeapon.Orbital, SideWeapon.Poison, "독안개 드론", "fz_toxsat", "드론 탄에 맞은 적이 30% 느려지고 독에 걸리며, 주변 적에게 독이 퍼져요", "ts_trail", "ts_more", "ts_ring"),
         new FusionDef(SideWeapon.Lazer, SideWeapon.None, "프리즘 빔", "fz_prism", "360 레이저가 3갈래 무지개 빔이 돼요", "pr_more", "pr_spin", "pr_storm"),
         new FusionDef(SideWeapon.StrLaser, SideWeapon.Sniper, "특이점 저격", "fz_singularity", "블랙홀이 닫히는 순간 저격총이 한가운데를 꿰뚫어요. 모인 적은 모두 치명타, 모인 적이 많을수록 세져요", "sg_charge", "sg_mark", "sg_echo"),
@@ -388,7 +389,7 @@ public static class AugmentDefs
         new FusionDef(SideWeapon.Meteor, SideWeapon.Sniper, "별의 낙인", "fz_brand", "저격총이 강한 적 3마리에 낙인을 찍고, 낙인 적마다 운석 3개가 따라 떨어져요. 피할 수 없고 폭발은 모두 치명타, 보스는 추가 피해", "bd_more", "bd_aim", "bd_chain"),
         new FusionDef(SideWeapon.Meteor, SideWeapon.StrLaser, "대충돌", "fz_impact", "운석은 계속 떨어지고, 5초마다 블랙홀이 적이 몰린 곳을 끌어모은 뒤 그 자리에 큰 운석이 떨어져요", "im_well", "im_more", "im_energy"),
     };
-    public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzHound = 5, FzToxSat = 6, FzPrism = 7, FzSingularity = 8, FzGravBomb = 9,
+    public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzMicro = 5, FzToxSat = 6, FzPrism = 7, FzSingularity = 8, FzGravBomb = 9,
                      FzConstellation = 10, FzBrand = 11, FzImpact = 12;
 
     static AugmentDef F(int fusion, string id, string name, AugGrade grade, System.Func<int, string> d)
@@ -418,15 +419,17 @@ public static class AugmentDefs
         list.Add(F(FzRailgun, "rg_charge", "충전 가속", G, L => $"장전 시간 -{P(RgCharge(L))}"));
         list.Add(F(FzRailgun, "rg_blast", "관통 폭발", G, L => $"빔에 뚫린 적마다 작은 폭발\n(빔 피해의 {P(RgBlast(L))})"));
         list.Add(F(FzRailgun, "rg_mega", "초전자포", R, L => $"{RgMegaEvery(L)}번째 발사마다 4배 굵기,\n3배 피해의 거대 빔"));
-        list.Add(F(FzPlague, "pb_area", "독 장판 확대", G, L => $"독 지대 크기 +{P(PbArea(L))}"));
+        var pbMore = F(FzPlague, "pb_more", "역병 살포", G, L => $"한 번에 쏘는 독탄 +{PbMore(L)}\n(서로 다른 적을 조준)");
+        pbMore.maxLevel = 3;   // ★1·2·3 = 독탄 +1·2·3 (2026-11-21 사용자: +1 +1 이 이상해서)
+        list.Add(pbMore);
         list.Add(F(FzPlague, "pb_toxic", "맹독 폭발", G, L => $"독탄 폭발 피해 +{P(PbToxic(L))},\n맞은 적은 독 3중첩"));
         list.Add(F(FzPlague, "pb_spread", "역병 확산", R, L => $"독 지대가 사라질 때 가까운 적 자리에\n작은 독 지대 {PbSpread(L)}개가 이어져요"));
         list.Add(F(FzSplitDbl, "sd_more", "분열 추가", G, L => $"갈라진 탄이 한 번 더 갈라져요 (+{SdMore(L)}세대)"));
         list.Add(F(FzSplitDbl, "sd_accel", "튕김 가속", G, L => $"갈라진 탄 탄속 +{P(SdAccel(L))} (쌍발총 탄 기준),\n갈라진 탄 피해 70% → 85%"));
         list.Add(F(FzSplitDbl, "sd_endless", "무한 분열", R, L => $"{P(SdEndless(L))} 확률로 탄이 맞혀도 사라지지 않아요"));
-        list.Add(F(FzHound, "hd_bounce", "추적 튕김", G, L => $"다음 적을 쫓는 횟수 +{HdBounce(L)}"));
-        list.Add(F(FzHound, "hd_boss", "사냥 본능", G, L => $"보스를 먼저 쫓고, 보스 피해 +{P(HdBoss(L))}"));
-        list.Add(F(FzHound, "hd_pack", "무리 사냥", R, L => $"튈 때 {P(HdPack(L))} 확률로 새 미사일이 생겨요"));
+        list.Add(F(FzMicro, "lk_more", "다중 록온", G, L => $"록온하는 적 +{LkMore(L)}"));
+        list.Add(F(FzMicro, "mc_pod", "미사일 포드", G, L => $"록온한 적마다 미사일 +{McPod(L)}발"));
+        list.Add(F(FzMicro, "lk_blast", "고폭 탄두", R, L => $"미사일이 꽂힐 때 범위 폭발 (미사일 피해의 {P(LkBlast(L))})"));
         list.Add(F(FzToxSat, "ts_trail", "독안개 확대", G, L => $"독이 퍼지는 범위 +{P(TsTrail(L))}"));
         list.Add(F(FzToxSat, "ts_more", "드론 증원", G, L => $"드론 +{TsMore(L)}대"));
         list.Add(F(FzToxSat, "ts_ring", "역병의 고리", R, L => $"독이 반경 {TsRing(L):0.#}칸까지 3중첩으로 퍼져요"));
@@ -460,15 +463,15 @@ public static class AugmentDefs
     }
 
     // 종결 증강 (Fusions 순서와 같아요)
-    public static readonly string[] UltIds = { "ult_guided", "ult_satlaser", "ult_railgun", "ult_plague", "ult_splitdbl", "ult_hound", "ult_toxsat", "ult_prism", "ult_singularity", "ult_gravbomb", "ult_constellation", "ult_brand", "ult_impact" };
-    public static readonly string[] UltNames = { "유도탄 세례", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "사냥개 무리", "독의 그물", "무지개 심판", "사건의 지평선", "중력 대폭격", "운명의 별자리", "천벌", "소행성 충돌" };
+    public static readonly string[] UltIds = { "ult_guided", "ult_satlaser", "ult_railgun", "ult_plague", "ult_splitdbl", "ult_micro", "ult_toxsat", "ult_prism", "ult_singularity", "ult_gravbomb", "ult_constellation", "ult_brand", "ult_impact" };
+    public static readonly string[] UltNames = { "유도탄 세례", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "전탄 발사", "독의 그물", "무지개 심판", "사건의 지평선", "중력 대폭격", "운명의 별자리", "천벌", "소행성 충돌" };
     static readonly string[] UltDescs = {
         "유도탄 수십 발이 사방으로 퍼졌다가 휘어져\n화면의 적 하나하나에게 꽂혀요",
         "위성 6대가 화면 끝까지 닿는 레이저로 화면을 쓸고\n한 점에 모아 하얗게 대폭발",
         "레일건 4연사 뒤 우주선에서 사방으로 초전자포를 쏘고\n꿰뚫린 적 중 체력 30% 이하는 처형해요 (모두 치명타)",
-        "독비가 쏟아져 모든 적이 독에 걸리고 느려져요\n독에 걸린 채 죽은 적은 터지며 독을 옮겨요",
+        "먹구름이 몰려와 독비가 쏟아지고 모든 적이 느려져요\n비가 그치면 독에 걸린 적이 꽃처럼 한꺼번에 터져요",
         "유성 12개가 쏟아지며 터질 때마다 조각으로 갈라지고\n마지막 거대 유성이 사방으로 터져요",
-        "붉은 사냥개 혼 8마리가 적을 차례로 물어뜯다가\n가장 강한 적에게 일제히 덮쳐 한 방에 터뜨려요",
+        "화면의 모든 적에게 록온 표식이 찍히고\n미사일 수십 발이 한꺼번에 퍼졌다가 휘어 꽂혀요",
         "독 줄기가 적에서 적으로 번지며 화면을 그물처럼 잇고\n그물이 두 번 맥동하며 모두에게 피해",
         "빛이 모였다가 7색 빔으로 갈라져 화면을 한 바퀴 쓸고\n하얀 충격파로 마무리해요",
         "화면 한가운데 거대 블랙홀이 모든 적을 빨아들이고\n초거대 저격이 꿰뚫어요 (모두 치명타)",

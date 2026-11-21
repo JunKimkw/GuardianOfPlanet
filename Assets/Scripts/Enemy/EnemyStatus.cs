@@ -56,7 +56,7 @@ public partial class Enemy
     public void ForceKill()
     {
         if(_state == EnemyState.dead || !gameObject.activeInHierarchy) return;
-        if(AugmentManager.DebugTestMode) { DamagePopup.Create(transform.position, CurrentHealth, true); return; }   // 테스트 모드: 즉사 대신 숫자만
+        if(AugmentManager.DebugTestMode && (!AugmentManager.DebugArena || AugmentManager.DebugArenaInvincible)) { DamagePopup.Create(transform.position, CurrentHealth, true); return; }   // 테스트 모드: 즉사 대신 숫자만
         double left = CurrentHealth;
         CurrentHealth = 0;
         _state = EnemyState.dead;

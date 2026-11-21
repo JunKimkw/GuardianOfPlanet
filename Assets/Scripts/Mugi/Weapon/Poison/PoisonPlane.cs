@@ -35,7 +35,8 @@ public class PoisonPlane : WeaponBase
         if(TimerAs >= 10 * (1 - Trait(TraitsData.TraitsType.AttackSpeed))) {
             TimerAs = 0;
             long dmg = HitDamage;
-            if(AugmentManager.Fused(AugmentDefs.FzPlague) && FireAimed(extraBullet ? 4 : 3, dmg)) return;   // 역병 폭탄: 적을 조준
+            int pm = AugmentManager.WL("pb_more");   // 역병 살포: 독탄 +
+            if(AugmentManager.Fused(AugmentDefs.FzPlague) && FireAimed((extraBullet ? 4 : 3) + (pm > 0 ? AugmentDefs.PbMore(pm) : 0), dmg)) return;   // 역병 폭탄: 적을 조준
             int spread = AugmentManager.WL("ps_spread");
             if(spread > 0) {
                 // 살포 확장: 방향을 늘려 고르게 뿌려요 (180도 = 조준 방향)

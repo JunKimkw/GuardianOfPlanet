@@ -41,6 +41,9 @@ public abstract class TypedObjectPool<TSelf, TEnum, TInfo> : Singleton<TSelf>
         }
     }
 
+    // 그 종류의 원본 프리팹 (그림만 빌려 쓸 때, 2026-11-21 종결 미사일)
+    public GameObject PrefabOf(TEnum type) => GetPoolByType(type)?.prefab;
+
     public GameObject GetPoolObject(TEnum type)
     {
         TInfo info = GetPoolByType(type);

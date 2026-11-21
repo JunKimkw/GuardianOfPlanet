@@ -159,14 +159,8 @@ public class PoisonBullet : MonoBehaviour
     // 합체 "역병 폭탄": 둔화 (tuning.txt plague_slow)
     public static float PlagueSlow => AugmentManager.Fused(AugmentDefs.FzPlague) ? Tuning.Get("plague_slow", 0.3f) : 0f;
 
-    // 합체 "역병 폭탄": 독 지대 1.5배 (+ 독 장판 확대)
-    public static float PlagueAreaScale {
-        get {
-            if(!AugmentManager.Fused(AugmentDefs.FzPlague)) return 1f;
-            int l = AugmentManager.WL("pb_area");
-            return 1.5f * (l > 0 ? 1f + AugmentDefs.PbArea(l) : 1f);
-        }
-    }
+    // 합체 "역병 폭탄": 독 지대 1.5배 (2026-11-21: 크기를 키우던 "독 장판 확대"는 장판이 화면을 덮어서 "역병 살포"(독탄 +)로 바꿨어요)
+    public static float PlagueAreaScale => AugmentManager.Fused(AugmentDefs.FzPlague) ? 1.5f : 1f;
 
     // 합체 "역병 폭탄": 독탄이 터질 때 주변 피해 (맹독 폭발이면 더 세고 독 3중첩)
     void PlagueBlast()

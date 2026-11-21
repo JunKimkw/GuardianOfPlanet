@@ -827,7 +827,7 @@ public class RemasterUI : MonoBehaviour
         for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
         Action refresh = () => BuildDebugArena(p, close);
         Title(p, "[개발] 연습장", 730, 50, 940);
-        Label(p, AugmentManager.DebugArena ? "<color=#7CFF8A>켜짐</color>: 적이 멈춰 있고 죽지 않아요 (새 적은 안 나와요)" : "적 수를 누르면 시작해요. 적이 멈춰 있고 죽지 않아요",
+        Label(p, AugmentManager.DebugArena ? "<color=#7CFF8A>켜짐</color>: 작은 적이 멈춰 있고, 지금 무기로 약 15대에 죽으면 빈자리에 새로 나와요" : "적 수를 누르면 시작해요. 작은 적이 멈춰 있고, 죽으면 새로 나와요",
               new Vector2(900, 50), new Vector2(0, 655), 26, TextDim);
 
         // 적
@@ -837,6 +837,9 @@ public class RemasterUI : MonoBehaviour
         Btn(p, "적\n70", small, new Vector2(0, 575), BGreen, () => { mgr.DebugArenaStart(70); refresh(); }, 26);
         Btn(p, "보스\n추가", small, new Vector2(185, 575), BRed, () => mgr.DebugArenaBoss(), 26);
         Btn(p, "연습장\n끄기", small, new Vector2(370, 575), BGray, () => { mgr.DebugArenaStop(); refresh(); }, 26);
+        // 적 무적 (2026-11-21 사용자 요청): 켜면 적이 안 죽고 체력이 다시 차요 (위성 레이저처럼 오래 맞혀야 보이는 효과 확인용)
+        Btn(p, AugmentManager.DebugArenaInvincible ? "적 무적\n켜짐" : "적 무적\n꺼짐", small, new Vector2(-370, 485), AugmentManager.DebugArenaInvincible ? BGreen : BGray,
+            () => { AugmentManager.DebugArenaInvincible = !AugmentManager.DebugArenaInvincible; refresh(); }, 26);
         Btn(p, $"속도\nx{Time.timeScale:0.#}", small, new Vector2(-185, 485), BYellow, () => { DevTools.CycleSpeed(); refresh(); }, 26);
         Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(0, 485), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); refresh(); }, 26);
         Btn(p, "무기 전부\n열기", small, new Vector2(185, 485), BYellow, () => { mgr.DebugUnlockAllWeapons(); refresh(); }, 26);

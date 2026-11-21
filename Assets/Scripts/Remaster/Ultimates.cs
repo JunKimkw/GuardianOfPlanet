@@ -120,7 +120,7 @@ public class UltimateFx : MonoBehaviour
             case AugmentDefs.FzRailgun: body = Piercing(dmg); break;
             case AugmentDefs.FzPlague: body = PlagueRain(dmg); break;
             case AugmentDefs.FzSplitDbl: body = StarShower(dmg); break;
-            case AugmentDefs.FzHound: body = HoundPack(dmg); break;
+            case AugmentDefs.FzMicro: body = LockOnBarrage(dmg); break;
             case AugmentDefs.FzToxSat: body = ToxicVeil(dmg); break;
             case AugmentDefs.FzSingularity: body = EventHorizon(dmg); break;
             case AugmentDefs.FzGravBomb: body = GravityCollapse(dmg); break;
@@ -459,7 +459,7 @@ public class UltimateFx : MonoBehaviour
     // 2 천공 (2026-11-21 다섯 번째: 사용자 결정 "마지막 한 방은 우주선 기준 360도로 저격총을 레이저 느낌으로") 연사 → 충전 → 360도 초전자포 → 줄줄이 폭발 → 처형
     //  1) 연사: 적이 가장 많이 늘어선 방향으로 레일건 4발을 탕탕탕탕 (쏜 방향 ±20도는 피해서 매번 다른 줄)
     //  2) 충전: 우주선에 전기가 모여요 (사방에서 번개 줄기가 빨려 들고, 빛 구슬이 떨리며 커져요)
-    //  3) 360도 초전자포: 우주선에서 사방으로 레이저 같은 저격 빔 16줄(ult_railgun_rays)이 한 바퀴 돌며 0.25초 안에 촤라락 뻗어요.
+    //  3) 360도 저격: 우주선 둘레로 빨간 조준선 16줄(ult_railgun_rays)이 촤라락 생겨 겨눈 뒤, 저격총처럼 한꺼번에 탕 (2026-11-21 사용자).
     //     맞은 적은 모두 치명타, 보스는 저격총처럼 보스 추가 피해
     //  4) 여파: 모든 줄을 따라 폭발이 바깥으로 동시에 퍼져 나가요
     //  5) 처형: 이번 종결에서 레일건에 꿰뚫린 적 중 체력이 ult_railgun_execute(30%) 이하로 남은 일반 적은 한꺼번에 X자로 처치돼요
@@ -533,70 +533,79 @@ public class UltimateFx : MonoBehaviour
         return false;
     }
 
-    // 360도 초전자포: 우주선에서 사방으로 레이저 같은 저격 빔 n 줄이 한 바퀴 돌며 0.25초 안에 촤라락 뻗어요 (맞은 적은 한 번씩 치명타).
-    // 0.45초 동안 떨리며 전기가 기어다니고, 그다음 모든 줄을 따라 폭발이 바깥으로 동시에 달려간 뒤 빔이 사라져요
+    // 360도 저격 (2026-11-21 사용자: "360도 빨간 줄이 나오고 그게 저격총처럼 쏴지게"):
+    //  1) 조준: 우주선 둘레로 빨간 조준선 n 줄이 한 바퀴 돌며 촤라락 생기고 ult_railgun_aim 초 동안 겨눠요 (떨리며 점점 진해져요)
+    //  2) 발사: 화면이 번쩍이며 n 줄이 한꺼번에 "탕" — 저격총처럼 금빛 탄도선 + 하얀 심이 순간 번쩍하고 사라져요. 총구 불꽃, 맞은 적마다 불꽃.
+    //     선(굵기 width) 위의 적은 한 번씩 치명타, 보스는 저격총처럼 보스 추가 피해
+    //  3) 여파: 모든 줄을 따라 폭발이 바깥으로 동시에 퍼져 나가요
     IEnumerator RadialRail(Vector3 o, int n, float width, long hit, long zipHit, HashSet<Enemy> pierced)
     {
         const float len = 30f;
-        var cyan = new Color(0.45f, 0.9f, 1f);
+        var red = new Color(1f, 0.2f, 0.25f);
+        var gold = new Color(1f, 0.93f, 0.65f);
         float half = width * 0.5f + 0.25f;
-        StartCoroutine(Flash(new Color(0.85f, 0.95f, 1f), 0.55f, 0.35f));
-        RemasterFx.Burst(o, 1.6f, Color.white);
-        RemasterFx.Ring(o, 2.4f, cyan, 0.3f);
-        var glows = new List<LineRenderer>();
-        var cores = new List<LineRenderer>();
         var dirs = new List<Vector3>();
-        var once = new HashSet<Enemy>();
+        var aims = new List<LineRenderer>();
         float a0 = Random.Range(0f, 360f);
-        float gap = 0.25f / n;
-        float wait = 0f;
         for(int i = 0; i < n; i++) {
             float ang = (a0 + 360f * i / n) * Mathf.Deg2Rad;
-            var dir = new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), 0f);
-            Vector3 a = o + dir * 0.3f, b = o + dir * len;
-            var glow = NewLine(new Color(cyan.r, cyan.g, cyan.b, 0.8f), width);
-            var core = NewLine(Color.white, width * 0.35f);
-            core.sortingOrder = glow.sortingOrder + 1;
-            SetSeg(glow, a, b);
-            SetSeg(core, a, b);
-            glows.Add(glow);
-            cores.Add(core);
-            dirs.Add(dir);
-            RemasterFx.Burst(o + dir * 0.5f, width * 0.8f, Color.white);   // 총구 번쩍
-            var seg = new List<Vector3> { o, b };
-            foreach(var e in AugmentManager.EnemiesNear(o, len)) {
-                if(once.Contains(e) || !OnPath(seg, e.transform.position, half)) continue;
-                once.Add(e);
-                pierced.Add(e);
-                RemasterFx.Burst(e.transform.position, 0.5f, Color.white);
-                AugmentManager.WeaponHit(e, SniperBullet.BossBonus(e, hit), true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
-            }
-            wait += gap;   // 한 프레임보다 짧은 간격은 모아서 기다려요
-            if(wait >= Time.deltaTime) { yield return new WaitForSeconds(wait); wait = 0f; }
+            dirs.Add(new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), 0f));
         }
-        for(float t = 0f; t < 0.45f; t += Time.deltaTime) {
-            float k = t / 0.45f;
-            float wv = width * (k < 0.15f ? Mathf.Lerp(0.6f, 1.25f, k / 0.15f) : Mathf.Lerp(1.25f, 0.9f, (k - 0.15f) / 0.85f)) * (1f + 0.06f * Mathf.Sin(t * 70f));
-            for(int i = 0; i < glows.Count; i++) {
-                glows[i].startWidth = glows[i].endWidth = wv;
-                cores[i].startWidth = cores[i].endWidth = wv * 0.35f;
-            }
-            if(Random.value < 0.8f) {   // 빔을 따라 전기가 기어다녀요
-                var dir = dirs[Random.Range(0, dirs.Count)];
-                var side = new Vector3(-dir.y, dir.x, 0f);
-                Vector3 p0 = o + dir * Random.Range(1f, 12f) + side * Random.Range(-wv * 0.6f, wv * 0.6f);
-                RemasterFx.Line(p0, p0 + dir * Random.Range(0.5f, 1.2f) + side * Random.Range(-0.5f, 0.5f), new Color(0.75f, 0.95f, 1f));
+
+        // 1) 조준선이 한 바퀴 돌며 생겨요 (0.25초) → 겨누기
+        float aimT = M("ult_railgun_aim", 0.5f), appear = 0.25f, clock = 0f;
+        for(float t = 0f; t < appear + aimT; t += Time.deltaTime) {
+            clock += Time.deltaTime;
+            Vector3 c = Ship;
+            c.z = 0f;
+            while(aims.Count < n && aims.Count <= t / appear * n) aims.Add(NewLine(new Color(red.r, red.g, red.b, 0.5f), 0.03f));
+            float k = Mathf.Clamp01((t - appear) / Mathf.Max(0.01f, aimT));
+            for(int i = 0; i < aims.Count; i++) {
+                SetSeg(aims[i], c + dirs[i] * 0.3f, c + dirs[i] * len);
+                float flick = 1f + 0.25f * Mathf.Sin(clock * 50f + i);
+                aims[i].startWidth = aims[i].endWidth = Mathf.Lerp(0.025f, 0.05f, k) * flick;
+                aims[i].startColor = aims[i].endColor = new Color(red.r, red.g, red.b, Mathf.Lerp(0.45f, 0.95f, k));
             }
             yield return null;
         }
-        // 여파: 모든 줄을 따라 폭발이 바깥으로 동시에 (화면 안까지만, 줄마다 ult_railgun_zip_step 칸 간격)
+        foreach(var l in aims) Destroy(l.gameObject);
+        o = Ship;
+        o.z = 0f;
+
+        // 2) 탕 — 저격총처럼 한꺼번에
+        StartCoroutine(Flash(new Color(1f, 0.95f, 0.85f), 0.5f, 0.25f));
+        RemasterFx.Burst(o, 1.2f, Color.white);
+        RemasterFx.Ring(o, 2f, gold, 0.25f);
+        float beamW = M("ult_railgun_beam_width", 0.3f);
+        foreach(var dir in dirs) {
+            RemasterFx.Beam(o, o + dir * len, gold, beamW);
+            RemasterFx.Beam(o, o + dir * len, new Color(1f, 1f, 1f, 0.95f), beamW * 0.35f);
+            RemasterFx.Burst(o + dir * 0.5f, 0.3f, gold);   // 총구 불꽃
+        }
+        var once = new HashSet<Enemy>();
+        foreach(var e in AugmentManager.EnemiesNear(o, len)) {
+            Vector3 d = e.transform.position - o;
+            d.z = 0f;
+            foreach(var dir in dirs) {
+                float along = Vector3.Dot(d, dir);
+                if(along <= 0f || (d - dir * along).magnitude > half) continue;
+                if(!once.Add(e)) break;
+                pierced.Add(e);
+                RemasterFx.Burst(e.transform.position, 0.5f, gold);
+                AugmentManager.WeaponHit(e, SniperBullet.BossBonus(e, hit), true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
+                break;
+            }
+        }
+        yield return new WaitForSeconds(0.15f);
+
+        // 3) 여파: 모든 줄을 따라 폭발이 바깥으로 동시에 (화면 안까지만, 줄마다 ult_railgun_zip_step 칸 간격)
         Vector3 cam = Cam;
         float w = HalfW + 0.5f, h = HalfH + 0.5f;
         float step = Mathf.Max(0.5f, M("ult_railgun_zip_step", 1.4f));
         int rings = Mathf.CeilToInt(Mathf.Sqrt(w * w + h * h) * 2f / step);
         float ringGap = M("ult_railgun_zip_time", 0.8f) / Mathf.Max(1, rings);
-        float zr = width * 0.55f, fade = 1f;
-        wait = 0f;
+        float zr = width * 0.55f, wait = 0f;
+        var cyan = new Color(1f, 0.75f, 0.4f);
         for(int z = 1; z <= rings; z++) {
             float d = z * step;
             bool any = false;
@@ -607,24 +616,9 @@ public class UltimateFx : MonoBehaviour
                 Boom(p, zr, zipHit, cyan);   // 그림 1개짜리 폭발 (줄이 많아서 그림 개수를 아껴요)
             }
             if(!any) break;
-            fade = Mathf.Max(0.3f, 1f - (float)z / rings);
-            for(int i = 0; i < glows.Count; i++) {
-                glows[i].startWidth = glows[i].endWidth = width * 0.9f * fade;
-                cores[i].startWidth = cores[i].endWidth = width * 0.32f * fade;
-            }
             wait += ringGap;
             if(wait >= Time.deltaTime) { yield return new WaitForSeconds(wait); wait = 0f; }
         }
-        for(float t = 0f; t < 0.2f; t += Time.deltaTime) {
-            float k = 1f - t / 0.2f;
-            for(int i = 0; i < glows.Count; i++) {
-                glows[i].startWidth = glows[i].endWidth = width * 0.9f * fade * k;
-                cores[i].startWidth = cores[i].endWidth = width * 0.32f * fade * k;
-            }
-            yield return null;
-        }
-        foreach(var g in glows) Destroy(g.gameObject);
-        foreach(var c in cores) Destroy(c.gameObject);
     }
 
     // 처형: 꿰뚫린 적 중 체력이 line 이하로 남은 일반 적(보스 제외)을 한꺼번에 처치. 하얀 X 자국 + 번쩍
@@ -707,36 +701,66 @@ public class UltimateFx : MonoBehaviour
         Destroy(core.gameObject);
     }
 
-    // 3 역병의 비 (2026-11-21 다시 만듦): 날씨
-    //  화면이 초록빛으로 물들고 독비가 쏟아져요. 빗방울에 맞은 적은 독, 비가 오는 동안 모든 적이 느려지고, 적이 몰린 곳에 독 장판이 차례로 생겨요.
-    //  독에 걸린 채 죽은 적은 초록 폭발로 터지며 옆 적에게 독을 옮겨요 (옮은 적도 죽으면 또 터져요). 숫자 ult_plague_*
+    // 3 역병의 비 (2026-11-21 다시 만듦, 같은 날 다듬음: 사용자 "역병의 비를 다듬어줘")
+    //  1) 먹구름: 화면 위쪽으로 어두운 초록 먹구름이 밀려오고 초록 번개가 번쩍, 화면이 초록빛으로 물들어요
+    //  2) 비: 빗방울이 하늘에서 비스듬히 떨어져 땅에 닿으면 톡 튀어요. 보슬비 → 장대비로 점점 세져요 (ult_plague_drops 는 가장 셀 때 1초 수).
+    //     빗방울에 맞은 적은 독, 비 오는 동안 모든 적 30% 느리게, 적이 몰린 곳에 독 장판이 차례로. 독에 걸린 채 죽은 적은 터지며 독을 옮겨요
+    //  3) 역병 개화: 비가 그치면 화면에서 독에 걸린 적이 가운데부터 바깥으로 초록 꽃처럼 한꺼번에 터져요 (독 중첩이 많을수록 크게·세게, 옆 적에게 독)
+    //  숫자 ult_plague_*
+    class Drop { public LineRenderer lr; public Vector3 from, to; public float t, dur; }
+
     IEnumerator PlagueRain(long dmg)
     {
         float w = HalfW, h = HalfH;
         var green = new Color(0.5f, 0.95f, 0.35f);
+        var pale = new Color(0.75f, 1f, 0.6f);
         float dur = M("ult_plague_time", 3.2f), rate = Mathf.Max(1f, M("ult_plague_drops", 40f));
         long drop = Mul(dmg, M("ult_plague_drop_mul", 0.4f)), burst = Mul(dmg, M("ult_plague_burst_mul", 2f));
         int puddles = Mathf.RoundToInt(M("ult_plague_puddles", 8f));
         var tint = Shape(new Color(0.25f, 0.6f, 0.15f, 0f), Vector2.one * Mathf.Max(w, h) * 3f, 505);
         var watch = new Dictionary<Enemy, Vector3>();   // 독에 걸린 적 → 마지막 자리 (죽으면 그 자리에서 터져요)
-        float t = 0f, nextDrop = 0f, nextSlow = 0f, nextPuddle = 0.3f;
+
+        // 1) 먹구름 (화면 위쪽 띠, 위에서 내려와요)
+        var clouds = new List<(SpriteRenderer sr, float x, float y)>();
+        const int cn = 9;
+        for(int i = 0; i < cn; i++) {
+            float x = Mathf.Lerp(-w - 0.5f, w + 0.5f, i / (cn - 1f)) + Random.Range(-0.4f, 0.4f);
+            float y = h - Random.Range(0.1f, 1.1f);
+            var sr = Shape(new Color(0.16f, 0.24f, 0.13f, 0f), Vector2.one * Random.Range(2.2f, 3.4f), 506 + i % 2);
+            clouds.Add((sr, x, y));
+        }
+        var pool = new Stack<LineRenderer>();
+        var drops = new List<Drop>();
+        float t = 0f, nextDrop = 0.35f, nextSlow = 0f, nextPuddle = 0.5f, nextBolt = 0.15f;
+        bool firstBolt = true;
         int made = 0;
-        while(t < dur + 0.4f) {
-            t += Time.deltaTime;
+        while(t < dur + 0.5f || drops.Count > 0) {
+            float dt = Time.deltaTime;
+            t += dt;
             Vector3 cam = Cam;
             tint.transform.position = cam;
-            tint.color = new Color(0.25f, 0.6f, 0.15f, 0.22f * Mathf.Clamp01(t / 0.4f) * Mathf.Clamp01((dur + 0.4f - t) / 0.4f));
+            float fadeIn = Mathf.Clamp01(t / 0.5f), fadeOut = Mathf.Clamp01((dur + 0.5f - t) / 0.5f);
+            tint.color = new Color(0.25f, 0.6f, 0.15f, 0.24f * fadeIn * fadeOut);
+            for(int i = 0; i < clouds.Count; i++) {   // 먹구름: 위에서 내려와 천천히 흘러요
+                var c = clouds[i];
+                float drift = Mathf.Sin(t * 0.8f + i) * 0.25f;
+                c.sr.transform.position = cam + new Vector3(c.x + drift, c.y + 1.5f * (1f - fadeIn), 0f);
+                c.sr.color = new Color(0.16f, 0.24f, 0.13f, 0.6f * fadeIn * fadeOut);
+            }
+            if(t < dur && t >= nextBolt) {   // 초록 번개 (처음에 크게 한 번, 그다음 가끔 약하게)
+                nextBolt = t + Random.Range(0.8f, 1.4f);
+                StartCoroutine(Flash(pale, firstBolt ? 0.35f : 0.15f, 0.12f));
+                firstBolt = false;
+            }
             if(t < dur) {
-                while(nextDrop <= t) {   // 빗줄기 (비스듬히)
-                    nextDrop += 1f / rate;
-                    var p = cam + new Vector3(Random.Range(-w, w), Random.Range(-h, h), 0f);
-                    RemasterFx.Line(p + new Vector3(0.35f, 1.3f, 0f), p, green);
-                    RemasterFx.Burst(p, 0.22f, green);
-                    foreach(var e in AugmentManager.EnemiesNear(p, 0.6f)) {
-                        e.AddPoison(2, 5f);
-                        Hit(e, drop);
-                        watch[e] = e.transform.position;
-                    }
+                // 2) 빗방울: 보슬비 → 장대비 (처음 20% 세기에서 1초 동안 100% 로)
+                float r = rate * Mathf.Lerp(0.2f, 1f, Mathf.Clamp01((t - 0.35f) / 1f));
+                while(nextDrop <= t) {
+                    nextDrop += 1f / r;
+                    var to = cam + new Vector3(Random.Range(-w, w), Random.Range(-h, h - 0.5f), 0f);
+                    var lr = pool.Count > 0 ? pool.Pop() : NewLine(new Color(pale.r, pale.g, pale.b, 0.7f), 0.035f);
+                    lr.enabled = true;
+                    drops.Add(new Drop { lr = lr, from = to + new Vector3(0.6f, 2.4f, 0f), to = to, dur = Random.Range(0.16f, 0.24f) });
                 }
                 if(t >= nextSlow) {   // 비 오는 동안 모든 적 30% 느리게
                     nextSlow = t + 0.4f;
@@ -749,12 +773,29 @@ public class UltimateFx : MonoBehaviour
                     SpawnPuddle(near.Count > 0 ? near[0].transform.position : cam + new Vector3(Random.Range(-w, w), Random.Range(-h, h), 0f), dmg);
                 }
             }
-            foreach(var e in new List<Enemy>(watch.Keys)) {
+            for(int i = drops.Count - 1; i >= 0; i--) {   // 떨어지는 빗방울 (짧은 줄이 내려가다 땅에 닿으면 톡)
+                var d = drops[i];
+                d.t += dt;
+                float k = Mathf.Clamp01(d.t / d.dur);
+                Vector3 head = Vector3.Lerp(d.from, d.to, k);
+                SetSeg(d.lr, head + (d.from - d.to).normalized * 0.45f, head);
+                if(k < 1f) continue;
+                d.lr.enabled = false;
+                pool.Push(d.lr);
+                drops.RemoveAt(i);
+                RemasterFx.Burst(d.to, 0.2f, green);
+                foreach(var e in AugmentManager.EnemiesNear(d.to, 0.6f)) {
+                    e.AddPoison(2, 5f);
+                    Hit(e, drop);
+                    watch[e] = e.transform.position;
+                }
+            }
+            foreach(var e in new List<Enemy>(watch.Keys)) {   // 독에 걸린 채 죽은 적은 터지며 옮겨요
                 if(Alive(e)) { watch[e] = e.transform.position; continue; }
                 Vector3 p = watch[e];
                 watch.Remove(e);
                 RemasterFx.Burst(p, 1.2f, green);
-                RemasterFx.Ring(p, 1.4f, new Color(0.7f, 1f, 0.5f), 0.25f);
+                RemasterFx.Ring(p, 1.4f, pale, 0.25f);
                 foreach(var n2 in AugmentManager.EnemiesNear(p, 1.2f)) {
                     n2.AddPoison(3, 5f);
                     Hit(n2, burst);
@@ -763,7 +804,38 @@ public class UltimateFx : MonoBehaviour
             }
             yield return null;
         }
+        foreach(var lr in pool) if(lr != null) Destroy(lr.gameObject);
+        foreach(var c in clouds) Destroy(c.sr.gameObject);
         Destroy(tint.gameObject);
+
+        // 3) 역병 개화: 독에 걸린 화면의 적이 가운데부터 바깥으로 한꺼번에 터져요 (0.4초 동안 물결처럼)
+        Vector3 cc = Cam;
+        var bloom = AugmentManager.EnemiesNear(cc, 999f);
+        bloom.RemoveAll(e => !e.IsInRange || !e.IsPoisoned);
+        if(bloom.Count == 0) yield break;
+        bloom.Sort((a, b) => (a.transform.position - cc).sqrMagnitude.CompareTo((b.transform.position - cc).sqrMagnitude));
+        StartCoroutine(Flash(green, 0.3f, 0.3f));
+        float bmul = M("ult_plague_bloom_mul", 1.5f), per = M("ult_plague_bloom_per_stack", 0.05f);
+        float gap = 0.4f / bloom.Count, wait = 0f;
+        foreach(var e in bloom) {
+            if(Alive(e)) {
+                int st = e.PoisonStacks;
+                Vector3 p = e.transform.position;
+                p.z = 0f;
+                float size = 0.6f + 0.03f * st;
+                RemasterFx.Burst(p, size, green);
+                RemasterFx.Burst(p, size * 0.4f, Color.white);
+                for(int k = 0; k < 5; k++) {   // 꽃잎
+                    float a = (k * 72f + Random.Range(-10f, 10f)) * Mathf.Deg2Rad;
+                    var d = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f);
+                    RemasterFx.Line(p + d * size * 0.3f, p + d * size * 1.2f, pale);
+                }
+                Hit(e, Mul(dmg, bmul * (1f + per * st)));
+                foreach(var n2 in AugmentManager.EnemiesNear(p, size)) if(n2 != e) n2.AddPoison(2, 5f);
+            }
+            wait += gap;
+            if(wait >= Time.deltaTime) { yield return new WaitForSeconds(wait); wait = 0f; }
+        }
     }
 
     static void SpawnPuddle(Vector3 at, long dmg)
@@ -840,137 +912,33 @@ public class UltimateFx : MonoBehaviour
         }
     }
 
-    // 5 사냥개 무리 (2026-11-21 세 번째: "딱 한 방 터지는 임팩트가 없어")
-    //  1) 사냥: 붉은 사냥개 혼 8마리가 사방으로 튀어나가 적을 차례로 물어뜯어요 (발톱 자국 + 잠깐 기절, 물 때마다 빨라짐).
-    //     문 적에게는 붉은 사냥 표식이 남아요. 물 적이 다 떨어지면 이미 문 적도 다시 물고, 적이 없으면 우주선 둘레를 돌아요.
-    //  2) 포위: 사냥개들이 멈춰 붉게 부풀며 울부짖어요.
-    //  3) 일제 돌격: 8마리가 가장 강한 적(보스, 없으면 적이 가장 몰린 곳)으로 긴 꼬리를 그리며 동시에 덮쳐서 —
-    //  4) 한 방: 화면이 붉게 번쩍, 거대한 발톱 자국 3줄 + 붉은 충격파, 큰 피해와 기절. 같은 순간 사냥 표식이 붙은 적이 모두 함께 터져요.
-    //  숫자 ult_hound_*
-    IEnumerator HoundPack(long dmg)
+    // 5 전탄 발사 (2026-11-21 사용자 결정, 마이크로 미사일(유도탄 + 쌍발총) 종결. 예전 "사냥개 무리" 자리)
+    //  유도탄과 똑같은 미사일·록온 표식으로 (사용자: "유도탄 나가는 거랑 똑같이, 발사량은 훨씬 많이, 대신 피해는 줄여서")
+    //  1) 화면의 모든 적(최대 ult_lockon_max)에게 가까운 순으로 록온 표식이 촤라락 찍혀요 (0.6초)
+    //  2) 유도탄이 적마다 ult_lockon_per 발씩 일제 발사 — 넓은 부채꼴로 퍼졌다가 점화해 휘어 꽂혀요 (한 바퀴마다 ult_lockon_gap 초)
+    //  1발 피해 = 유도탄 1발 × ult_lockon_mul. 숫자 ult_lockon_*
+    IEnumerator LockOnBarrage(long dmg)
     {
-        int n = Mathf.Max(1, Mathf.RoundToInt(M("ult_hound_count", 8f)));
-        float dur = M("ult_hound_time", 2.2f);
-        long bite = Mul(dmg, M("ult_hound_mul", 1.2f));
-        long finalHit = Mul(dmg, M("ult_hound_final_mul", 6f)), markHit = Mul(dmg, M("ult_hound_mark_mul", 1.5f));
-        var red = new Color(1f, 0.3f, 0.25f);
-        var roots = new GameObject[n];
-        var heads = new SpriteRenderer[n];
-        var pos = new Vector3[n];
-        var speed = new float[n];
-        var target = new Enemy[n];
-        var bitten = new HashSet<Enemy>[n];
-        var marks = new Dictionary<Enemy, SpriteRenderer>();   // 사냥 표식
+        var gun = TrackingGun.instance;
         Vector3 o = Ship;
         o.z = 0f;
-        RemasterFx.Ring(o, 1.6f, red, 0.3f);   // 울부짖음
-        for(int i = 0; i < n; i++) {
-            float a = i * Mathf.PI * 2f / n;
-            pos[i] = o + new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * 0.5f;
-            var (root, head) = Projectile(pos[i], RemasterFx.CircleSprite, new Color(1f, 0.55f, 0.45f), 0.38f, 547);
-            AddTrail(root, new Color(1f, 0.35f, 0.25f, 0.9f), new Color(0.6f, 0.05f, 0.05f), 0.3f, 0.25f);
-            roots[i] = root;
-            heads[i] = head;
-            speed[i] = M("ult_hound_speed", 9f);
-            bitten[i] = new HashSet<Enemy>();
-        }
+        var targets = AugmentManager.NearestInRange(o, Mathf.Max(1, Mathf.RoundToInt(M("ult_lockon_max", 40f))));
+        if(targets.Count == 0 || gun == null) yield break;
 
-        // 1) 사냥
-        float clock = 0f;
-        for(float t = 0f; t < dur; t += Time.deltaTime) {
-            float dt = Time.deltaTime;
-            clock += dt;
-            for(int i = 0; i < n; i++) {
-                if(!Alive(target[i])) {
-                    var list = AugmentManager.NearestInRange(pos[i], 3, bitten[i]);
-                    if(list.Count == 0 && bitten[i].Count > 0) { bitten[i].Clear(); list = AugmentManager.NearestInRange(pos[i], 3); }   // 다 물었으면 다시
-                    target[i] = list.Count > 0 ? list[Random.Range(0, list.Count)] : null;   // 가까운 3마리 중 하나 (개마다 흩어지게)
-                }
-                if(target[i] == null) {   // 적이 하나도 없으면 우주선 둘레를 돌아요
-                    Vector3 ship = Ship;
-                    ship.z = 0f;
-                    float a = t * 4f + i * Mathf.PI * 2f / n;
-                    pos[i] = Vector3.MoveTowards(pos[i], ship + new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * 1.2f, speed[i] * dt);
-                } else {
-                    Vector3 goal = target[i].transform.position;
-                    goal.z = 0f;
-                    Vector3 d = goal - pos[i];
-                    float step = speed[i] * dt;
-                    if(d.magnitude <= Mathf.Max(step, 0.2f)) {
-                        pos[i] = goal;
-                        Claw(goal, red);
-                        Hit(target[i], bite);
-                        if(target[i]._state != Enemy.EnemyState.dead) target[i].Stun(0.4f);
-                        if(!marks.ContainsKey(target[i])) marks[target[i]] = Shape(new Color(1f, 0.15f, 0.15f, 0.7f), Vector2.one * 0.5f, 549);
-                        bitten[i].Add(target[i]);
-                        target[i] = null;
-                        speed[i] = Mathf.Min(speed[i] * 1.12f, M("ult_hound_max_speed", 22f));   // 물 때마다 빨라져요
-                    } else pos[i] += d.normalized * step;
-                }
-                roots[i].transform.position = pos[i];
-            }
-            MoveMarks(marks, clock);
-            yield return null;
+        // 1) 록온
+        float gap = 0.6f / targets.Count, wait = 0f;
+        foreach(var e in targets) {
+            LockOnMark.Place(e, 8f);
+            wait += gap;
+            if(wait >= Time.deltaTime) { yield return new WaitForSeconds(wait); wait = 0f; }
         }
+        yield return new WaitForSeconds(0.15f);
 
-        // 2) 포위: 멈춰서 붉게 부풀며 울부짖어요
-        var boss = AugmentManager.StrongestInRange();
-        bool chaseBoss = boss != null && boss.IsBoss;
-        Vector3 hitAt = chaseBoss ? boss.transform.position : Densest(Cam);
-        hitAt.z = 0f;
-        for(int i = 0; i < n; i++) RemasterFx.Ring(pos[i], 0.9f, red, 0.25f);
-        for(float t = 0f; t < 0.3f; t += Time.deltaTime) {
-            clock += Time.deltaTime;
-            float k = t / 0.3f;
-            for(int i = 0; i < n; i++) heads[i].transform.localScale = Vector3.one * 0.38f * (1f + 0.9f * k) * (1f + 0.1f * Mathf.Sin(clock * 40f + i));
-            MoveMarks(marks, clock);
-            yield return null;
-        }
-
-        // 3) 일제 돌격
-        if(chaseBoss && Alive(boss)) { hitAt = boss.transform.position; hitAt.z = 0f; }
-        var from = (Vector3[])pos.Clone();
-        for(int i = 0; i < n; i++)
-            if(roots[i].TryGetComponent(out TrailRenderer tr)) { tr.time = 0.4f; tr.widthMultiplier = 0.5f; }   // 긴 꼬리
-        for(float t = 0f; t < 0.18f; t += Time.deltaTime) {
-            float k = t / 0.18f;
-            for(int i = 0; i < n; i++) {
-                pos[i] = Vector3.Lerp(from[i], hitAt, k * k);
-                roots[i].transform.position = pos[i];
-            }
-            yield return null;
-        }
-
-        // 4) 한 방
-        for(int i = 0; i < n; i++) {
-            roots[i].transform.position = hitAt;
-            EndProjectile(roots[i], heads[i]);
-        }
-        float R = M("ult_hound_final_radius", 2.5f);
-        StartCoroutine(Flash(new Color(1f, 0.3f, 0.25f), 0.45f, 0.3f));
-        RemasterFx.Burst(hitAt, R, red);
-        RemasterFx.Burst(hitAt, R * 0.4f, Color.white);
-        RemasterFx.Ring(hitAt, R * 1.2f, red, 0.35f);
-        RemasterFx.Ring(hitAt, R * 0.75f, new Color(1f, 0.6f, 0.5f), 0.25f);
-        float sa = Random.Range(25f, 65f) * Mathf.Deg2Rad;   // 거대 발톱 자국 3줄
-        var sd = new Vector3(Mathf.Cos(sa), -Mathf.Sin(sa), 0f);
-        var side = new Vector3(-sd.y, sd.x, 0f);
-        for(int k = -1; k <= 1; k++) StartCoroutine(Slash(hitAt + side * (k * 0.55f) - sd * R, hitAt + side * (k * 0.55f) + sd * R, red, 0.32f));
-        foreach(var e in AugmentManager.EnemiesNear(hitAt, R)) {
-            Hit(e, finalHit);
-            if(e._state != Enemy.EnemyState.dead) e.Stun(0.8f);
-        }
-        foreach(var kv in marks) {   // 같은 순간 사냥 표식이 붙은 적이 모두 터져요
-            if(Alive(kv.Key)) {
-                Vector3 p = kv.Key.transform.position;
-                p.z = 0f;
-                RemasterFx.Burst(p, 0.75f, red);
-                Claw(p, new Color(1f, 0.45f, 0.4f));
-                Hit(kv.Key, markHit);
-            }
-            if(kv.Value != null) Destroy(kv.Value.gameObject);
-        }
-        yield return new WaitForSeconds(0.3f);
+        // 2) 일제 발사 (유도탄 미사일 그대로, 훨씬 많이)
+        int per = Mathf.Max(1, Mathf.RoundToInt(M("ult_lockon_per", 3f)));
+        long hit = Mul(dmg, M("ult_lockon_mul", 0.6f));
+        yield return gun.StartCoroutine(gun.Salvo(targets, per, hit, 1f, 1f, 1f, M("ult_lockon_gap", 0.12f), 25f, M("ult_lockon_spread", 200f), true));   // 다른 적은 지나가요
+        yield return new WaitForSeconds(1.2f);   // 미사일이 다 꽂힐 때까지
     }
 
     // 사냥 표식이 적을 따라다니며 두근거려요 (죽은 적의 표식은 그 자리에 남았다가 마지막에 같이 사라져요)
@@ -1007,19 +975,6 @@ public class UltimateFx : MonoBehaviour
     }
 
 
-    // 발톱 자국: 비스듬한 붉은 줄 3개
-    static void Claw(Vector3 p, Color c)
-    {
-        float a = Random.Range(20f, 70f) * Mathf.Deg2Rad;
-        var d = new Vector3(Mathf.Cos(a), -Mathf.Sin(a), 0f);
-        var side = new Vector3(-d.y, d.x, 0f);
-        for(int k = -1; k <= 1; k++) {
-            Vector3 c0 = p + side * (k * 0.16f);
-            RemasterFx.Line(c0 - d * 0.45f, c0 + d * 0.45f, c);
-        }
-        RemasterFx.Burst(p, 0.3f, c);
-    }
-
     // 6 독의 그물 (2026-11-21 다시 만듦, 예전 "독의 장막"): 전염
     //  우주선에서 가장 가까운 적에게 독침 → 독 줄기가 적에서 적으로(가까운 적 최대 3마리씩, 3칸 안) 번지며 화면의 적을 그물처럼 이어요.
     //  가까이에 없으면 가장 가까운 안 걸린 적에게 길게 뻗어요. 옮을 때마다 독 + 둔화 + 피해.
@@ -1035,43 +990,51 @@ public class UltimateFx : MonoBehaviour
         var start = AugmentManager.NearestInRange(o, 1);
         if(start.Count == 0) yield break;
         var infected = new HashSet<Enemy>();
+        // 걸린 적의 마지막 자리 (2026-11-21 사용자: "가끔 눌러도 반응이 없어" — 예전엔 걸린 적이 죽으면 거기서 안 번져서,
+        // 처음 문 적이 바로 죽으면 줄 하나만 보이고 끝났어요. 이제 죽은 자리에서도 계속 번지고 줄도 그 자리에 남아요)
+        var lastPos = new Dictionary<Enemy, Vector3>();
+        System.Func<Enemy, Vector3> posOf = en => {
+            if(en == null) return o;
+            if(Alive(en)) { var q = en.transform.position; q.z = 0f; lastPos[en] = q; return q; }
+            return lastPos.TryGetValue(en, out var lp) ? lp : o;
+        };
         var web = new List<(LineRenderer lr, Enemy from, Enemy to)>();   // from 이 없으면 우주선에서
         var frontier = new List<Enemy>();
         var pending = new List<(LineRenderer lr, Enemy from, Enemy to)> { (WebLine(green), null, start[0]) };
         infected.Add(start[0]);
+        posOf(start[0]);
         float t = 0f;
         while(pending.Count > 0) {
             // 줄이 뻗어 나가요
             for(float k = 0f; k < hop; k += Time.deltaTime) {
                 t += Time.deltaTime;
                 foreach(var p in pending) {
-                    Vector3 a = WebEnd(p.from, o), b = Alive(p.to) ? p.to.transform.position : a;
-                    b.z = 0f;
+                    Vector3 a = posOf(p.from), b = posOf(p.to);
                     SetSeg(p.lr, a, Vector3.Lerp(a, b, k / hop));
                 }
-                UpdateWeb(web, o);
+                UpdateWeb(web, posOf);
                 yield return null;
             }
             frontier.Clear();
             foreach(var p in pending) {
                 web.Add(p);
+                frontier.Add(p.to);   // 죽었어도 그 자리에서 번져요
                 if(!Alive(p.to)) continue;
                 p.to.AddPoison(5, 6f);
                 p.to.AddSlow(0.3f, 3f);
                 RemasterFx.Burst(p.to.transform.position, 0.45f, green);
                 Hit(p.to, infect);
-                frontier.Add(p.to);
             }
-            UpdateWeb(web, o);
+            UpdateWeb(web, posOf);
             pending.Clear();
             if(t >= limit) break;
             // 다음으로 옮을 적
             foreach(var src in frontier) {
-                if(!Alive(src)) continue;
-                Vector3 sp = src.transform.position;
+                Vector3 sp = posOf(src);
                 foreach(var e in AugmentManager.NearestInRange(sp, fan, infected)) {
                     if((e.transform.position - sp).magnitude > reach) break;
                     infected.Add(e);
+                    posOf(e);
                     pending.Add((WebLine(green), src, e));
                 }
             }
@@ -1080,13 +1043,13 @@ public class UltimateFx : MonoBehaviour
                 float bd = float.MaxValue;
                 foreach(var e in AugmentManager.NearestInRange(o, 999, infected)) {
                     foreach(var s in infected) {
-                        if(!Alive(s)) continue;
-                        float d = (e.transform.position - s.transform.position).sqrMagnitude;
+                        float d = (e.transform.position - posOf(s)).sqrMagnitude;
                         if(d < bd) { bd = d; bestE = e; bestFrom = s; }
                     }
                 }
                 if(bestE == null) break;
                 infected.Add(bestE);
+                posOf(bestE);
                 pending.Add((WebLine(green), bestFrom, bestE));
             }
         }
@@ -1095,7 +1058,7 @@ public class UltimateFx : MonoBehaviour
             for(float k = 0f; k < 0.25f; k += Time.deltaTime) {
                 float wv = Mathf.Lerp(0.2f, 0.05f, k / 0.25f);
                 foreach(var p in web) p.lr.startWidth = p.lr.endWidth = wv;
-                UpdateWeb(web, o);
+                UpdateWeb(web, posOf);
                 yield return null;
             }
             foreach(var e in infected) {
@@ -1106,7 +1069,7 @@ public class UltimateFx : MonoBehaviour
         }
         for(float k = 0f; k < 0.3f; k += Time.deltaTime) {   // 사라지기
             foreach(var p in web) p.lr.startColor = p.lr.endColor = new Color(green.r, green.g, green.b, 0.75f * (1f - k / 0.3f));
-            UpdateWeb(web, o);
+            UpdateWeb(web, posOf);
             yield return null;
         }
         foreach(var p in web) Destroy(p.lr.gameObject);
@@ -1114,22 +1077,12 @@ public class UltimateFx : MonoBehaviour
 
     static LineRenderer WebLine(Color c) => NewLine(new Color(c.r, c.g, c.b, 0.75f), 0.05f);
 
-    static Vector3 WebEnd(Enemy e, Vector3 ship)
-    {
-        Vector3 p = Alive(e) ? e.transform.position : ship;
-        p.z = 0f;
-        return p;
-    }
-
-    // 그물 줄이 적을 따라 움직여요 (죽은 적 쪽 끝은 그 자리에 남아요)
-    static void UpdateWeb(List<(LineRenderer lr, Enemy from, Enemy to)> web, Vector3 ship)
+    // 그물 줄이 적을 따라 움직여요 (죽은 적 쪽 끝은 그 적이 죽은 자리에 남아요, from 이 없으면 우주선)
+    static void UpdateWeb(List<(LineRenderer lr, Enemy from, Enemy to)> web, System.Func<Enemy, Vector3> posOf)
     {
         foreach(var p in web) {
             if(p.lr == null) continue;
-            Vector3 a = p.from == null ? ship : (Alive(p.from) ? p.from.transform.position : p.lr.GetPosition(0));
-            Vector3 b = Alive(p.to) ? p.to.transform.position : p.lr.GetPosition(1);
-            a.z = b.z = 0f;
-            SetSeg(p.lr, a, b);
+            SetSeg(p.lr, posOf(p.from), posOf(p.to));
         }
     }
 
@@ -1446,20 +1399,12 @@ public class UltimateFx : MonoBehaviour
     IEnumerator AsteroidImpact(long dmg)
     {
         Vector3 cam = Cam;
-        // 떨어질 자리: 적이 가장 몰린 곳. 우주선에서 ult_impact_min_dist 칸 안이면 우주선 반대쪽으로 밀고 화면 안으로 (2026-11-21: 우주선 근처라서)
-        Vector3 hitAt = Densest(cam);
-        hitAt.z = 0f;
-        {
-            Vector3 ship = Ship;
-            ship.z = 0f;
-            float md = M("ult_impact_min_dist", 4f);
-            Vector3 d = hitAt - ship;
-            if(d.sqrMagnitude < 0.0001f) d = cam - ship;
-            if(d.sqrMagnitude < 0.0001f) d = Vector3.up;
-            if(d.magnitude < md) hitAt = ship + d.normalized * md;
-            hitAt.x = Mathf.Clamp(hitAt.x, cam.x - HalfW + 1f, cam.x + HalfW - 1f);
-            hitAt.y = Mathf.Clamp(hitAt.y, cam.y - HalfH + 1.5f, cam.y + HalfH - 1.5f);
-        }
+        // 떨어질 자리: 항상 우주선 바로 위(북쪽) ult_impact_dist 칸 (2026-11-21 사용자: 적이 몰린 곳을 따라가면 너무 멀거나 가까워서). 화면 안으로 맞춰요
+        Vector3 ship0 = Ship;
+        ship0.z = 0f;
+        Vector3 hitAt = ship0 + Vector3.up * M("ult_impact_dist", 4.5f);
+        hitAt.x = Mathf.Clamp(hitAt.x, cam.x - HalfW + 1f, cam.x + HalfW - 1f);
+        hitAt.y = Mathf.Clamp(hitAt.y, cam.y - HalfH + 1.5f, cam.y + HalfH - 1.5f);
         float gather = M("ult_impact_gather", 1.3f), dur = M("ult_impact_time", 1f), R = M("ult_impact_radius", 4.5f);
         float pull = M("ult_impact_pull", 8f);
         float orbit = M("ult_impact_orbit", 0.8f);   // 적들이 블랙홀 둘레를 도는 거리 (2026-11-21 사용자: 지름을 조금 줄여 달라고 해서 1.35 → 0.8)
@@ -1534,6 +1479,29 @@ public class UltimateFx : MonoBehaviour
             Vector3 d = e.transform.position - hitAt;
             d.z = 0f;
             Hit(e, d.magnitude <= R ? core : wave);
+        }
+        // 충돌이 모인 적을 멀리 흩어 놓아요. 우주선 쪽으로는 안 보내요 (2026-11-21 사용자: 다 모아 둔 뒤 대충돌 블랙홀이 그 뭉친 무리를 계속 잡았어요)
+        {
+            Vector3 ship = Ship;
+            ship.z = 0f;
+            Vector3 toShip = ship - hitAt;
+            toShip.z = 0f;
+            var scatterList = AugmentManager.EnemiesNear(hitAt, R * M("ult_impact_scatter_radius", 1f));
+            if(scatterList.Count > 0)
+                new GameObject("UltScatter").AddComponent<MeteorScatter>().Run(hitAt, scatterList, M("ult_impact_scatter", 3.5f), 0.45f,
+                    toShip.sqrMagnitude > 0.0001f ? toShip.normalized : (Vector3?)null, 0.4f);
+        }
+        // 끌려오다 우주선 옆에서 멈춘 적은 우주선 반대쪽으로 밀어내요. 밀려나는 동안은 우주선에 닿아도 피해 없음
+        // (2026-11-21 사용자: 블랙홀에 끌려오다 소행성이 떨어지며 끊긴 자리가 우주선 앞이면 바로 피해가 들어가요)
+        {
+            Vector3 ship = Ship;
+            ship.z = 0f;
+            float safe = M("ult_impact_ship_safe", 2.5f);
+            var nearShip = AugmentManager.EnemiesNear(ship, safe);
+            if(nearShip.Count > 0) {
+                foreach(var e in nearShip) e.gravityUntil = Time.time + 0.8f;
+                new GameObject("UltShipPush").AddComponent<MeteorScatter>().Run(ship, nearShip, safe, 0.35f);
+            }
         }
         // 3) 여진
         yield return new WaitForSeconds(0.15f);
