@@ -31,6 +31,9 @@ public class MeteorGun : GunWeapon
     public override int BaseDamage => Balanced("meteor", 6.5f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     static bool Brand => AugmentManager.Fused(AugmentDefs.FzBrand);
+    // 운석 전용 증강(유성우·거대 운석·불타는 구덩이)은 기본 운석에만 (2026-11-21 사용자: "[운석] 운석 +3 인데 대충돌도 늘어나").
+    // 합체 무기는 운석 코드 위에서 돌아서 예전엔 같이 먹었어요 (실제 게임에선 운석으로 합체하면 이 증강이 사라지지만, B 쪽 합체·테스트 창에선 남아요)
+    static int MtL(string id) => Brand || Impact ? 0 : AugmentManager.WL(id);
     static bool Impact => AugmentManager.Fused(AugmentDefs.FzImpact);
 
     void Awake()
@@ -51,6 +54,7 @@ public class MeteorGun : GunWeapon
     }
 
     float holeTimer;   // 대충돌: 다음 블랙홀까지
+    readonly List<Vector3> lastWells = new List<Vector3>();   // 대충돌: 직전 블랙홀 자리
 
     protected override void Update()
     {
@@ -75,7 +79,7 @@ public class MeteorGun : GunWeapon
     protected override void Fire()
     {
         int n = Mathf.Max(1, Tuning.GetInt("meteor_count", 3)) + (ExtraMeteor ? 1 : 0) + AugmentManager.ExtraShots();
-        int rain = AugmentManager.WL("mt_rain");
+        int rain = MtL("mt_rain");
         if(rain > 0) n += AugmentDefs.MtRain(rain);
         StartCoroutine(Volley(n));
     }
@@ -152,7 +156,7 @@ public class MeteorGun : GunWeapon
     //     impact_well_time 초 동안 끌어모아요. 보통 운석은 이것과 따로 기본 무기처럼 계속 떨어져요 (Update)
     //  2) 다 모은 뒤 impact_drop_delay(1초) 텀을 두고, 블랙홀이 닫히는 순간 그 안에 운석이 모두 떨어져요:
     //     큰 운석 1개(impact_core_mul, 모인 적 1마리당 +). 증강 "소행성대"면 블랙홀 안에 보통 운석이 더 (0.12초 간격)
-    //  3) 연쇄 충돌: 거대 운석 자리에 블랙홀이 다시 열리고 거대 운석이 한 번 더
+    //  3) 충돌 에너지 (R): 큰 운석 피해 +
     IEnumerator ImpactVolley(List<Enemy> list, int n, long dmg, float r)
     {
         Vector3 ship = transform.position;
@@ -160,6 +164,15 @@ public class MeteorGun : GunWeapon
         float minDist = Tuning.Get("impact_min_dist", 3f), wr = WellRadius, life = WellTime;
         var far = list.FindAll(e => { Vector3 d = e.pos - ship; d.z = 0f; return d.magnitude >= minDist; });
         if(far.Count > 0) list = far;
+        // 너무 멀지 않게 (2026-11-21 사용자: "블랙홀이 우주선에서 너무 멀어"): 우주선에서 impact_max_dist 칸 안의 적 중에서 골라요.
+        // 그 안에 적이 없으면 우주선에 가장 가까운 적 3마리 둘레에서
+        float maxDist = Mathf.Max(minDist, Tuning.Get("impact_max_dist", 5f));
+        var near = list.FindAll(e => { Vector3 d = e.pos - ship; d.z = 0f; return d.magnitude <= maxDist; });
+        if(near.Count > 0) list = near;
+        else {
+            list.Sort((x, y) => (x.pos - ship).sqrMagnitude.CompareTo((y.pos - ship).sqrMagnitude));
+            if(list.Count > 3) list.RemoveRange(3, list.Count - 3);
+        }
         if(list.Count == 0) yield break;
         // 블랙홀 자리: 반경 안 적이 가장 많은 적 자리부터, 서로 겹치지 않게 impact_wells 개
         int wells = Mathf.Max(1, Tuning.GetInt("impact_wells", 1));
@@ -169,13 +182,21 @@ public class MeteorGun : GunWeapon
             scored.Add((p, AugmentManager.EnemiesNear(p, wr).Count));
         }
         scored.Sort((a, b) => b.c.CompareTo(a.c));
+        // 직전 블랙홀 자리 근처(반경 × impact_avoid_last)는 피해요 (2026-11-21 사용자: 모은 무리가 또 가장 몰린 곳이 돼서 계속 당겨졌어요).
+        // 피할 수 있는 자리가 없으면 그냥 가장 몰린 곳
+        float avoid = wr * Tuning.Get("impact_avoid_last", 2f);
         var spots = new List<Vector3>();
-        foreach(var sc in scored) {
-            if(spots.Count >= wells) break;
-            bool apart = true;
-            foreach(var s in spots) if((s - sc.p).magnitude < wr * 1.2f) { apart = false; break; }
-            if(apart) spots.Add(sc.p);
+        for(int pass = 0; pass < 2 && spots.Count < wells; pass++) {
+            foreach(var sc in scored) {
+                if(spots.Count >= wells) break;
+                bool apart = true;
+                foreach(var s in spots) if((s - sc.p).magnitude < wr * 1.2f) { apart = false; break; }
+                if(pass == 0) foreach(var l in lastWells) if((l - sc.p).magnitude < avoid) { apart = false; break; }
+                if(apart) spots.Add(sc.p);
+            }
         }
+        lastWells.Clear();
+        lastWells.AddRange(spots);
 
         // 1) 블랙홀이 먼저 열려요 (운석이 다 떨어질 때까지 붙잡아요)
         int moreL = AugmentManager.WL("im_more");
@@ -192,7 +213,7 @@ public class MeteorGun : GunWeapon
             int c = AugmentManager.EnemiesNear(spots[i], wr).Count;
             if(c > bestN) { bestN = c; best = i; }
         }
-        DropCore(spots[best], dmg, r, bestN, AugmentManager.WL("im_chain"), coreFall);
+        DropCore(spots[best], dmg, r, bestN, coreFall);
         if(coreFall > fall) yield return new WaitForSeconds(coreFall - fall);
         int per = Mathf.Max(1, n / spots.Count);
         for(int i = 0; i < spots.Count; i++)
@@ -208,28 +229,20 @@ public class MeteorGun : GunWeapon
 
     static Vector3 InWell(Vector3 c, float wr) => c + (Vector3)(Random.insideUnitCircle * wr * 0.45f);
 
-    void DropCore(Vector3 at, long dmg, float r, int gathered, int chainL, float coreFall)
+    // 큰 운석: 운석 1발 × impact_core_mul × (1 + 모인 적 1마리당 impact_per_enemy) × (1 + 충돌 에너지). 떨어지면 모인 적을 사방으로 튕겨 내요
+    // (2026-11-21 사용자: "연쇄 충돌 말고 피해를 올리는 증강" → 연쇄 충돌(블랙홀 한 번 더 + 큰 운석 한 번 더)은 지우고 충돌 에너지로)
+    void DropCore(Vector3 at, long dmg, float r, int gathered, float coreFall)
     {
         int cap = Tuning.GetInt("impact_bonus_cap", 10);
-        double mul = Tuning.Get("impact_core_mul", 4f) * (1.0 + Tuning.Get("impact_per_enemy", 0.08f) * Mathf.Min(Mathf.Max(0, gathered), cap));
+        int energy = AugmentManager.WL("im_energy");
+        double mul = Tuning.Get("impact_core_mul", 4f) * (1.0 + Tuning.Get("impact_per_enemy", 0.08f) * Mathf.Min(Mathf.Max(0, gathered), cap))
+                     * (energy > 0 ? 1.0 + AugmentDefs.ImEnergy(energy) : 1.0);
         var o = new MeteorFall.Opts {
             at = at, dmg = WeaponBase.ClampDamage(dmg * mul), radius = r * Tuning.Get("impact_core_radius", 1.6f),
             sound = true, owner = this, big = true, fallTime = coreFall,
         };
-        if(chainL > 0) {   // 연쇄 충돌: 거대 운석 자리에 우물이 다시 열리고 → 거대 운석 한 번 더 (피해 ImChain)
-            long dmg2 = WeaponBase.ClampDamage(dmg * mul * AugmentDefs.ImChain(chainL));
-            float r2 = o.radius;
-            o.onLand = p => StartCoroutine(SecondCore(p, dmg2, r2, coreFall));
-        }
+        o.onLand = p => MeteorFall.Scatter(p, o.radius * Tuning.Get("impact_scatter_radius", 1.3f));   // 모인 적을 사방으로 튕겨 내요
         MeteorFall.Drop(o);
-    }
-
-    IEnumerator SecondCore(Vector3 at, long dmg, float r, float coreFall)
-    {
-        float life = WellTime;
-        MeteorWell.Open(at, WellRadius, life + 0.1f);
-        yield return new WaitForSeconds(Mathf.Max(0f, life - coreFall));
-        MeteorFall.Drop(new MeteorFall.Opts { at = at, dmg = dmg, radius = r, sound = true, owner = this, big = true, fallTime = coreFall });
     }
 
     // p 가 우주선에서 minDist 보다 가까우면 우주선 반대쪽으로 minDist 까지 밀어요
@@ -259,7 +272,7 @@ public class MeteorGun : GunWeapon
         get {
             float r = Tuning.Get("meteor_radius", 0.9f);
             if(BigRadius) r *= 1.3f;
-            int big = AugmentManager.WL("mt_big");
+            int big = MtL("mt_big");
             if(big > 0) r *= 1f + AugmentDefs.MtBig(big);
             if(AugmentManager.Instance != null) r *= AugmentManager.Instance.BulletScaleMultiplier;
             return r * AugmentManager.BombRadiusMultiplier;
@@ -269,7 +282,7 @@ public class MeteorGun : GunWeapon
     // 불타는 구덩이: 0.5초마다 운석 피해의 이 비율 (0 이면 안 불타요)
     public float BurnMul {
         get {
-            int l = AugmentManager.WL("mt_burn");
+            int l = MtL("mt_burn");
             return (l > 0 ? AugmentDefs.MtBurn(l) : 0f) + (Burning ? Tuning.Get("meteor_burn_passive", 0.1f) : 0f);
         }
     }
@@ -364,6 +377,16 @@ public class MeteorFall : MonoBehaviour
         if(o.skyJitter > 0f) m.from += new Vector3(Random.Range(-o.skyJitter, o.skyJitter), Random.Range(-o.skyJitter, o.skyJitter) * 0.6f, 0f);
         if(o.randomSky) m.from = o.at + new Vector3(Random.Range(-3.5f, 3.5f), Random.Range(5.5f, 8f), 0f);
         m.Build();
+    }
+
+    // 대충돌 큰 운석 (2026-11-21 사용자): 떨어진 자리 반경 안 적을 사방으로 impact_scatter 칸 튕겨 내요 (0.25초, 보스는 30%).
+    // 모인 무리가 풀려서 다음 블랙홀이 같은 무리를 또 끌어가지 않게 해요
+    public static void Scatter(Vector3 c, float radius)
+    {
+        var list = AugmentManager.EnemiesNear(c, radius);
+        if(list.Count == 0) return;
+        var go = new GameObject("MeteorScatter");
+        go.AddComponent<MeteorScatter>().Run(c, list, Tuning.Get("impact_scatter", 0.5f));
     }
 
     // 예전 호출 모양 (무기 기본 운석)
@@ -618,5 +641,38 @@ public class MeteorWell : MonoBehaviour
         Vector3 c = transform.position;
         BlackHole.PullToSlots(c, AugmentManager.EnemiesNear(c, radius), radius * 0.22f, Tuning.Get("impact_pull", 3f), age, dt);
         if(age >= life) Destroy(gameObject);
+    }
+}
+
+// 큰 운석이 모인 적을 튕겨 내는 움직임 (0.25초 동안 바깥으로, 점점 느려지게)
+public class MeteorScatter : MonoBehaviour
+{
+    readonly List<(Enemy e, Vector3 dir, float dist)> items = new List<(Enemy, Vector3, float)>();
+    float t;
+    const float Dur = 0.25f;
+
+    public void Run(Vector3 c, List<Enemy> enemies, float dist)
+    {
+        c.z = 0f;
+        foreach(var e in enemies) {
+            if(e == null) continue;
+            Vector3 d = e.transform.position - c;
+            d.z = 0f;
+            if(d.sqrMagnitude < 0.0001f) d = Random.insideUnitCircle.normalized;
+            items.Add((e, d.normalized, dist * (e.IsBoss ? 0.3f : 1f)));
+        }
+    }
+
+    void Update()
+    {
+        float dt = Time.deltaTime, k0 = t / Dur;
+        t += dt;
+        float k1 = Mathf.Clamp01(t / Dur);
+        float step = (1f - (1f - k1) * (1f - k1)) - (1f - (1f - k0) * (1f - k0));   // 처음에 빠르고 점점 느려지게
+        foreach(var it in items) {
+            if(it.e == null || it.e._state == Enemy.EnemyState.dead || !it.e.gameObject.activeInHierarchy) continue;
+            it.e.transform.position += it.dir * it.dist * step;
+        }
+        if(t >= Dur) Destroy(gameObject);
     }
 }

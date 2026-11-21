@@ -895,9 +895,11 @@ public class RemasterUI : MonoBehaviour
                      + (fused >= 0 ? $" · <color=#E9A6FF>합체: {AugmentDefs.Fusions[fused].name}</color>" : "");
         Label(p, state, new Vector2(900, 50), new Vector2(0, 700), 28, Color.white);
 
-        var defs = new List<AugmentDef>(AugmentDefs.WeaponAugs(w));
+        // 합체했으면 실제 뽑기처럼 합체 전 무기 전용 증강·다른 합체는 빼고 지금 합체 것만 (2026-11-21 사용자: 합체했으면 합체 전 증강은 안 나와야)
+        var defs = fused >= 0 ? new List<AugmentDef>() : new List<AugmentDef>(AugmentDefs.WeaponAugs(w));
         for(int f = 0; f < AugmentDefs.Fusions.Length; f++) {
             var fd = AugmentDefs.Fusions[f];
+            if(fused >= 0 && f != fused) continue;
             if(fd.a != w && fd.b != w) continue;   // 양쪽 합체: B 무기 창에도 카드·합체 전용 증강·종결을 보여 줘요
             defs.Add(AugmentDefs.Get(fd.card));
             foreach(var id in fd.augs) defs.Add(AugmentDefs.Get(id));

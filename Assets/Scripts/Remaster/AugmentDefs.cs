@@ -168,9 +168,9 @@ public static class AugmentDefs
     public static int BdMore(int L) => 1 + (L - 1) / 2;                      // 별의 낙인: 낙인 운석 +
     public static float BdAim(int L) => Lin(L, 0.5f, 0.2f);                  // 별의 낙인: 치명 피해 +
     public static int BdChain(int L) => L;                                   // 별의 낙인 처형 낙인 (R ★3): 옮겨 가는 횟수
-    public static float ImWell(int L) => Lin(L, 0.15f, 0.05f);               // 대충돌: 블랙홀 범위 + (2026-11-21 사용자: 만렙이 너무 사기 → 30~70% 에서 15~35% 로)
+    public static float ImWell(int L) => Lin(L, 0.08f, 0.03f);               // 대충돌: 블랙홀 범위 + (2026-11-21 사용자: 30~70% → 15~35% → 최대 20%: 8·11·14·17·20%)
     public static int ImMore(int L) => 1 + (L - 1) / 2;                      // 대충돌 소행성대: 블랙홀마다 운석 + ("중력 지속" 대신, 2026-11-21)
-    public static float ImChain(int L) => Lin(L, 0.5f, 0.25f);               // 대충돌 연쇄 충돌 (R ★3): 두 번째 거대 운석 피해 비율
+    public static float ImEnergy(int L) => Lin(L, 0.8f, 0.4f);               // 대충돌 충돌 에너지 (R ★3): 큰 운석 피해 + 80·120·160% (2026-11-21, 연쇄 충돌 대신)
     public static int TkMulti(int L) => 1 + (L - 1) / 2;                     // 미사일 추가
     public static float TkHoming(int L) => Lin(L, 0.50f, 0.15f);             // 선회 속도
     public static float TkWarhead(int L) => Lin(L, 0.30f, 0.10f);            // 명중 폭발 피해
@@ -386,7 +386,7 @@ public static class AugmentDefs
         new FusionDef(SideWeapon.BounceGun, SideWeapon.None, "혜성탄", "fz_constellation", "혜성 1발이 갈라지지 않고 적 사이를 6번 튕겨요. 뒤따르는 꼬리에 닿은 적도 피해를 받고, 튕길수록 꼬리가 길어져요", "cm_tail", "cm_bounce", "cm_impact"),
         // 2026-11-21 사용자 결정: 운석 합체 2개. 동작은 MeteorGun.cs
         new FusionDef(SideWeapon.Meteor, SideWeapon.Sniper, "별의 낙인", "fz_brand", "저격총이 강한 적 3마리에 낙인을 찍고, 낙인 적마다 운석 3개가 따라 떨어져요. 피할 수 없고 폭발은 모두 치명타, 보스는 추가 피해", "bd_more", "bd_aim", "bd_chain"),
-        new FusionDef(SideWeapon.Meteor, SideWeapon.StrLaser, "대충돌", "fz_impact", "운석은 계속 떨어지고, 5초마다 블랙홀이 적이 몰린 곳을 끌어모은 뒤 그 자리에 큰 운석이 떨어져요", "im_well", "im_more", "im_chain"),
+        new FusionDef(SideWeapon.Meteor, SideWeapon.StrLaser, "대충돌", "fz_impact", "운석은 계속 떨어지고, 5초마다 블랙홀이 적이 몰린 곳을 끌어모은 뒤 그 자리에 큰 운석이 떨어져요", "im_well", "im_more", "im_energy"),
     };
     public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzHound = 5, FzToxSat = 6, FzPrism = 7, FzSingularity = 8, FzGravBomb = 9,
                      FzConstellation = 10, FzBrand = 11, FzImpact = 12;
@@ -447,7 +447,7 @@ public static class AugmentDefs
         list.Add(F(FzBrand, "bd_chain", "처형 낙인", R, L => $"낙인 운석에 적이 죽으면 가까운 적에게\n낙인이 옮겨 운석이 또 떨어져요 (최대 {BdChain(L)}번)"));
         list.Add(F(FzImpact, "im_well", "강한 중력", G, L => $"블랙홀 범위 +{P(ImWell(L))}"));
         list.Add(F(FzImpact, "im_more", "소행성대", G, L => $"블랙홀마다 떨어지는 운석 +{ImMore(L)}"));
-        list.Add(F(FzImpact, "im_chain", "연쇄 충돌", R, L => $"거대 운석 자리에 블랙홀이 다시 열리고\n거대 운석이 또 떨어져요 (피해 {P(ImChain(L))})"));
+        list.Add(F(FzImpact, "im_energy", "충돌 에너지", R, L => $"블랙홀 자리에 떨어지는 큰 운석 피해 +{P(ImEnergy(L))}"));
         // 종결 증강 (합체마다 1개, 프리즘 ★1). 게이지가 차면(약 30초) 자동 발동, 그 무기가 맞힐 때 1% 확률로 바로 발동
         for(int i = 0; i < Fusions.Length; i++) {
             int f = i;
