@@ -15,12 +15,12 @@ public class Bomber : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.Bomber;
     public override SideWeapon Side => SideWeapon.Bomber;
-    public override int BaseDamage => Damage;
+    public override int BaseDamage => Balanced("bomber", 98.4f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Tiered(UpgradeLevel, 100, (0, 4), (20, 6), (100, 7), (200, 6), (300, 5), (500, 3));
+        Damage = Balanced("bomber", 98.4f);
 
     // 폭탄 목표: 적이 가장 많이 모인 곳 (없으면 마우스/가까운 적). 화면 안으로 맞추고, 적이 다가오는 만큼 조금 앞을 노려요
     Vector3 aimPoint;
@@ -53,7 +53,7 @@ public class Bomber : GunWeapon
         Vector3 center = ClampToScreen(aimPoint);
         SpawnBomb(center, dmg);
 
-        //리마스터: 융단 폭격 - 목표 지점을 가로지르는 줄로 폭탄 추가
+        //리마스터: 연속 투하 (예전 이름 융단 폭격) - 목표 지점을 가로지르는 줄로 폭탄 추가
         int extra = AugmentManager.Instance != null ? AugmentManager.Instance.CarpetBombCount : 0;
         Vector3 dir = (center - transform.position).normalized;
         Vector3 side = new Vector3(-dir.y, dir.x, 0f);

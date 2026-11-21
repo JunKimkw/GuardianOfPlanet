@@ -147,6 +147,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
             yield return new WaitForSeconds(SpawnSpeed * Mathf.Max(0.3f, 1f - speedUp) / AugmentManager.DebugSpawnMul);
             // 테스트 모드: 끝없이 나와요 (화면에 너무 많으면 잠깐 쉬어요)
             if(AugmentManager.DebugTestMode && EnemyManager.Instance.enemyData.Count >= Tuning.GetInt("test_max_enemies", 80)) continue;
+            if(AugmentManager.DebugArena) continue;   // 개발용 연습장: 새 적은 안 나와요
             SpawnedEnemy++;
             EnemyManager.Instance.createInfiniteEnemy(e, EnemyScale);
             if(SpawnedEnemy >= setEnemyNumber() && !AugmentManager.DebugTestMode) {

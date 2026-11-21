@@ -15,12 +15,12 @@ public class TrackingGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.TrackingMissile;
     public override SideWeapon Side => SideWeapon.TrackingGun;
-    public override int BaseDamage => Damage;
+    public override int BaseDamage => Balanced("track", 31.7f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Tiered(UpgradeLevel, 50, (0, 3), (10, 4), (50, 5), (100, 6), (200, 4), (300, 3), (500, 2));
+        Damage = Balanced("track", 31.7f);
 
     // (Lv.500 패시브 "공격 속도"는 예전엔 장전 계산에 안 들어가서 효과가 없었어요. 이제 GunWeapon 에서 반영돼요)
     // 무기 전용 "다탄두": 미사일이 부채꼴로 더 나가요

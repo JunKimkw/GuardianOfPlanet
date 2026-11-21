@@ -18,7 +18,7 @@ public class DoubleGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.DoubleGun;
     public override SideWeapon Side => SideWeapon.DoubleGun;
-    public override int BaseDamage => Damage;
+    public override int BaseDamage => Balanced("double", 11.9f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     Transform Barrel0 => transform.GetChild(0);
     Transform Barrel1 => transform.GetChild(1);
@@ -26,7 +26,7 @@ public class DoubleGun : GunWeapon
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Tiered(UpgradeLevel, 5, (0, 1), (50, 1), (100, 2), (200, 3), (300, 2), (500, 1));
+        Damage = Balanced("double", 11.9f);
 
     public override float getAttackSpeed()
     {

@@ -68,7 +68,7 @@ public abstract class Bullet : MonoBehaviour
     protected bool Hit(GameObject target, long damage, float critDamage)
     {
         if(target.TryGetComponent(out Enemy enemy)) {
-            enemy.OnHit(damage, isStunning, isCritical, critDamage);
+            enemy.OnHit(damage, isStunning, isCritical, critDamage, Armor.Pen(TraitType));
             return true;
         }
         if(target.TryGetComponent(out Dummy dummy)) {

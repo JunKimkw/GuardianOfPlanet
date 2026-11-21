@@ -177,7 +177,7 @@ public class PoisonBullet : MonoBehaviour
         RemasterFx.Burst(transform.position, r, new Color(0.5f, 0.9f, 0.3f));
         bool crit = PoisonPlane.instance.Poison_canCrit && Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
         foreach(var e in AugmentManager.EnemiesNear(transform.position, r)) {
-            AugmentManager.WeaponHit(e, PoisonArea.StackBonus(e, dmg), crit, Player.instance.FinalCriticalDamage);   // 독 중첩 보너스
+            AugmentManager.WeaponHit(e, PoisonArea.StackBonus(e, dmg), crit, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.Pen(TraitsData.WeaponType.Poison));   // 독 중첩 보너스
             if(tl > 0) e.AddPoison(3, 4f);
             e.AddSlow(PlagueSlow, 2f);   // 폭발에 맞으면 2초 둔화
         }

@@ -102,7 +102,7 @@ public class BounceBullet : Bullet
     {
         if(collision.TryGetComponent(out Enemy enemy)) {
             if(enemy != TargetEnemy) return;
-            enemy.OnHit(bullet_Damage, isStunning, isCritical, PlayerCritDamage);
+            enemy.OnHit(bullet_Damage, isStunning, isCritical, PlayerCritDamage, Armor.Pen(TraitType));
             bounceEnemy.BouncedEnemies.Add(enemy);
             HandleBounce();
         } else if(collision.TryGetComponent(out Dummy dummy)) {

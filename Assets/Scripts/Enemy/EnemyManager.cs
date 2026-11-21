@@ -159,6 +159,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
             float variety = 0.9f + 0.2f * (((int)_e.typePool & 0xff) / 255f);
             e.NumberScale = RemasterBalance.NumberScale(stage);
             e.EnemyHealth = RemasterBalance.EnemyHp(stage) * variety * ExpeditionZones.HpMul(stage) * e.NumberScale;
+            e.Armor = Armor.ForStage(stage, false);   // 방어력 (2026-11-20)
             e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * ExpeditionZones.GoldMul(stage));
             e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage)));
         } else {
@@ -184,6 +185,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
             int stage = InfiniteStage.Instance.CurrentStage;
             e.NumberScale = RemasterBalance.NumberScale(stage);
             e.EnemyHealth = RemasterBalance.BossHp(stage) * ExpeditionZones.HpMul(stage) * e.NumberScale;
+            e.Armor = Armor.ForStage(stage, true);
             e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * 20 * ExpeditionZones.GoldMul(stage));
             // 차원 색조 + 관문 보스 각성(차원 2 = ★1, 15%씩 커져요)
             float awaken = ExpeditionZones.IsGate(stage) ? 1f + 0.15f * ExpeditionZones.Awakening(stage) : 1f;

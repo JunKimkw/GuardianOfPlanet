@@ -296,6 +296,15 @@ public class RemasterUI : MonoBehaviour
     }
 
     // 모달: 화면 어둡게 + 가운데 남색 팝업
+    // 열린 창을 전부 닫고 게임을 다시 움직여요 (개발용 종결 "발동": 바로 화면을 볼 수 있게, 2026-11-20)
+    void CloseAllModals()
+    {
+        for(int i = modalRoot.childCount - 1; i >= 0; i--) Destroy(modalRoot.GetChild(i).gameObject);
+        openModals = 0;
+        mgr.ResumeAllUI();
+        RefreshHUD();
+    }
+
     RectTransform OpenModal(Vector2 size, out Action close)
     {
         EnsureBuilt();
@@ -428,7 +437,7 @@ public class RemasterUI : MonoBehaviour
     string weaponHudKey;
     bool weaponHudShown;
 
-    // 지금 싸우는 무기 목록: 기본총 + 왼쪽·오른쪽 + 추가 무장 + 보급
+    // 지금 싸우는 무기 목록: 기본총 + 왼쪽·오른쪽 + 추가 무장
     void RefreshWeaponHud(bool show)
     {
         weaponHudShown = show;
@@ -447,10 +456,6 @@ public class RemasterUI : MonoBehaviour
             AddWeaponRow(rows, mgr.LoadoutRight, "");
         }
         AddWeaponRow(rows, mgr.ExtraWeapon, "<size=70%>추가</size> ");
-        if(mgr.SupplyWeapon != SideWeapon.None) {
-            int left = Mathf.Max(0, mgr.SupplyUntil - (InfiniteStage.Instance != null ? InfiniteStage.Instance.CurrentStage : 0));
-            AddWeaponRow(rows, mgr.SupplyWeapon, "<size=70%>보급</size> ", $"\n<size=65%>{left}스테이지 남음</size>");
-        }
         var sb = new System.Text.StringBuilder();
         foreach(var r in rows) sb.Append(r.text).Append('|');
         string key = sb.ToString();
@@ -482,6 +487,7 @@ public class RemasterUI : MonoBehaviour
 
     void AddWeaponRow(List<(string, Color)> rows, SideWeapon w, string prefix, string suffix = "")
     {
+        w = mgr.ShownWeapon(w);   // 합체 재료(B)로 들어간 칸은 대신 들어온 A 로 보여요
         if(w == SideWeapon.None || !mgr.Owned(w)) return;
         var tag = AugmentDefs.WeaponTag(w);
         Color c = tag.HasValue ? AugmentDefs.TagColor(tag.Value) : AugmentDefs.TagColor(AugTag.Split);
@@ -784,27 +790,90 @@ public class RemasterUI : MonoBehaviour
             bool on = mgr.DebugPicked(w);
             int f = mgr.FusionOf(w);
             string label = AugmentDefs.WeaponName(w) + (f >= 0 ? $"\n<size=70%>({AugmentDefs.Fusions[f].name})</size>" : "");
-            float y = 480 - row * 130;
+            float y = 480 - row * 118;   // 무기 10개 (3칸 4줄, 2026-11-21 운석 추가)
             Btn(p, label, new Vector2(290, 80), new Vector2((col - 1) * 300f, y), on ? BGreen : BGray, () => { mgr.DebugToggleWeapon(w); BuildDebugWeapons(p, close); }, 28);
             Btn(p, "증강 보기", new Vector2(290, 42), new Vector2((col - 1) * 300f, y - 64), BBlue, () => ShowDebugWeaponAugs(w, () => BuildDebugWeapons(p, close)), 22);
         }
 
-        Label(p, "합체 무기 (누르면 합체 · 다시 누르면 풀기)", new Vector2(900, 50), new Vector2(0, 80), 30, Color.white, FontStyles.Bold);
+        Label(p, "합체 무기 (누르면 합체 · 다시 누르면 풀기)", new Vector2(900, 50), new Vector2(0, 10), 30, Color.white, FontStyles.Bold);
         for(int i = 0; i < AugmentDefs.Fusions.Length; i++) {
             int f = i;
             var fd = AugmentDefs.Fusions[i];
             bool on = mgr.FusionOwned(f) && mgr.DebugPicked(fd.a);
-            int row = i / 2, col = i % 2;
-            string label = $"{fd.name}\n<size=65%>{AugmentDefs.WeaponName(fd.a)} + {AugmentDefs.WeaponName(fd.b)}</size>";
-            float y = -5 - row * 125;
-            Btn(p, label, new Vector2(440, 80), new Vector2(col == 0 ? -225f : 225f, y), on ? BPurple : BGray, () => { mgr.DebugPickFusion(f); BuildDebugWeapons(p, close); }, 26);
-            Btn(p, "증강 보기", new Vector2(440, 38), new Vector2(col == 0 ? -225f : 225f, y - 62), BBlue, () => ShowDebugWeaponAugs(fd.a, () => BuildDebugWeapons(p, close)), 22);
+            int row = i / 3, col = i % 3;
+            string label = $"{fd.name}\n<size=65%>{AugmentDefs.FusionPair(fd)}</size>";
+            float y = -60 - row * 105;   // 합체 11개 (3칸 4줄) 가 아래 버튼과 안 겹치게
+            Btn(p, label, new Vector2(290, 68), new Vector2((col - 1) * 300f, y), on ? BPurple : BGray, () => { mgr.DebugPickFusion(f); BuildDebugWeapons(p, close); }, 22);
+            Btn(p, "증강 보기", new Vector2(290, 32), new Vector2((col - 1) * 300f, y - 52), BBlue, () => ShowDebugWeaponAugs(fd.a, () => BuildDebugWeapons(p, close)), 20);
         }
 
         Btn(p, "전부 출격", new Vector2(290, 110), new Vector2(-310, -620), BGreen, () => { mgr.DebugPickAll(); BuildDebugWeapons(p, close); }, 32);
         Btn(p, "모두 끄기", new Vector2(290, 110), new Vector2(0, -620), BRed, () => { mgr.DebugPickClear(false); BuildDebugWeapons(p, close); }, 32);
         Btn(p, "원래대로", new Vector2(290, 110), new Vector2(310, -620), BBlue, () => { mgr.DebugPickClear(true); BuildDebugWeapons(p, close); }, 32);
         Btn(p, "닫기", new Vector2(440, 100), new Vector2(0, -740), BGray, () => close(), 36);
+    }
+
+    // [개발] 연습장 (P 키, 테스트 창 버튼): 멈춘 적을 세워 두고 무기·합체 무기를 눌러서 하나씩 바꿔 봐요
+    public void ShowDebugArena()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        var p = OpenModal(new Vector2(980, 1640), out Action close);
+        BuildDebugArena(p, close);
+#endif
+    }
+
+    void BuildDebugArena(RectTransform p, Action close)
+    {
+        for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
+        Action refresh = () => BuildDebugArena(p, close);
+        Title(p, "[개발] 연습장", 730, 50, 940);
+        Label(p, AugmentManager.DebugArena ? "<color=#7CFF8A>켜짐</color>: 적이 멈춰 있고 죽지 않아요 (새 적은 안 나와요)" : "적 수를 누르면 시작해요. 적이 멈춰 있고 죽지 않아요",
+              new Vector2(900, 50), new Vector2(0, 655), 26, TextDim);
+
+        // 적
+        var small = new Vector2(176, 76);
+        Btn(p, "적\n20", small, new Vector2(-370, 575), BGreen, () => { mgr.DebugArenaStart(20); refresh(); }, 26);
+        Btn(p, "적\n40", small, new Vector2(-185, 575), BGreen, () => { mgr.DebugArenaStart(40); refresh(); }, 26);
+        Btn(p, "적\n70", small, new Vector2(0, 575), BGreen, () => { mgr.DebugArenaStart(70); refresh(); }, 26);
+        Btn(p, "보스\n추가", small, new Vector2(185, 575), BRed, () => mgr.DebugArenaBoss(), 26);
+        Btn(p, "연습장\n끄기", small, new Vector2(370, 575), BGray, () => { mgr.DebugArenaStop(); refresh(); }, 26);
+        Btn(p, $"속도\nx{Time.timeScale:0.#}", small, new Vector2(-185, 485), BYellow, () => { DevTools.CycleSpeed(); refresh(); }, 26);
+        Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(0, 485), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); refresh(); }, 26);
+        Btn(p, "무기 전부\n열기", small, new Vector2(185, 485), BYellow, () => { mgr.DebugUnlockAllWeapons(); refresh(); }, 26);
+
+        // 무기 (누르면 그 무기 하나만)
+        var solo = mgr.DebugSoloWeapon();
+        Label(p, "무기 (누르면 이 무기 하나만 싸워요)", new Vector2(900, 50), new Vector2(0, 405), 28, Color.white, FontStyles.Bold);
+        var weapons = new List<SideWeapon>();
+        foreach(SideWeapon w in Enum.GetValues(typeof(SideWeapon))) if(w != SideWeapon.None) weapons.Add(w);
+        for(int i = 0; i < weapons.Count; i++) {
+            var w = weapons[i];
+            bool on = solo == w && mgr.FusionOf(w) < 0;
+            Btn(p, AugmentDefs.WeaponName(w), new Vector2(290, 76), new Vector2((i % 3 - 1) * 300f, 335 - (i / 3) * 84), on ? BGreen : BGray,
+                () => { mgr.DebugSolo(w); refresh(); }, 26);
+        }
+
+        // 합체 무기 (누르면 그 합체 무기 하나만)
+        Label(p, "합체 무기 (누르면 이 합체 무기 하나만)", new Vector2(900, 50), new Vector2(0, 0), 28, Color.white, FontStyles.Bold);
+        for(int i = 0; i < AugmentDefs.Fusions.Length; i++) {
+            int f = i;
+            var fd = AugmentDefs.Fusions[i];
+            bool on = solo == fd.a && mgr.FusionOf(fd.a) == f;
+            Btn(p, $"{fd.name}\n<size=65%>{AugmentDefs.FusionPair(fd)}</size>", new Vector2(290, 76), new Vector2((i % 3 - 1) * 300f, -70 - (i / 3) * 88),
+                on ? BPurple : BGray, () => { mgr.DebugSoloFusion(f); refresh(); }, 22);
+        }
+
+        Btn(p, "지금 무기\n증강 보기", new Vector2(290, 100), new Vector2(-310, -700), BBlue, () => {
+            var cur = mgr.DebugSoloWeapon();
+            if(cur == SideWeapon.None) { Toast("[개발] 먼저 무기를 하나 골라 주세요", Color.white); return; }
+            ShowDebugWeaponAugs(cur, refresh);
+        }, 28);
+        // 종결 발동 (2026-11-21 사용자 요청): 지금 고른 합체 무기의 종결을 바로 (창을 닫고 발동). 게임 중엔 U 키
+        int curFusion = mgr.CurrentUltFusion();
+        Btn(p, curFusion >= 0 ? $"종결 발동\n<size=70%>{AugmentDefs.UltNames[curFusion]}</size>" : "종결 발동\n<size=70%>(합체 무기만)</size>",
+            new Vector2(290, 100), new Vector2(0, -700), curFusion >= 0 ? BYellow : BGray, () => { CloseAllModals(); mgr.DebugTriggerCurrentUlt(); }, 26);
+        Btn(p, "닫기", new Vector2(290, 100), new Vector2(310, -700), BGray, () => close(), 34);
+        Label(p, "P 연습장 · U 종결 발동 · F7 게임 속도 · F12 스크린샷", new Vector2(900, 40), new Vector2(0, -780), 24, TextDim);
     }
 
     // [개발] 무기 하나의 증강만: 전용 3개 + 합체 카드 + 합체 전용 증강
@@ -816,6 +885,8 @@ public class RemasterUI : MonoBehaviour
 
     void BuildDebugWeaponAugs(RectTransform p, SideWeapon w, Action close)
     {
+        string viewName = "WeaponAugView_" + w;
+        float keepY = SavedScrollY(p, viewName);   // 같은 무기를 다시 그릴 땐 스크롤 위치 그대로
         for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
         Action refresh = () => BuildDebugWeaponAugs(p, w, close);
         int fused = mgr.FusionOf(w);
@@ -827,7 +898,7 @@ public class RemasterUI : MonoBehaviour
         var defs = new List<AugmentDef>(AugmentDefs.WeaponAugs(w));
         for(int f = 0; f < AugmentDefs.Fusions.Length; f++) {
             var fd = AugmentDefs.Fusions[f];
-            if(fd.a != w) continue;
+            if(fd.a != w && fd.b != w) continue;   // 양쪽 합체: B 무기 창에도 카드·합체 전용 증강·종결을 보여 줘요
             defs.Add(AugmentDefs.Get(fd.card));
             foreach(var id in fd.augs) defs.Add(AugmentDefs.Get(id));
             defs.Add(AugmentDefs.Get(AugmentDefs.UltIds[f]));   // 종결 증강
@@ -835,10 +906,11 @@ public class RemasterUI : MonoBehaviour
 
         const float rowH = 150f, step = 158f, viewH = 1180f;
         float contentH = Mathf.Max(viewH, defs.Count * step);
-        var viewport = Rect("WeaponAugView", p, new Vector2(940, viewH), new Vector2(0, 655 - viewH / 2));
+        var viewport = Rect(viewName, p, new Vector2(940, viewH), new Vector2(0, 655 - viewH / 2));
         viewport.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.001f);
         viewport.gameObject.AddComponent<RectMask2D>();
         var content = Rect("Content", viewport, new Vector2(920, contentH), new Vector2(0, (viewH - contentH) / 2));
+        RestoreScrollY(content, keepY, viewH, contentH);
         var scroll = viewport.gameObject.AddComponent<ScrollRect>();
         scroll.viewport = viewport;
         scroll.content = content;
@@ -866,7 +938,7 @@ public class RemasterUI : MonoBehaviour
             if(def.ultimate) {
                 // 종결 증강: 두 번째 버튼은 "지금 발동" (게이지 기다리지 않고 바로 보기)
                 int uf = def.fusion;
-                var bu = Btn(row.transform, "발동", new Vector2(120, 110), new Vector2(385, 0), lv > 0 ? BYellow : BGray, () => { mgr.DebugTriggerUltimate(uf); }, 30);
+                var bu = Btn(row.transform, "발동", new Vector2(120, 110), new Vector2(385, 0), lv > 0 ? BYellow : BGray, () => { CloseAllModals(); mgr.DebugTriggerUltimate(uf); }, 30);
                 bu.interactable = lv > 0;
             } else {
                 var b2 = Btn(row.transform, "최대", new Vector2(120, 110), new Vector2(385, 0), max ? BGray : BPurple, () => { mgr.DebugAddAugment(def, true); refresh(); }, 30);
@@ -890,8 +962,25 @@ public class RemasterUI : MonoBehaviour
         BuildDebugAugments(p, () => { close(); mgr.ResumeFromUI(); });
     }
 
+    // 스크롤 위치 기억 (2026-11-20): 창을 다시 그리기 전에 목록의 위치를 읽고, 새 목록에 되돌려요. 없으면 NaN (맨 위)
+    static float SavedScrollY(RectTransform p, string viewName)
+    {
+        var v = p.Find(viewName);
+        var c = v != null ? v.Find("Content") as RectTransform : null;
+        return c != null ? c.anchoredPosition.y : float.NaN;
+    }
+
+    static void RestoreScrollY(RectTransform content, float y, float viewH, float contentH)
+    {
+        if(float.IsNaN(y)) return;
+        float top = (viewH - contentH) / 2f, bottom = (contentH - viewH) / 2f;
+        content.anchoredPosition = new Vector2(content.anchoredPosition.x, Mathf.Clamp(y, top, Mathf.Max(top, bottom)));
+    }
+
     void BuildDebugAugments(RectTransform p, Action close)
     {
+        string viewName = "DebugView_" + debugTag;
+        float keepY = SavedScrollY(p, viewName);   // 같은 계열을 다시 그릴 땐 스크롤 위치 그대로
         for(int i = p.childCount - 1; i >= 0; i--) Destroy(p.GetChild(i).gameObject);
         Title(p, "[개발] 증강 테스트", 780, 50, 940);
 
@@ -927,10 +1016,11 @@ public class RemasterUI : MonoBehaviour
         }
         const float rowH = 150f, step = 158f, viewH = 960f;
         float contentH = Mathf.Max(viewH, defs.Count * step);
-        var viewport = Rect("DebugView", p, new Vector2(940, viewH), new Vector2(0, 432 - viewH / 2));
+        var viewport = Rect(viewName, p, new Vector2(940, viewH), new Vector2(0, 432 - viewH / 2));
         viewport.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.001f);
         viewport.gameObject.AddComponent<RectMask2D>();
         var content = Rect("Content", viewport, new Vector2(920, contentH), new Vector2(0, (viewH - contentH) / 2));
+        RestoreScrollY(content, keepY, viewH, contentH);
         var scroll = viewport.gameObject.AddComponent<ScrollRect>();
         scroll.viewport = viewport;
         scroll.content = content;
@@ -963,12 +1053,17 @@ public class RemasterUI : MonoBehaviour
         }, 32);
         Btn(p, "모두 지우기", new Vector2(290, 120), new Vector2(0, -640), BRed, () => { mgr.DebugClearAugments(); BuildDebugAugments(p, close); }, 32);
         Btn(p, "닫기", new Vector2(290, 120), new Vector2(310, -640), BGray, () => close(), 36);
-        Btn(p, "무기 전부 열기", new Vector2(440, 96), new Vector2(-230, -750), BYellow, () => { mgr.DebugUnlockAllWeapons(); BuildDebugAugments(p, close); }, 30);
-        Btn(p, "무기 고르기 (합체 포함)", new Vector2(440, 96), new Vector2(230, -750), BPurple, () => ShowDebugWeapons(() => BuildDebugAugments(p, close)), 30);
-        Btn(p, AugmentManager.DebugTestMode ? "테스트: 켜짐" : "테스트: 꺼짐", new Vector2(290, 76), new Vector2(-310, -840), AugmentManager.DebugTestMode ? BGreen : BGray, () => { mgr.DebugToggleTestMode(); BuildDebugAugments(p, close); }, 28);
-        Btn(p, AugmentManager.DebugManyEnemies ? "적 3배: 켜짐" : "적 3배: 꺼짐", new Vector2(290, 76), new Vector2(0, -840), AugmentManager.DebugManyEnemies ? BGreen : BGray, () => { AugmentManager.DebugManyEnemies = !AugmentManager.DebugManyEnemies; BuildDebugAugments(p, close); }, 28);
-        Btn(p, "보스 소환", new Vector2(290, 76), new Vector2(310, -840), BRed, () => mgr.DebugSpawnBoss(), 28);
-        Label(p, "F7 게임 속도 · F2 +20스테이지 · F9 골드 +10억 · F5 원정 준비(무기 칸 바꾸기)", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
+        Btn(p, "무기 전부 열기", new Vector2(290, 96), new Vector2(-310, -750), BYellow, () => { mgr.DebugUnlockAllWeapons(); BuildDebugAugments(p, close); }, 28);
+        Btn(p, "무기 고르기\n(합체 포함)", new Vector2(290, 96), new Vector2(0, -750), BPurple, () => ShowDebugWeapons(() => BuildDebugAugments(p, close)), 26);
+        Btn(p, "연습장\n(P 키)", new Vector2(290, 96), new Vector2(310, -750), BGreen, () => { close(); ShowDebugArena(); }, 28);
+        // 아래 줄: 작은 버튼 5개 (글자는 버튼에 맞게 자동으로 줄어요)
+        var small = new Vector2(176, 76);
+        Btn(p, AugmentManager.DebugTestMode ? "테스트\n켜짐" : "테스트\n꺼짐", small, new Vector2(-370, -840), AugmentManager.DebugTestMode ? BGreen : BGray, () => { mgr.DebugToggleTestMode(); BuildDebugAugments(p, close); }, 26);
+        Btn(p, AugmentManager.DebugManyEnemies ? "적 3배\n켜짐" : "적 3배\n꺼짐", small, new Vector2(-185, -840), AugmentManager.DebugManyEnemies ? BGreen : BGray, () => { AugmentManager.DebugManyEnemies = !AugmentManager.DebugManyEnemies; BuildDebugAugments(p, close); }, 26);
+        Btn(p, "보스\n소환", small, new Vector2(0, -840), BRed, () => mgr.DebugSpawnBoss(), 26);
+        Btn(p, $"속도\nx{Time.timeScale:0.#}", small, new Vector2(185, -840), BYellow, () => { DevTools.CycleSpeed(); BuildDebugAugments(p, close); }, 26);
+        Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(370, -840), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); BuildDebugAugments(p, close); }, 26);
+        Label(p, "F7 게임 속도 · F12 스크린샷 · F2 +20스테이지 · F9 골드 +10억 · F5 원정 준비", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
     }
     #endregion
 
@@ -981,9 +1076,8 @@ public class RemasterUI : MonoBehaviour
         Title(p, "이번 원정의 증강", 760, 54, 940);
 
         string bless = mgr.Blessing >= 0 ? AugmentDefs.GodName((AugTag)mgr.Blessing) : "없음";
-        string weapons = $"{AugmentDefs.WeaponName(mgr.LoadoutLeft)} / 기본총 / {AugmentDefs.WeaponName(mgr.LoadoutRight)}";
-        if(mgr.ExtraWeapon != SideWeapon.None) weapons += $" + {AugmentDefs.WeaponName(mgr.ExtraWeapon)}";
-        if(mgr.SupplyWeapon != SideWeapon.None) weapons += $" + {AugmentDefs.WeaponName(mgr.SupplyWeapon)}(보급)";
+        string weapons = $"{AugmentDefs.WeaponName(mgr.ShownWeapon(mgr.LoadoutLeft))} / 기본총 / {AugmentDefs.WeaponName(mgr.ShownWeapon(mgr.LoadoutRight))}";
+        if(mgr.ExtraWeapon != SideWeapon.None) weapons += $" + {AugmentDefs.WeaponName(mgr.ShownWeapon(mgr.ExtraWeapon))}";
         Label(p, $"축복: {bless}\n무기: {weapons}", new Vector2(880, 96), new Vector2(0, 670), 30, TextDim);
 
         // 스크롤 영역: 세트 → 조합 계열 → 가진 증강 (설명 칸 위까지)

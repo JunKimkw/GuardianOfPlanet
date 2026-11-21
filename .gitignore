@@ -107,3 +107,6 @@ InitTestScene*.unity*
 user.keystore 
 *.keystore 
 .plastic/ 
+
+# 개발용 DPS 기록 (매번 새로 써요)
+Tuning/dps_log.txt

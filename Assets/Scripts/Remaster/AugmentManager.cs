@@ -50,8 +50,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     int rerollBag;
     int pity;
     SideWeapon extraWeapon = SideWeapon.None;
-    SideWeapon supplyWeapon = SideWeapon.None;
-    int supplyUntil;
+    // 합체로 흡수된 B 무기 → 그 칸에 새로 고른 무기 (None = 아직 안 고름 / 고를 무기 없음). 원정마다 초기화 (WeaponAugments.cs AbsorbFusionB)
+    readonly Dictionary<SideWeapon, SideWeapon> fusionSlots = new Dictionary<SideWeapon, SideWeapon>();
     bool loadoutSet;
     SideWeapon loadoutLeft = SideWeapon.None, loadoutRight = SideWeapon.None;
     bool pendingSetup;
@@ -109,8 +109,6 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     public SideWeapon LoadoutLeft => loadoutLeft;
     public SideWeapon LoadoutRight => loadoutRight;
     public SideWeapon ExtraWeapon => extraWeapon;
-    public SideWeapon SupplyWeapon => supplyWeapon;
-    public int SupplyUntil => supplyUntil;
     public long ExpeditionKills => expKills;
 
     // 오프라인 진행으로 넘은 스테이지의 처치·보스 수 (누적 증강에 반영)
@@ -186,12 +184,27 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
 
     public bool Owned(SideWeapon w) => w != SideWeapon.None && WeaponLevel(w) > 0;
 
+    // 출격 중인지 (합체 교체 포함): B 무기로 합체했고 A 가 출격 칸에 없으면, B 대신 A 가 출격해요 (WeaponAugments.cs 양쪽 합체)
     public bool IsEquipped(SideWeapon w)
     {
         if(w == SideWeapon.None) return false;
+        foreach(var f in AugmentDefs.Fusions) {
+            if(!SwappedIn(f)) continue;
+            if(f.b == w) return false;   // 합체 재료로 들어간 B
+            if(f.a == w) return Owned(w);   // B 자리에 들어온 A
+        }
+        return RawEquipped(w);
+    }
+
+    // 출격 칸 기준 (합체 교체 전)
+    bool RawEquipped(SideWeapon w)
+    {
+        if(w == SideWeapon.None) return false;
+        if(fusionSlots.ContainsKey(w)) return false;            // 합체로 흡수된 B
+        if(fusionSlots.ContainsValue(w)) return Owned(w);       // 그 칸에 새로 고른 무기
         if(debugPickMode) return Owned(w) && debugPicked.Contains(w);   // 개발용: 테스트 창에서 고른 무기만
         if(debugEquipAll && Owned(w)) return true;   // 개발용: 가진 무기 전부 출격
-        return w == loadoutLeft || w == loadoutRight || w == extraWeapon || w == supplyWeapon;
+        return w == loadoutLeft || w == loadoutRight || w == extraWeapon;
     }
 
     public List<SideWeapon> OwnedWeapons()
@@ -212,7 +225,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(loadoutLeft != SideWeapon.None && loadoutRight != SideWeapon.None)
             return;
         foreach(var w in OwnedWeapons()) {
-            if(w == loadoutLeft || w == loadoutRight || w == extraWeapon || w == supplyWeapon) continue;
+            if(w == loadoutLeft || w == loadoutRight || w == extraWeapon) continue;
             if(loadoutLeft == SideWeapon.None) loadoutLeft = w;
             else if(loadoutRight == SideWeapon.None) loadoutRight = w;
             if(loadoutLeft != SideWeapon.None && loadoutRight != SideWeapon.None) break;
@@ -236,6 +249,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(loadoutCheckTimer <= 0f) {
             loadoutCheckTimer = 0.5f;
             EnsureLoadout();
+            if(EffectsActive && pauseCount == 0 && !pullShowing) ResumeEmptyFusionSlot();   // 흡수된 B 칸이 비어 있으면 다시 고르게
         }
         foreach(SideWeapon w in Enum.GetValues(typeof(SideWeapon))) {
             if(w == SideWeapon.None) continue;
@@ -274,6 +288,14 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             Time.timeScale = 0.0000001f;
         }
         pauseCount++;
+    }
+
+    // 창을 한꺼번에 닫을 때: 멈춤을 전부 풀어요
+    public void ResumeAllUI()
+    {
+        if(pauseCount <= 0) return;
+        pauseCount = 0;
+        Time.timeScale = pausedScale;
     }
 
     public void ResumeFromUI()
@@ -364,10 +386,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             if((d.tag == AugTag.Treasure) != treasure) continue;
             if(grade.HasValue && d.grade != grade.Value) continue;
             if(Level(d.id) >= d.maxLevel) continue;
-            if(d.requiredWeapon != SideWeapon.None && !IsEquipped(d.requiredWeapon)) continue;
+            if(d.requiredWeapon != SideWeapon.None && !d.fusionCard && !IsEquipped(d.requiredWeapon)) continue;   // 합체 카드는 B 로도 나와요 (FusionCardAvailable)
             if(!WeaponAugAllowed(d)) continue;   // 무기 합체 조건 (WeaponAugments.cs)
             if(d.id == "extraarms" && FreeWeaponsForExtra().Count == 0) continue;
-            if(d.id == "supply" && (supplyWeapon != SideWeapon.None || FreeWeaponsForExtra().Count == 0)) continue;
             float w = 1f;
             if(blessing >= 0 && (int)d.tag == blessing) w = 2f;
             cands.Add(d); weights.Add(w); total += w;
@@ -385,7 +406,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     {
         var list = new List<SideWeapon>();
         foreach(var w in OwnedWeapons())
-            if(!IsEquipped(w)) list.Add(w);
+            if(!IsEquipped(w) && !RawEquipped(w) && !fusionSlots.ContainsKey(w)) list.Add(w);   // 합체 재료로 들어간 무기(교체·흡수)는 빼요
         return list;
     }
 
@@ -428,14 +449,6 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
                         ResumeFromUI();
                         ui.RefreshHUD();
                     });
-                }
-                break;
-            case "supply":
-                var pool = FreeWeaponsForExtra();
-                if(pool.Count > 0) {
-                    supplyWeapon = pool[UnityEngine.Random.Range(0, pool.Count)];
-                    supplyUntil = CurrentStage + AugmentDefs.SupplyStages(Level("supply"));
-                    if(announce) ui.Toast($"보급 투하: {AugmentDefs.WeaponName(supplyWeapon)} 합류!", AugmentDefs.TagColor(AugTag.Treasure));
                 }
                 break;
         }
@@ -573,8 +586,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         rerollBag = T(4);   // 환생 트리 "리롤 주머니"
         pity = 0;
         extraWeapon = SideWeapon.None;
-        supplyWeapon = SideWeapon.None;
-        supplyUntil = 0;
+        fusionSlots.Clear();
         ResetEffectState();
         OnAugmentsChanged();
     }
@@ -708,8 +720,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             rerollBag = data.expRerollBag;
             pity = data.expPity;
             extraWeapon = (SideWeapon)data.expExtraWeapon;
-            supplyWeapon = (SideWeapon)data.expSupplyWeapon;
-            supplyUntil = data.expSupplyUntil;
+            LoadFusionSlots(data.expFusionSlots);
             loadoutSet = data.expLoadoutSet;
             loadoutLeft = (SideWeapon)data.expLoadoutLeft;
             loadoutRight = (SideWeapon)data.expLoadoutRight;
@@ -753,8 +764,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         data.expRerollBag = rerollBag;
         data.expPity = pity;
         data.expExtraWeapon = (int)extraWeapon;
-        data.expSupplyWeapon = (int)supplyWeapon;
-        data.expSupplyUntil = supplyUntil;
+        data.expFusionSlots = SaveFusionSlots();
         data.expLoadoutSet = loadoutSet;
         data.expLoadoutLeft = (int)loadoutLeft;
         data.expLoadoutRight = (int)loadoutRight;
@@ -788,14 +798,14 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(Input.GetKeyDown(KeyCode.F5)) { pendingSetup = true; ui.Toast("[개발] 원정 준비 화면", Color.white); }
         if(Input.GetKeyDown(KeyCode.F6)) ui.ShowRebirth();
         // F7: 게임 속도 x1 → x2 → x5 → x10 → x20 → x1
-        if(Input.GetKeyDown(KeyCode.F7)) {
-            float[] speeds = { 1f, 2f, 5f, 10f, 20f };
-            int i = System.Array.FindIndex(speeds, v => Mathf.Approximately(v, Time.timeScale));
-            float next = speeds[(i + 1) % speeds.Length];
-            GameManager.instance.setTimeScale(next);
-            GameManager.instance.saveGameSpeedandAuto(next, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
-            ui.Toast($"[개발] 게임 속도 x{next}", Color.white);
-        }
+        if(Input.GetKeyDown(KeyCode.F7)) ui.Toast($"[개발] 게임 속도 x{DevTools.CycleSpeed()}", Color.white);
+        // F12: 스크린샷 → 작업 폴더 previews/ (Claude 가 직접 볼 수 있어요)
+        if(Input.GetKeyDown(KeyCode.F12)) ui.Toast($"[개발] 스크린샷 저장: {DevTools.Screenshot()}", Color.white);
+        // P: 연습장 (멈춘 적 + 무기 하나씩 바꾸기). F11 은 에디터에서 안 먹어서 바꿨어요
+        if(Input.GetKeyDown(KeyCode.P)) ui.ShowDebugArena();
+        // U: 지금 합체 무기의 종결 바로 발동
+        if(Input.GetKeyDown(KeyCode.U)) DebugTriggerCurrentUlt();
+        DevTools.Tick();
         // F8: 1000스테이지 앞으로 (차원 확인용)
         if(Input.GetKeyDown(KeyCode.F8) && InfiniteStage.Instance != null) {
             InfiniteStage.Instance.JumpToStage(InfiniteStage.Instance.CurrentStage + 1000);
@@ -891,7 +901,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         ResetEffectState();
         OnAugmentsChanged();
         extraWeapon = SideWeapon.None;
-        supplyWeapon = SideWeapon.None;
+        fusionSlots.Clear();
         shieldDiff -= ShieldBonus;
         if(shieldDiff != 0 && InfiniteStage.Instance != null) InfiniteStage.Instance.AddShieldNow(-shieldDiff);
         ui.Toast("[개발] 증강을 모두 지웠어요", Color.white);

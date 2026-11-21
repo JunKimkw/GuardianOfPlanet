@@ -64,6 +64,15 @@ public abstract class WeaponBase : MonoBehaviour
         return (int)System.Math.Min(int.MaxValue, v);
     }
 
+    // ---- 무기 밸런스 (2026-11-18)
+    // 모든 무기가 같은 레벨 곡선 G(레벨)을 쓰고, 1발 피해 = 계수 × G 예요 (기본총은 예전 그대로).
+    // 계수는 증강 없이 보스 1마리 DPS 가 비슷해지게 정했어요 (작업 폴더 tools/weapon_dps_sim.js).
+    // 광역·부가 효과가 있는 무기는 단일 DPS 를 조금 낮췄어요. tuning.txt dmg_<무기> 로 바로 바꿀 수 있어요
+    public static double LevelCurve(int level) => Tiered(level, 100, (0, 6), (20, 7), (100, 8), (200, 9), (300, 7), (500, 2)) / 100.0;
+
+    protected int Balanced(string key, float coef) =>
+        (int)System.Math.Min(int.MaxValue, System.Math.Round(Tuning.Get("dmg_" + key, coef) * LevelCurve(UpgradeLevel)));
+
     // ---- 조준
     protected static Vector3 MouseWorld => GameManager.instance.mainCamera.ScreenToWorldPoint(Input.mousePosition);
 
@@ -175,7 +184,7 @@ public abstract class ContactWeapon : WeaponBase
         foreach(var e in enemyBuffer) {
             if(e == null || !Due(e, now)) continue;
             AugmentManager.CurrentHitKind = HitKind.Laser;   // 증강 "굴절"
-            try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage); }
+            try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, Armor.Pen(TraitType)); }
             finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
         }
 
@@ -204,6 +213,32 @@ public abstract class ContactWeapon : WeaponBase
         if(d != null && !dummyOnLaser.Contains(d)) dummyOnLaser.Add(d);
     }
 
+    // 빔 상자들에 몸이 조금이라도 닿은 적·더미로 목록을 새로 채워요 (2026-11-18).
+    // 예전엔 doubleCheckEnemyOnLazer 가 적의 "중심점"이 폭 0.1 판정 안에 있어야만 남겨서,
+    // 360 레이저가 한 바퀴 돌 때 적 1마리를 1번만(먼 적은 0번) 때렸어요
+    public void CollectInBoxes(BoxCollider2D main, List<BoxCollider2D> extras)
+    {
+        enemyOnLaser.Clear();
+        dummyOnLaser.Clear();
+        AddInBox(main);
+        if(extras != null) foreach(var b in extras) AddInBox(b);
+    }
+
+    void AddInBox(BoxCollider2D b)
+    {
+        if(b == null || !b.isActiveAndEnabled) return;
+        Transform t = b.transform;
+        Vector2 scale = t.lossyScale;
+        Vector2 size = new Vector2(Mathf.Abs(b.size.x * scale.x), Mathf.Abs(b.size.y * scale.y));
+        Vector2 center = t.TransformPoint(b.offset);
+        foreach(var c in Physics2D.OverlapBoxAll(center, size, t.eulerAngles.z)) {
+            if(c == null) continue;
+            if(c.TryGetComponent(out Enemy e)) {
+                if(e._state != Enemy.EnemyState.dead && e.gameObject.activeInHierarchy) addEnemyToList(e);
+            } else if(c.TryGetComponent(out Dummy d)) addDummyToList(d);
+        }
+    }
+
     // 레이저 범위(Player 레이어)에서 벗어난 적은 목록에서 빼요
     public void doubleCheckEnemyOnLazer()
     {
@@ -230,7 +265,7 @@ public abstract class ContactWeapon : WeaponBase
                 if(timers.TryGetValue(e, out float t) && now < t) continue;
                 timers[e] = now + HitInterval;
                 AugmentManager.CurrentHitKind = HitKind.Laser;
-                try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage); }
+                try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, Armor.Pen(TraitType)); }
                 finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
                 hits++;
                 OnCircleHit(e, center);

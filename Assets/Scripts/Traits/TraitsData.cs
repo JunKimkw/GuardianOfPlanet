@@ -13,7 +13,7 @@ public class TraitsData : MonoBehaviour
     {
         id = System.Guid.NewGuid().ToString();
     }
-    public enum WeaponType { MainWeapon, DoubleGun, TrackingMissile, SniperGun, Bomber, BounceGun, Poison, CircleLaser, StrLaser, CodeA};
+    public enum WeaponType { MainWeapon, DoubleGun, TrackingMissile, SniperGun, Bomber, BounceGun, Poison, CircleLaser, StrLaser, CodeA, Meteor };   // Meteor: 2026-11-21 (특성은 아직 없어요)
     public WeaponType Weapon_Type;
     public enum TraitsType {AttackSpeed, BulletSpeed, DamagePercent}
     public TraitsType Trait_Type;

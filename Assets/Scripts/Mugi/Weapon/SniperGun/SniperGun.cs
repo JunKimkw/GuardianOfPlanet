@@ -34,12 +34,12 @@ public class SniperGun : GunWeapon
         if(Railgun && c > 0) t *= 1f - AugmentDefs.RgCharge(c);
         return t;
     }
-    public override int BaseDamage => Damage;
+    public override int BaseDamage => Balanced("sniper", 99f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Tiered(UpgradeLevel, 20, (0, 4), (50, 5), (100, 6), (200, 6), (300, 5), (500, 3));
+        Damage = Balanced("sniper", 99f);
 
     protected override void Update()
     {
@@ -97,7 +97,12 @@ public class SniperGun : GunWeapon
         Vector3 from = ShootingPoint.position;
         Vector3 dir = transform.up;
         Vector2 center = from + dir * (len / 2f);
-        RemasterFx.Beam(from, from + dir * len, big ? new Color(1f, 0.9f, 0.4f) : new Color(0.5f, 0.85f, 1f), width);
+        // 연출 (2026-11-21): 빛무리 + 하얀 심 + 총구 번쩍 + 맞은 적마다 불꽃 (예전엔 가는 빔 한 줄). 판정은 그대로
+        Color glowC = big ? new Color(1f, 0.85f, 0.35f) : new Color(0.45f, 0.85f, 1f);
+        RemasterFx.Beam(from, from + dir * len, glowC, width * 1.2f);
+        RemasterFx.Beam(from, from + dir * len, Color.white, width * 0.4f);
+        RemasterFx.Burst(from + dir * 0.3f, width * (big ? 2f : 1.2f), Color.white);
+        if(big) RemasterFx.Ring(from, 2f, glowC, 0.3f);
         int blast = AugmentManager.WL("rg_blast");
         float critDmg = Player.instance.FinalCriticalDamage + CritExtra;
         var done = new System.Collections.Generic.HashSet<GameObject>();
@@ -105,7 +110,8 @@ public class SniperGun : GunWeapon
             if(c == null || !done.Add(c.gameObject)) continue;
             if(c.TryGetComponent(out Enemy e)) {
                 if(e._state == Enemy.EnemyState.dead) continue;
-                e.OnHit(dmg, RollStun(), true, critDmg);
+                RemasterFx.Burst(e.transform.position, 0.35f, Color.white);   // 맞은 자리 불꽃
+                e.OnHit(SniperBullet.BossBonus(e, dmg), RollStun(), true, critDmg, Armor.Pen(TraitType));   // 보스 사냥꾼 (저격총과 같아요)
                 AugmentManager.WeaponHitEvent(SideWeapon.Sniper);   // 종결 증강 게이지
                 if(blast > 0) AugmentManager.WeaponBlast(e.transform.position, WeaponBase.ClampDamage(dmg * (double)AugmentDefs.RgBlast(blast)), 0.8f);
             } else if(c.TryGetComponent(out Dummy d)) {

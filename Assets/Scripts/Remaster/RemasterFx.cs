@@ -88,6 +88,22 @@ public class RemasterFx : MonoBehaviour
         fx.StartCoroutine(fx.BurstRoutine(pos, radius, color, RingSprite, duration));
     }
 
+    // 연쇄 폭발 (2026-11-21 사용자 결정: 폭격기 폭발과 "보이는 것만" 다르게). 노란 불꽃이 톡 —
+    // 가운데가 반짝이고, 실제 맞는 범위만큼 고리가 퍼지고, 불꽃 선 6개가 사방으로 튀어요. 폭격기는 큰 주황 폭발 그림 그대로
+    public static void Spark(Vector3 pos, float radius, Color color)
+    {
+        var fx = Get();
+        if(fx.activeBursts > 60) return;   // 너무 많으면 연출만 생략 (피해는 그대로)
+        fx.StartCoroutine(fx.BurstRoutine(pos, radius * 0.3f, new Color(1f, 1f, 0.85f), CircleSprite, 0.12f));
+        fx.StartCoroutine(fx.BurstRoutine(pos, radius, color, RingSprite, 0.2f));
+        float start = Random.Range(0f, 360f);
+        for(int i = 0; i < 6; i++) {
+            float a = (start + i * 60f + Random.Range(-15f, 15f)) * Mathf.Deg2Rad;
+            var dir = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f);
+            fx.StartCoroutine(fx.LineRoutine(pos + dir * radius * 0.15f, pos + dir * radius * Random.Range(0.7f, 1f), color, 0.05f, 0.16f));
+        }
+    }
+
     public static void Shockwave(Vector3 pos)
     {
         var fx = Get();

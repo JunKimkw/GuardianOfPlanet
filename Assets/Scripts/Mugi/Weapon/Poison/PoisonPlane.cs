@@ -22,16 +22,16 @@ public class PoisonPlane : WeaponBase
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.Poison;
     public override SideWeapon Side => SideWeapon.Poison;
-    public override int BaseDamage => PoisonDamage;
+    public override int BaseDamage => Balanced("poison", 34f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        PoisonDamage = Tiered(UpgradeLevel, 20, (0, 1), (50, 2), (100, 3), (200, 4), (300, 3), (500, 2));
+        PoisonDamage = Balanced("poison", 34f);
 
     void Update()
     {
-        TimerAs += Time.deltaTime;
+        TimerAs += Time.deltaTime * AugmentManager.AttackSpeedFactor;   // 증강 공격속도(시간 가속·무거운 사슬·강철 장갑)만큼 빨리 차요 (2026-11-21 점검: 예전엔 안 먹었어요)
         if(TimerAs >= 10 * (1 - Trait(TraitsData.TraitsType.AttackSpeed))) {
             TimerAs = 0;
             long dmg = HitDamage;

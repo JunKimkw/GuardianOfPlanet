@@ -205,8 +205,7 @@ public class GameData
     public int expRerollBag;
     public int expPity;
     public int expExtraWeapon;       // -1 없음
-    public int expSupplyWeapon;      // -1 없음
-    public int expSupplyUntil;
+    public string expFusionSlots;    // 합체로 흡수된 B → 그 칸의 새 무기 ("B:새무기;…", 숫자는 SideWeapon). 비면 없음
     public bool expLoadoutSet;
     public int expLoadoutLeft;
     public int expLoadoutRight;
@@ -413,7 +412,6 @@ public class GameData
         augLevels = new List<int>();
         expBlessing = -1;
         expExtraWeapon = -1;
-        expSupplyWeapon = -1;
         expLoadoutLeft = -1;
         expLoadoutRight = -1;
         freeRerollDate = "";

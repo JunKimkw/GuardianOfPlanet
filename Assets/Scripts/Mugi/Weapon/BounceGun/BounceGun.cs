@@ -19,16 +19,21 @@ public class BounceGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.BounceGun;
     public override SideWeapon Side => SideWeapon.BounceGun;
-    public override int BaseDamage => Damage;
+    public override int BaseDamage => Balanced("bounce", 15f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Tiered(UpgradeLevel, 10, (0, 1), (20, 1), (100, 2), (200, 3), (300, 2), (500, 1));
+        Damage = Balanced("bounce", 15f);
 
     // 한 번 발사하는 탄들은 "이미 맞힌 적" 목록을 같이 써요
     protected override void Fire()
     {
+        // 혜성탄 (튕김총 진화): 튕김탄 대신 혜성 1발. 탄 추가는 튕김 횟수로 바뀌어요 (CometShot.MaxHits)
+        if(AugmentManager.Fused(AugmentDefs.FzConstellation)) {
+            CometShot.Fire(this, ShootingPoint.position);
+            return;
+        }
         var be = new BounceEnemy();
         CreateBullet(be);
         if(ExtraBullet) CreateBullet(be);

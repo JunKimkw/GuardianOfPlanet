@@ -61,6 +61,7 @@ public partial class Enemy : MonoBehaviour
 
     [Header("채력바")]
     public double CurrentHealth;
+    [System.NonSerialized] public double LastHitTotal;   // 마지막으로 받은 피해 (치명타·증강 배율 포함, 체력과 같은 단위)
 
     // 구간의 힘 배율 (원정 적만, RemasterBalance.NumberScale). 받는 피해에도 같은 배율이 곱해져요
     [System.NonSerialized] public double NumberScale = 1;
@@ -77,6 +78,10 @@ public partial class Enemy : MonoBehaviour
 
     // 받는 피해 배율 (관문 보스 보호막 패턴 등)
     [System.NonSerialized] public float DamageTakenMul = 1f;
+    // 방어력 (원정 적만, Armor.ForStage). 구간의 힘 배율을 곱하기 전 피해 단위
+    [System.NonSerialized] public double Armor;
+    // 개발용 연습장: 제자리에 멈춰 있는 적 (AugmentManager.DebugArena)
+    [System.NonSerialized] public bool DebugFrozen;
     Vector3 baseScale;
     bool baseScaleSaved;
 
@@ -124,7 +129,7 @@ public partial class Enemy : MonoBehaviour
     void Update()
     {
         TickStatus(Time.deltaTime);
-        if(_state == EnemyState.moving) {
+        if(_state == EnemyState.moving && !DebugFrozen) {
             float move = Time.deltaTime * enemyMovingSpeed * MoveFactor;
             if(_typeofEnemy == typeofEnemy.normal || _typeofEnemy == typeofEnemy.Dungeon || _typeofEnemy == typeofEnemy.InfiniteStage)
                 transform.position = Vector3.MoveTowards(transform.position, WeaponManager.instance.mainWeapon.transform.position, move);
@@ -176,6 +181,7 @@ public partial class Enemy : MonoBehaviour
 
     public void SetEnemyToDefault()
     {
+        DebugFrozen = false;
         EnemyHealth = initialValue.EnemyHealth;
         Enemy_EXP = initialValue.Enemy_EXP;
         enemy_Money = initialValue.enemy_Money;
@@ -185,6 +191,7 @@ public partial class Enemy : MonoBehaviour
         baseTint = Color.white;
         if(baseScaleSaved) transform.localScale = baseScale;
         DamageTakenMul = 1f;
+        Armor = 0;
         NumberScale = 1;
         ClearStatus();
         if(TryGetComponent(out GateBossAbilities gate)) gate.enabled = false;
@@ -220,11 +227,17 @@ public partial class Enemy : MonoBehaviour
         }
     }
 
+    // 블랙홀에 붙잡혀 끌려가는 중이면 이 시각까지 우주선에 닿아도 피해를 안 줘요 (2026-11-20, 끌려가다 우주선을 스쳐 실드가 깎이던 문제)
+    [System.NonSerialized] public float gravityUntil;
+    public bool InGravity => Time.time < gravityUntil;
+
     public void shelterReached()
     {
+        if(InGravity) return;
         EnemyManager.EnemyReached(this);
     }
-    public void OnHit(long DealtDamage, bool Stunned, bool Critical, float CritDamage)
+    // armorPen: 방어 관통력 0~1 (Armor.Pen(무기), Armor.EffectPen, Armor.UltPen). 1 이면 방어 무시
+    public void OnHit(long DealtDamage, bool Stunned, bool Critical, float CritDamage, float armorPen = 0f)
     {
         // 이미 죽었거나(사라지는 중) 비활성인 적은 무시 (비활성 오브젝트에서 코루틴 시작 오류 방지)
         if(_state == EnemyState.dead || !gameObject.activeInHierarchy)
@@ -241,7 +254,11 @@ public partial class Enemy : MonoBehaviour
         // 환생 트리 "보스 사냥꾼"
         if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && aug != null)
             baseDamage = (long)(baseDamage * (double)aug.BossDamageMul);
+        // 방어력 (2026-11-20): 치명타·배율을 다 곱한 뒤에 깎아요 → 큰 한 방일수록 덜 깎여요. 최소 1
+        if(Armor > 0 && baseDamage > 0)
+            baseDamage = System.Math.Max(1L, (long)global::Armor.Apply(baseDamage, Armor, armorPen));
         double totalDamage = baseDamage * NumberScale;
+        LastHitTotal = totalDamage;   // 저격총 "남는 피해 이월"이 읽어요 (2026-11-20)
         
 
         if(Stunned)
@@ -262,6 +279,8 @@ public partial class Enemy : MonoBehaviour
         // 오프라인 진행 계산용 초당 피해 측정 (원정 적만, 넘친 피해 제외)
         if(_typeofEnemy == typeofEnemy.InfiniteStage || _typeofEnemy == typeofEnemy.InfiniteStageBoss)
             OfflineProgress.RecordDamage(System.Math.Min(totalDamage, CurrentHealth) / NumberScale);
+        // 개발용: 무기별 DPS 기록 (테스트 모드에선 체력이 다시 차니까 피해 전부)
+        DevTools.RecordHit((AugmentManager.DebugTestMode ? totalDamage : System.Math.Min(totalDamage, CurrentHealth)) / NumberScale);
 
         // 처형: 남을 체력이 기준 이하면 바로 처치
         if(aug != null && !AugmentManager.DebugTestMode && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))

@@ -25,7 +25,7 @@ public class Lazer : ContactWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.CircleLaser;
     public override SideWeapon Side => SideWeapon.Lazer;
-    public override int BaseDamage => LazerDamage;
+    public override int BaseDamage => Balanced("laser", 52.3f);   // 무기 밸런스 (WeaponBase.LevelCurve)
     protected override float HitInterval => ExtraHit ? 0.05f : 0.1f;
 
     static bool Prism => AugmentManager.Fused(AugmentDefs.FzPrism);
@@ -83,9 +83,9 @@ public class Lazer : ContactWeapon
         stormClock += Time.deltaTime;
         SyncDrones();
         if(!canShoot) return;
-        TimerAs += Time.deltaTime;
-
         float wait = 10 * (1 - Trait(TraitsData.TraitsType.AttackSpeed));
+        // 기다리는 동안은 증강 공격속도(시간 가속 등)만큼 빨리 차요. 쏘는 시간은 그대로 (2026-11-21 점검: 예전엔 증강 공격속도가 안 먹었어요)
+        TimerAs += Time.deltaTime * (TimerAs <= wait ? AugmentManager.AttackSpeedFactor : 1f);
         float end = wait + BeamTime;
 
         if(TimerAs <= wait) {
@@ -94,11 +94,11 @@ public class Lazer : ContactWeapon
         } else if(TimerAs < end) {
             if(!SoundManager.Instance.laserSFXSource.isPlaying)
                 SoundManager.Instance.playWeaponSFX(SoundManager.WeaponSFXType.laser);
-            doubleCheckEnemyOnLazer();
             rb.bodyType = RigidbodyType2D.Dynamic;
             shootLazer.isShooting = true;
             transform.rotation = Quaternion.Euler(0, 0, SpinSpeed * (TimerAs - wait));
             rig.Apply(true, BeamCount, WidthMul, Prism);
+            rig.CollectTargets(this);   // 몸이 빔에 닿은 적 (예전엔 중심점만 봤어요)
             TickContacts();
             if(enemyOnLaser.Count > 0) AugmentManager.WeaponHitEvent(SideWeapon.Lazer);   // 종결 증강 게이지
         } else {
@@ -108,7 +108,7 @@ public class Lazer : ContactWeapon
     }
 
     public override void SetDamage() =>
-        LazerDamage = Tiered(UpgradeLevel, 100, (0, 6), (20, 7), (100, 8), (200, 9), (300, 7), (500, 2));
+        LazerDamage = Balanced("laser", 52.3f);
 
     // 레이저 끄기: 그림·소리·판정·대상 목록 (예전엔 쏘는 도중 멈추면 레이저와 소리가 남았어요)
     void StopBeam()

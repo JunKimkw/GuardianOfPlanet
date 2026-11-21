@@ -437,7 +437,7 @@ public partial class AugmentManager
         try {
             foreach(var t in targets) {
                 RemasterFx.Line(enemy.transform.position, t.transform.position, AugmentDefs.TagColor(AugTag.Split));
-                t.OnHit(shard, false, false, 0);
+                t.OnHit(shard, false, false, 0, Armor.EffectPen);
                 if(rainbow > 0 && Random.value < (rainbow == 2 ? 0.3f : 0.15f)) Lightning(t, LightningJumps, (long)(PlayerAttack * 0.5f));
             }
         } finally {
@@ -452,7 +452,7 @@ public partial class AugmentManager
         long dmg = (long)Mathf.Max(1, PlayerAttack * AugmentDefs.PoisonTickBase(L("infect")) * e.PoisonStacks);
         var prev = CurrentHitKind;
         CurrentHitKind = HitKind.Poison;
-        try { e.OnHit(dmg, false, false, 0); }
+        try { e.OnHit(dmg, false, false, 0, Armor.EffectPen); }
         finally { CurrentHitKind = prev; }
 
         // 독 폭발
@@ -638,10 +638,6 @@ public partial class AugmentManager
     {
         if(!loaded) return;
         if(clearedStage + 1 > bestStage) bestStage = clearedStage + 1;
-        if(supplyWeapon != SideWeapon.None && clearedStage >= supplyUntil) {
-            ui.Toast($"보급 무기 {AugmentDefs.WeaponName(supplyWeapon)}가 돌아갔어요", AugmentDefs.TagColor(AugTag.Treasure));
-            supplyWeapon = SideWeapon.None;
-        }
 
         // 수호: 맹세 누적, 재생, 아이기스·무적 다시 채움
         if(L("oath") > 0 && !shieldLostThisStage) AddStack("oath", AugmentDefs.OathPer(L("oath")));
@@ -728,7 +724,7 @@ public partial class AugmentManager
             }
         }
 
-        // 블랙홀 (사건의 지평선, 중력 세트 6)
+        // 블랙홀 (중력 우물, 중력 세트 6)
         float interval = L("horizon") > 0 ? AugmentDefs.HorizonInterval(L("horizon")) : Synergy(AugTag.Gravity, 6) ? 40f : 0f;
         if(interval > 0) {
             if(Synergy(AugTag.Gravity, 6)) interval *= 0.5f;
@@ -790,10 +786,12 @@ public partial class AugmentManager
     #endregion
 
     #region 폭발
+    static readonly Color ChainSparkColor = new Color(1f, 0.86f, 0.3f);
+
     void Explode(PendingExplosion e)
     {
         float r = e.radius;
-        RemasterFx.Burst(e.pos, r, AugmentDefs.TagColor(AugTag.Chain));
+        RemasterFx.Spark(e.pos, r, ChainSparkColor);   // 노란 불꽃 (폭격기의 주황 폭발과 구분)
         long dmg = (long)(e.damage * (double)ExplosionDamageMul);
         if(L("furnace") > 0) AddStack("furnace", AugmentDefs.FurnacePer(L("furnace")));
 
@@ -804,7 +802,7 @@ public partial class AugmentManager
         int prev = effectDepth;
         effectDepth = e.depth;
         try {
-            foreach(var t in targets) t.OnHit(dmg, false, false, 0);
+            foreach(var t in targets) t.OnHit(dmg, false, false, 0, Armor.EffectPen);
         } finally {
             effectDepth = prev;
         }
@@ -1017,7 +1015,7 @@ public partial class AugmentManager
         var prevKind = CurrentHitKind;
         effectDepth = Mathf.Max(depth, prev);
         CurrentHitKind = kind;
-        try { t.OnHit(dmg, false, false, 0); }
+        try { t.OnHit(dmg, false, false, 0, Armor.EffectPen); }
         finally { effectDepth = prev; CurrentHitKind = prevKind; }
     }
     #endregion

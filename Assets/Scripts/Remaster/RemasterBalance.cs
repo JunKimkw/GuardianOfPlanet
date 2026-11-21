@@ -73,3 +73,57 @@ public static class RemasterBalance
     public static double NumberScale(int stage) =>
         System.Math.Pow(10, NumberScaleK * System.Math.Max(0, System.Math.Sqrt(Mathf.Max(1, stage)) - System.Math.Sqrt(NumberScaleStart)));
 }
+
+// 적 방어력 (2026-11-20 사용자 결정)
+// - 받는 피해 = 피해 × 피해 / (피해 + 방어력 × (1 - 관통력)). 피해가 방어력과 같으면 절반, 훨씬 크면 거의 그대로, 작으면 크게 깎여요.
+//   그래서 한 방이 센 무기(저격총·폭격기)는 단단한 적에게 강하고, 작은 피해를 자주 주는 무기는 관통력으로 버텨요.
+// - 방어력 = 그 스테이지 일반 적 기본 체력 × 비율. 비율은 1스테이지 armor_ratio_start → armor_ramp_stage 에서 armor_ratio_end 까지 늘어요.
+//   보스는 × armor_boss_mul. 스테이지 난이도를 체력 대신 방어력으로도 조절할 수 있어요.
+// - 관통력(0~1): 무기마다 pen_* + 플레이어 관통력(장비·증강이 나중에 더해요). 1 이면 방어 무시.
+public static class Armor
+{
+    public static float Ratio(int stage)
+    {
+        float ramp = Mathf.Max(2f, Tuning.Get("armor_ramp_stage", 100f));
+        float t = Mathf.Clamp01((Mathf.Max(1, stage) - 1) / (ramp - 1));
+        return Mathf.Lerp(Tuning.Get("armor_ratio_start", 0f), Tuning.Get("armor_ratio_end", 0.05f), t);
+    }
+
+    // 체력과 같은 단위가 아니라 "구간의 힘" 배율을 곱하기 전 피해 단위예요
+    public static double ForStage(int stage, bool boss) =>
+        RemasterBalance.EnemyHp(stage) * ExpeditionZones.HpMul(stage) * Ratio(stage) * (boss ? Tuning.Get("armor_boss_mul", 3f) : 1f);
+
+    // 장비·증강 관통력이 들어올 자리 (지금은 0)
+    public static float PlayerPen => 0f;
+
+    public static float Pen(TraitsData.WeaponType w)
+    {
+        float p;
+        switch(w) {
+            case TraitsData.WeaponType.MainWeapon: p = Tuning.Get("pen_main", 0.5f); break;
+            case TraitsData.WeaponType.DoubleGun: p = Tuning.Get("pen_double", 0.3f); break;
+            case TraitsData.WeaponType.TrackingMissile: p = Tuning.Get("pen_track", 0.2f); break;
+            case TraitsData.WeaponType.SniperGun: p = Tuning.Get("pen_sniper", 0f); break;
+            case TraitsData.WeaponType.Bomber: p = Tuning.Get("pen_bomber", 0f); break;
+            case TraitsData.WeaponType.BounceGun: p = Tuning.Get("pen_bounce", 0.2f); break;
+            case TraitsData.WeaponType.Poison: p = Tuning.Get("pen_poison", 0.7f); break;
+            case TraitsData.WeaponType.CircleLaser: p = Tuning.Get("pen_laser", 0.5f); break;
+            case TraitsData.WeaponType.StrLaser: p = Tuning.Get("pen_blackhole", 0.5f); break;
+            case TraitsData.WeaponType.CodeA: p = Tuning.Get("pen_drone", 0.3f); break;
+            case TraitsData.WeaponType.Meteor: p = Tuning.Get("pen_meteor", 0.2f); break;
+            default: p = 0f; break;
+        }
+        return Mathf.Clamp01(p + PlayerPen);
+    }
+
+    // 증강 효과(분열 파편·전염 독·연쇄 등)와 종결 증강
+    public static float EffectPen => Mathf.Clamp01(Tuning.Get("pen_effect", 0.5f) + PlayerPen);
+    public static float UltPen => Mathf.Clamp01(Tuning.Get("pen_ult", 1f) + PlayerPen);
+
+    public static double Apply(double damage, double armor, float pen)
+    {
+        double a = armor * (1.0 - pen);
+        if(a <= 0 || damage <= 0) return damage;
+        return damage * damage / (damage + a);
+    }
+}

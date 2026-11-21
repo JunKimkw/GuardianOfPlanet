@@ -24,13 +24,13 @@ public class Orbital : ContactWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.CodeA;
     public override SideWeapon Side => SideWeapon.Orbital;
-    public override int BaseDamage => OribitalDamage;
+    public override int BaseDamage => Balanced("drone", 19f);   // 무기 밸런스 (WeaponBase.LevelCurve)
     protected override float HitInterval => 0.15f;
 
     static bool ToxSat => AugmentManager.Fused(AugmentDefs.FzToxSat);
 
     public override void SetDamage() =>
-        OribitalDamage = Tiered(UpgradeLevel, 100, (0, 7), (50, 8), (100, 6), (200, 7), (300, 6), (500, 2));
+        OribitalDamage = Balanced("drone", 19f);
 
     void Awake()
     {
@@ -291,7 +291,7 @@ public class DroneBullet : MonoBehaviour
     void Apply(Collider2D c)
     {
         if(c.TryGetComponent(out Enemy e)) {
-            e.OnHit(poison ? PoisonArea.StackBonus(e, damage) : damage, stun, crit, critDamage);   // 독안개 드론: 독 중첩 보너스
+            e.OnHit(poison ? PoisonArea.StackBonus(e, damage) : damage, stun, crit, critDamage, Armor.Pen(TraitsData.WeaponType.CodeA));   // 독안개 드론: 독 중첩 보너스
             if(poison) Orbital.PoisonHit(e);   // 독안개 드론: 맞은 적 둔화 + 주변으로 독
             AugmentManager.WeaponHitEvent(SideWeapon.Orbital);   // 종결 증강 게이지
         } else if(c.TryGetComponent(out Dummy d)) {

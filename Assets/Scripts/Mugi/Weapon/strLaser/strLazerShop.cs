@@ -7,8 +7,8 @@ public class strLazerShop : WeaponShopBase
 
     public override WeaponBase Weapon => weapon;
     protected override int UnlockPlanetIndex => 8;
-    protected override string StatLabel => "레이저 데미지의";
-    protected override string Intro => "레이저로 적을 공격(관통)";
+    protected override string StatLabel => "블랙홀 데미지의";
+    protected override string Intro => "적을 빨아들이는 블랙홀";
 
     void Awake() => instance = this;
 

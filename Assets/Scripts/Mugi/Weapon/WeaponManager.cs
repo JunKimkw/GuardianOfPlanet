@@ -31,6 +31,9 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
     [HideInInspector] public SniperGun sniperGun;
     [Header("#-----Bounce Gun")] public BounceGun bounceGun_pfb; public BounceGunShop bounceGun_Shop;
     [HideInInspector] public BounceGun bounceGun;
+    // 운석 (2026-11-21): 프리팹·씬 칸 없이 코드로 만들어요. 상점 칸은 Start 에서 튕김총 칸을 복제해요 (MeteorShop.CreateFrom)
+    [HideInInspector] public MeteorGun meteor;
+    [HideInInspector] public MeteorShop meteorShop;
 
     [Header("#-----Gun Spawn Location")]
     public Transform BottomPoint;
@@ -41,6 +44,18 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
     // 모든 무기 / 상점 (같은 순서)
     public readonly List<WeaponBase> Weapons = new List<WeaponBase>();
     public readonly List<WeaponShopBase> Shops = new List<WeaponShopBase>();
+
+    // 프리팹 없는 무기: 빈 오브젝트에 스크립트만 붙여요 (꺼 둔 채로)
+    T SpawnCode<T>() where T : WeaponBase
+    {
+        Camera cam = Camera.main;
+        float y = (cam.ScreenToWorldPoint(BottomPoint.position).y + cam.ScreenToWorldPoint(TopPoint.position).y) / 2;
+        var go = new GameObject(typeof(T).Name);
+        go.SetActive(false);
+        go.transform.SetParent(transform, false);
+        go.transform.position = new Vector3(0, y);
+        return go.AddComponent<T>();
+    }
 
     T Spawn<T>(T prefab) where T : WeaponBase
     {
@@ -71,12 +86,21 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
         strLaser = Spawn(strLaser_pfb); strLaserShop.weapon = strLaser; Register(strLaser, strLaserShop);
         sniperGun = Spawn(sniperGun_Pfb); sniperGunShop.weapon = sniperGun; Register(sniperGun, sniperGunShop);
         bounceGun = Spawn(bounceGun_pfb); bounceGun_Shop.weapon = bounceGun; Register(bounceGun, bounceGun_Shop);
+        meteor = SpawnCode<MeteorGun>(); meteor.id = MeteorGun.SaveId; Register(meteor, null);   // 상점 칸은 Start 에서
 
         SetPurchaseSize(1);
     }
 
     void Start()
     {
+        // 운석 상점 칸: 튕김총 칸을 복제해요 (다른 오브젝트의 Awake 가 끝난 뒤라 안전해요)
+        if(meteorShop == null) meteorShop = MeteorShop.CreateFrom(bounceGun_Shop);
+        if(meteorShop != null) {
+            meteorShop.weapon = meteor;
+            meteorShop.purchaseSize = bounceGun_Shop != null ? bounceGun_Shop.purchaseSize : 1;
+            int i = Weapons.IndexOf(meteor);
+            if(i >= 0) Shops[i] = meteorShop;
+        }
         InvokeRepeating(nameof(checkExclamationMark), 0, 1f);
     }
 
@@ -100,7 +124,7 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
     {
         for(int i = 0; i < Weapons.Count; i++) {
             Weapons[i].SetDamage();
-            Shops[i].setPassiveValues();
+            if(Shops[i] != null) Shops[i].setPassiveValues();
         }
     }
 
@@ -124,6 +148,7 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
             case SideWeapon.StrLaser: return strLaser;
             case SideWeapon.Sniper: return sniperGun;
             case SideWeapon.BounceGun: return bounceGun;
+            case SideWeapon.Meteor: return meteor;
         }
         return null;
     }
@@ -134,13 +159,13 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
         long money = GameManager.GetMoney();
         bool any = false;
         for(int i = 0; i < Weapons.Count && !any; i++)
-            any = Shops[i].IsUnlocked && money >= Shops[i].getTotalMoney(Weapons[i].UpgradeLevel, 1);
+            any = Shops[i] != null && Shops[i].IsUnlocked && money >= Shops[i].getTotalMoney(Weapons[i].UpgradeLevel, 1);
         ExclamationMark.SetActive(any);
     }
 
     public void SetPurchaseSize(int size)
     {
-        foreach(var s in Shops) s.purchaseSize = size;
+        foreach(var s in Shops) if(s != null) s.purchaseSize = size;
     }
 
     // 자동 공격 켜고 끄기 (리마스터: 무료·무제한)
