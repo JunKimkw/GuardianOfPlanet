@@ -196,7 +196,7 @@ public partial class AugmentManager
         }
         switch(w) {
             case SideWeapon.DoubleGun: p *= 1f + Q(m.Level("dg_cross")); break;
-            case SideWeapon.Lazer: p *= 1f + Q(m.Level("lz_twin")); break;
+            case SideWeapon.Lazer: p *= 1f + Q(m.Level("lz_twin")) * Tuning.Get("lz_twin_quality", 0f); break;   // 2026-11-22 사용자: 초반형·후반형 나누기: 360 레이저 초반형이라 2중 회전 피해 보너스 빼기 (1 = 예전)
         }
         return p;
     }
@@ -641,6 +641,8 @@ public partial class AugmentManager
         measureRepeatsOverride = -1;
         measureSoloAug = null;
         measureArenaArmor = 0;
+        measureOnly = null;
+        measureSecondsOverride = -1f;
         if(GameManager.instance != null) GameManager.instance.setTimeScale(measurePrevSpeed);
     }
 
@@ -659,7 +661,7 @@ public partial class AugmentManager
         DebugClearAugments();
         yield return null;      // 2026-11-22 버그: 플레이어 공격력이 다음 프레임에 다시 계산돼서, 바로 읽으면 증강이 붙은 옛 값이었어요 (방어력이 6배로 나옴)
         yield return null;
-        string title = mode == 15 ? "증강 하나씩 (3상황)" : mode == 10 ? "밤새 측정 (속도 비교 · 기본 무기 · 추가 상황 · 합체 무기 · 종결)" : mode == 7 ? "증강 5단계 × 6상황" : mode == 6 ? "6상황 · " + MeasureAugNames[MeasureAugStage] : mode == 8 ? "빈 칸만 다시" : mode == 9 ? "속도 비교" : "한 상황 · " + MeasureAugNames[MeasureAugStage];
+        string title = mode == 16 ? "초반·후반 확인 (증강 없음·최대 × 3상황)" : mode == 15 ? "증강 하나씩 (3상황)" : mode == 10 ? "밤새 측정 (속도 비교 · 기본 무기 · 추가 상황 · 합체 무기 · 종결)" : mode == 7 ? "증강 5단계 × 6상황" : mode == 6 ? "6상황 · " + MeasureAugNames[MeasureAugStage] : mode == 8 ? "빈 칸만 다시" : mode == 9 ? "속도 비교" : "한 상황 · " + MeasureAugNames[MeasureAugStage];
         DevTools.MeasureLine($"---- 측정 시작 {System.DateTime.Now:MM-dd HH:mm:ss} · {title} · 회차 {MeasureRepeats} · 미리 {Tuning.Get("measure_warmup", 10f):0.#}초 + 재기 {Tuning.Get("measure_seconds", 20f):0.#}초");
         if(mode == 7) {
             for(int a = 0; a < MeasureAugNames.Length; a++) {
@@ -672,6 +674,7 @@ public partial class AugmentManager
         else if(mode == 9) yield return MeasureSpeedCompare(new[] { 1f, Tuning.Get("measure_speed", 5f) });
         else if(mode == 10) yield return MeasureOvernight();
         else if(mode == 15) yield return MeasureSoloAugs();
+        else if(mode == 16) yield return MeasurePhaseCheck();
         else yield return MeasureSceneRun(mode);
         MeasureFinish();
         ui.Toast($"[개발] 측정 끝 · {title} (결과: Tuning/dps_measure.txt)", Color.white);
@@ -746,6 +749,26 @@ public partial class AugmentManager
         MeasureFusionStage = 2;
         for(int m = 0; m <= 5; m++) yield return MeasureFusionSceneRun(m);
         MeasureFusionStage = -1;
+    }
+
+    // ---- 초반·후반 확인 (2026-11-22 사용자: 초반형·후반형 나누기) — 버튼 mode 16
+    //  기본 무기 10개 × 증강 없음·셋 다 최대 × 움직이는 적·멈춘 적 40·보스 1 × phase_check_repeats(2)회. 속도 overnight_speed (x1.5)
+    //  phase_check_only_laser = 1 이면 360 레이저만 phase_check_seconds(60)초씩 재요 (2026-11-22 초반·후반 확인 측정 결과: 레이저는 10초 대기 + 5~9초 쏘기 주기라 20초로는 흔들려요)
+    static SideWeapon? measureOnly;
+    static float measureSecondsOverride = -1f;
+    System.Collections.IEnumerator MeasurePhaseCheck()
+    {
+        if(Tuning.Get("phase_check_only_laser", 0f) > 0f) {
+            measureOnly = SideWeapon.Lazer;
+            measureSecondsOverride = Tuning.Get("phase_check_seconds", 60f);
+        }
+        measureSpeedOverride = Tuning.Get("overnight_speed", 1.5f);
+        measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("phase_check_repeats", 2));
+        foreach(int a in new[] { 0, 4 }) {
+            MeasureAugStage = a;
+            foreach(int m in new[] { 0, 1, 2 }) yield return MeasureSceneRun(m);
+        }
+        MeasureAugStage = 0;
     }
 
     // 합체 무기 한 상황: 회차마다 배치를 새로 섞고 합체 무기 13개를 차례로
@@ -826,6 +849,7 @@ public partial class AugmentManager
     {
         int reps = MeasureRepeats;
         var list = AllSideWeapons();
+        if(measureOnly.HasValue) list = list.FindAll(x => x == measureOnly.Value);   // 한 무기만 (레이저 다시 재기)
         for(int r = 0; r < reps; r++) {
             string scene = null;
             if(!MeasureTry(() => scene = MeasureSetupScene(mode), $"상황 차리기 {mode}")) continue;
@@ -898,7 +922,7 @@ public partial class AugmentManager
         if(!ok) yield break;
         bool burst = mode == 13;   // 시작 직후: 미리 돌리지 않고 처음 몇 초만 (시작이 느린 무기의 단점)
         float warm = burst ? 0f : Tuning.Get("measure_warmup", 10f) + Random.Range(0f, Tuning.Get("measure_warmup_jitter", 5f));
-        float len = burst ? Mathf.Max(3f, Tuning.Get("measure_burst_seconds", 10f)) : Mathf.Max(5f, Tuning.Get("measure_seconds", 20f));
+        float len = burst ? Mathf.Max(3f, Tuning.Get("measure_burst_seconds", 10f)) : Mathf.Max(5f, measureSecondsOverride > 0f ? measureSecondsOverride : Tuning.Get("measure_seconds", 20f));
         MeasureScene = scene;
         DevTools.MeasureBegin(AugmentDefs.WeaponName(w), $"{note} · x{speed:0.#}", MeasureIsolateSeconds(mode) + warm);
         ui.Toast($"[개발] 측정 [{scene}] {note} · {progress}: {AugmentDefs.WeaponName(w)}", Color.white);

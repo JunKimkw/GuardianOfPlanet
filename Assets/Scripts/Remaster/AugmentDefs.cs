@@ -158,7 +158,7 @@ public static class AugmentDefs
     // 무기 전용 (무기마다 3개, 설계서 2-4-1)
     public static float QualityBonus(int L) => 0.15f * (L - 1);              // 효과가 숫자 없는 증강: ★2부터 그 무기 피해 +15%씩
     // 2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만)
-    public static float DgRapid(int L) => Lin(L, Tuning.Get("dg_rapid_base", 0.40f), Tuning.Get("dg_rapid_step", 0.15f));   // 쌍발총 공격속도 (측정 ×1.37 → 15~35% 에서 40~100%, 셋 다 최대 ×5 목표)
+    public static float DgRapid(int L) => Lin(L, Tuning.Get("dg_rapid_base", 0.50f), Tuning.Get("dg_rapid_step", 0.20f));   // 쌍발총 공격속도 (측정 ×1.37 → 15~35% 에서 40~100%, 셋 다 최대 ×5 목표)
     public static float DgAccelDamage(int L) => Lin(L, Tuning.Get("dg_accel_dmg_base", 0.25f), Tuning.Get("dg_accel_dmg_step", 0.15f));   // 탄 가속 피해 + (측정 ×1.02 라서 추가)
     public static float DgAccel(int L) => Lin(L, 0.30f, 0.10f);              // 쌍발총 탄속
     public static float BmBig(int L) => Lin(L, 0.25f, 0.08f);                // 폭격기 폭발 범위
@@ -166,7 +166,7 @@ public static class AugmentDefs
     public static float CarpetDamage => Tuning.Get("carpet_damage", 0.4f);   // 연속 투하 추가 폭탄 피해 (100% → 40%, 측정 ×4.25)
     public static int MtRain(int L) => 1 + (L - 1) / 2;                      // 운석 유성우: 운석 +
     public static float MtBig(int L) => Lin(L, 0.25f, 0.08f);                // 운석 범위 +
-    public static float MtBurn(int L) => Lin(L, 0.15f, 0.05f);               // 불타는 구덩이: 0.5초마다 운석 피해의 이 비율
+    public static float MtBurn(int L) => Lin(L, Tuning.Get("mt_burn_base", 0.20f), Tuning.Get("mt_burn_step", 0.06f));   // 불타는 구덩이: 0.5초마다 운석 피해의 이 비율 (2026-11-22 사용자: 초반형·후반형 나누기, 후반형: 15~35% → 20~44%)
     // 운석 합체 (2026-11-21)
     public static int BdMore(int L) => 1 + (L - 1) / 2;                      // 별의 낙인: 낙인 운석 +
     public static float BdAim(int L) => Lin(L, 0.5f, 0.2f);                  // 별의 낙인: 치명 피해 +
@@ -179,19 +179,19 @@ public static class AugmentDefs
     public static float TkHomingDamage(int L) => Lin(L, Tuning.Get("tk_homing_dmg_base", 0.15f), Tuning.Get("tk_homing_dmg_step", 0.10f));   // 추적 강화 미사일 피해 + (측정 ×0.96 라서 추가)
     public static float TkWarhead(int L) => Lin(L, 0.30f, 0.10f);            // 명중 폭발 피해
     public static float PsLong(int L) => Lin(L, 2f, 0.5f);                   // 독 지대 지속 (초)
-    public static float PsToxic(int L) => Lin(L, 0.50f, 0.15f);              // 독 지대 피해
+    public static float PsToxic(int L) => Lin(L, Tuning.Get("ps_toxic_base", 0.80f), Tuning.Get("ps_toxic_step", 0.25f));   // 독 지대 피해 (2026-11-22 사용자: 초반형·후반형 나누기, 후반형: 50~110% → 80~180%)
     public static float ObFast(int L) => Lin(L, 0.30f, 0.10f);               // 드론 공격속도 (속사)
     // 드론 추가: 드론이 늘수록 한 대 피해가 줄어요 (1/2/3/4대 = 100/75/60/50%, 측정 ×3.97). 드론 수는 그대로
-    public static float ObShare(int L) => L > 0 ? 1f / (1f + Tuning.Get("drone_share", 1f / 3f) * L) : 1f;
+    public static float ObShare(int L) => L > 0 ? 1f / (1f + Tuning.Get("drone_share", 0.2f) * L) : 1f;
     public static float ObShock(int L) => Lin(L, 15f, 5f);                   // (예전 충격탄, 지금은 안 써요)
     public static float LzLong(int L) => Lin(L, 2f, 0.5f);                   // 360 레이저 지속 (초)
     // 레이저 폭 (2026-11-20: +30~70% 는 빔이 원래 가늘어서 눈에 안 띄었어요 → 배율 3 = ★1 +90%, ★5 +210%. tuning.txt beam_width_mul)
     public static float BeamWidth(int L) => Lin(L, 0.30f, 0.10f) * Tuning.Get("beam_width_mul", 3f);
     // 블랙홀 (2026-11-20, 예전 직선 레이저 자리)
-    public static float BhBigDamage(int L) => Lin(L, Tuning.Get("bh_big_dmg_base", 0.50f), Tuning.Get("bh_big_dmg_step", 0.25f));   // 거대 중력 빨아들이는 피해 + (측정 ×1.11 라서 추가)
+    public static float BhBigDamage(int L) => Lin(L, Tuning.Get("bh_big_dmg_base", 0.30f), Tuning.Get("bh_big_dmg_step", 0.15f));   // 거대 중력 빨아들이는 피해 + (측정 ×1.11 라서 추가)
     public static float BhBig(int L) => Lin(L, 0.10f, 0.05f);                // 반경 + (2026-11-21 사용자: 만렙이 너무 커서 20~60% → 10~30%)
     public static float BhLong(int L) => Lin(L, 0.5f, 0.25f);                // 열려 있는 시간 + (초)
-    public static float BhCollapse(int L) => Lin(L, Tuning.Get("bh_collapse_base", 1.0f), Tuning.Get("bh_collapse_step", 0.6f));   // (50~150% → 100~340%)            // 붕괴 폭발 피해 +
+    public static float BhCollapse(int L) => Lin(L, Tuning.Get("bh_collapse_base", 1.0f), Tuning.Get("bh_collapse_step", 0.5f));   // (50~150% → 100~300%, 2026-11-22 사용자: 초반형·후반형 나누기 초반형)            // 붕괴 폭발 피해 +
     // 블랙홀 합체 (2026-11-20)
     public static float SgCharge(int L) => Lin(L, 0.4f, 0.4f);               // 특이점 저격: 블랙홀 간격 - (초). ★5 = 2초 (2026-11-20: 3초는 너무 많다고 해서)
     public static float SgMark(int L) => Lin(L, 0.05f, 0.025f);              // 특이점 저격: 모인 적 1마리당 피해 + (추가)
@@ -202,8 +202,8 @@ public static class AugmentDefs
     public static float SnFast(int L) => Lin(L, 0.20f, 0.05f);               // 저격총 장전 감소
     public static float SnHead(int L) => Lin(L, 1.0f, 0.3f);                 // 저격총 치명 피해
     public static float BnAccel(int L) => Lin(L, 0.20f, 0.05f);              // 튈 때마다 탄속
-    public static float BnAccelDamage(int L) => Lin(L, Tuning.Get("bn_accel_dmg_base", 0.05f), Tuning.Get("bn_accel_dmg_step", 0.025f));   // 탄성 가속: 튈 때마다 피해 + (처음 피해 기준, 측정 ×1.03 라서 추가)
-    public static float BounceGrowDamage(int L) => Lin(L, 0.20f, 0.05f);     // 튈 때마다 피해 (v3: 곱하지 않고 처음 피해 기준으로 더해요)
+    public static float BnAccelDamage(int L) => Lin(L, Tuning.Get("bn_accel_dmg_base", 0.01f), Tuning.Get("bn_accel_dmg_step", 0.01f));   // 탄성 가속: 튈 때마다 피해 + (처음 피해 기준, 측정 ×1.03 라서 추가)
+    public static float BounceGrowDamage(int L) => Lin(L, Tuning.Get("bouncegrow_base", 0.05f), Tuning.Get("bouncegrow_step", 0.0125f));   // 튈 때마다 처음 피해의 + (v3: 곱하지 않고 더해요. 2026-11-22 사용자: 40% 너무 높아 → 10~20%)
     public static int BounceExtra(int L) => 1 + L;                           // 튕김 강화
     public static float CmTail(int L) => Lin(L, 0.25f, 0.125f);              // 혜성탄 긴 꼬리: 꼬리 길이·피해 +
     public static int CmBounce(int L) => 1 + L / 2;                          // 혜성탄 궤도 연장: 튕김 + (1·2·2·3·3)
@@ -361,7 +361,7 @@ public static class AugmentDefs
         A("ob_multi", "추가 발사", AugTag.Weapon, G, L => $"[드론] 쏠 때 탄 +{L}발이 부채꼴로 더 나가요\n(추가 탄 피해 {P(Tuning.Get("drone_extra_damage", 0.35f))})", 3, SideWeapon.Orbital),
         A("lz_long", "지속 연장", AugTag.Weapon, S, L => $"[360 레이저] 쏘는 시간 +{LzLong(L):0.#}초", 0, SideWeapon.Lazer),
         A("lz_thick", "굵은 광선", AugTag.Weapon, S, L => $"[360 레이저] 광선 폭 +{P(BeamWidth(L))}", 0, SideWeapon.Lazer),
-        A("lz_twin", "2중 회전", AugTag.Weapon, G, L => $"[360 레이저] 반대 방향 광선 추가{Q(L)}", 3, SideWeapon.Lazer),
+        A("lz_twin", "2중 회전", AugTag.Weapon, G, L => $"[360 레이저] 반대 방향 광선 추가" + (Tuning.Get("lz_twin_quality", 0f) > 0f ? Q(L) : ""), 3, SideWeapon.Lazer),
         A("bh_big", "거대 중력", AugTag.Weapon, S, L => $"[블랙홀] 빨아들이는 반경 +{P(BhBig(L))}\n빨아들이는 피해 +{P(BhBigDamage(L))}", 0, SideWeapon.StrLaser),
         A("bh_long", "중력 유지", AugTag.Weapon, S, L => $"[블랙홀] 열려 있는 시간 +{BhLong(L):0.##}초", 0, SideWeapon.StrLaser),
         A("bh_collapse", "초신성 붕괴", AugTag.Weapon, G, L => $"[블랙홀] 닫힐 때 폭발 피해 +{P(BhCollapse(L))}, 범위 +25%", 0, SideWeapon.StrLaser),

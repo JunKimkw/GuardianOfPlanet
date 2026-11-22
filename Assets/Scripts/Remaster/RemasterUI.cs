@@ -885,12 +885,14 @@ public class RemasterUI : MonoBehaviour
         // 한 번 누르면 증강 5단계(없음·일부·1레벨·중간·최대) × 6상황을 전부 차례로 (약 1시간 40분)
         Btn(p, "측정 전체\n증강 5단계 (1시간 40분)", mbtn, new Vector2(370, -617), BRed, () => { CloseAllModals(); mgr.DebugMeasure(7); }, 17);
         // 기록이 빠진 칸(제대로 잰 회차가 모자란 칸)만 다시 · 속도 비교 x1 vs x5 (2026-11-22)
-        Btn(p, "빈 칸만 다시", new Vector2(220, 60), new Vector2(-345, -688), BYellow, () => { CloseAllModals(); mgr.DebugMeasure(8); }, 20);
-        Btn(p, "속도 비교\n(약 7분)", new Vector2(220, 60), new Vector2(-115, -688), BBlue, () => { CloseAllModals(); mgr.DebugMeasure(9); }, 18);
+        Btn(p, "빈 칸만\n다시", new Vector2(176, 60), new Vector2(-376, -688), BYellow, () => { CloseAllModals(); mgr.DebugMeasure(8); }, 17);
+        Btn(p, "속도 비교\n(약 7분)", new Vector2(176, 60), new Vector2(-188, -688), BBlue, () => { CloseAllModals(); mgr.DebugMeasure(9); }, 17);
+        // 초반·후반 확인 (2026-11-22 사용자: 초반형·후반형 나누기): 증강 없음·셋 다 최대 × 3상황 × 2회
+        Btn(p, "초반·후반 확인\n(약 50분)", new Vector2(176, 60), new Vector2(0, -688), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(16); }, 16);
         // 증강 하나씩 (2026-11-22): 전용 증강 30개를 하나씩 최대로 · 3상황 · 2회
-        Btn(p, "증강 하나씩\n(약 1시간 15분)", new Vector2(220, 60), new Vector2(115, -688), BPurple, () => { CloseAllModals(); mgr.DebugMeasure(15); }, 18);
+        Btn(p, "증강 하나씩\n(약 1시간 15분)", new Vector2(176, 60), new Vector2(188, -688), BPurple, () => { CloseAllModals(); mgr.DebugMeasure(15); }, 15);
         // 밤새 측정 (2026-11-22 사용자: 자는 동안 6시간쯤): 속도 비교 → 기본 무기 5단계 → 합체 무기 → 종결
-        Btn(p, "밤새 측정\n(약 6시간 25분)", new Vector2(220, 60), new Vector2(345, -688), BRed, () => { CloseAllModals(); mgr.DebugMeasure(10); }, 18);
+        Btn(p, "밤새 측정\n(약 6시간 25분)", new Vector2(176, 60), new Vector2(376, -688), BRed, () => { CloseAllModals(); mgr.DebugMeasure(10); }, 15);
         Btn(p, "지금 무기\n증강 보기", new Vector2(290, 80), new Vector2(-310, -775), BBlue, () => {
             var cur = mgr.DebugSoloWeapon();
             if(cur == SideWeapon.None) { Toast("[개발] 먼저 무기를 하나 골라 주세요", Color.white); return; }

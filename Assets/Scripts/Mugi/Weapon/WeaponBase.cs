@@ -56,16 +56,16 @@ public abstract class WeaponBase : MonoBehaviour
     public static float Ratio(SideWeapon w)
     {
         switch(w) {
-            case SideWeapon.DoubleGun: return Tuning.Get("ratio_double", 0.70f);
-            case SideWeapon.Bomber: return Tuning.Get("ratio_bomber", 10.8f);
-            case SideWeapon.TrackingGun: return Tuning.Get("ratio_track", 2.0f);
-            case SideWeapon.Poison: return Tuning.Get("ratio_poison", 1.0f);
-            case SideWeapon.Orbital: return Tuning.Get("ratio_drone", 1.45f);
-            case SideWeapon.Lazer: return Tuning.Get("ratio_laser", 1.83f);
-            case SideWeapon.StrLaser: return Tuning.Get("ratio_blackhole", 0.44f);
-            case SideWeapon.Sniper: return Tuning.Get("ratio_sniper", 6.7f);
-            case SideWeapon.BounceGun: return Tuning.Get("ratio_bounce", 1.15f);
-            case SideWeapon.Meteor: return Tuning.Get("ratio_meteor", 0.45f);
+            case SideWeapon.DoubleGun: return Tuning.Get("ratio_double", 0.95f);   // 2026-11-22 사용자: 초반·후반 종합(기하평균)을 평균 쪽으로 반만 당김
+            case SideWeapon.Bomber: return Tuning.Get("ratio_bomber", 10.6f);   // 2026-11-22 사용자: 초반·후반 종합(기하평균)을 평균 쪽으로 반만 당김
+            case SideWeapon.TrackingGun: return Tuning.Get("ratio_track", 2.35f);   // 2026-11-22 사용자: 초반·후반 종합(기하평균)을 평균 쪽으로 반만 당김
+            case SideWeapon.Poison: return Tuning.Get("ratio_poison", 0.50f);   // 2026-11-22 초반·후반 확인 측정 결과: 종합(초반·후반) 맞춤 0.73 → 0.50
+            case SideWeapon.Orbital: return Tuning.Get("ratio_drone", 1.37f);   // 2026-11-22 사용자: 초반형·후반형 나누기 (후반형)
+            case SideWeapon.Lazer: return Tuning.Get("ratio_laser", 1.68f);   // 2026-11-22 레이저 60초 측정: 배수 ×3.2 확인, 종합 17.9 → 약 15 맞춤 (2.01 → 1.68)
+            case SideWeapon.StrLaser: return Tuning.Get("ratio_blackhole", 0.41f);   // 2026-11-22 초반·후반 확인 측정 결과: 종합(초반·후반) 맞춤 0.47 → 0.41
+            case SideWeapon.Sniper: return Tuning.Get("ratio_sniper", 7.7f);   // 2026-11-22 초반·후반 확인 측정 결과: 종합(초반·후반) 맞춤 6.8 → 7.7
+            case SideWeapon.BounceGun: return Tuning.Get("ratio_bounce", 1.31f);   // 2026-11-22 사용자: 초반형·후반형 나누기 (초반형)
+            case SideWeapon.Meteor: return Tuning.Get("ratio_meteor", 0.40f);   // 2026-11-22 사용자: 초반형·후반형 나누기 (후반형)
         }
         return 1f;   // 기본총
     }
