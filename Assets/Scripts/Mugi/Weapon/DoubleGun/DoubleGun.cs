@@ -18,7 +18,7 @@ public class DoubleGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.DoubleGun;
     public override SideWeapon Side => SideWeapon.DoubleGun;
-    public override int BaseDamage => Balanced("double", 11.9f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("double", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     Transform Barrel0 => transform.GetChild(0);
     Transform Barrel1 => transform.GetChild(1);
@@ -26,7 +26,7 @@ public class DoubleGun : GunWeapon
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Balanced("double", 11.9f);
+        Damage = Balanced("double", 25f);
 
     public override float getAttackSpeed()
     {
@@ -50,6 +50,8 @@ public class DoubleGun : GunWeapon
     public override void CreateBullet()
     {
         long dmg = HitDamage;
+        int al = AugmentManager.WL("dg_accel");   // 탄 가속 피해 + (2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만))
+        if(al > 0) dmg = ClampDamage(dmg * (1.0 + AugmentDefs.DgAccelDamage(al)));
         // 예전엔 두 번째 탄의 피해를 첫 번째 탄에 다시 넣어서, 두 번째 탄은 지난번 피해(처음엔 0)로 날아갔어요
         Shoot(ShootingPoint1, Barrel1, dmg);
         Shoot(ShootingPoint2, Barrel0, dmg);

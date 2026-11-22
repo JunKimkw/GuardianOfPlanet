@@ -28,7 +28,7 @@ public class MeteorGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.Meteor;
     public override SideWeapon Side => SideWeapon.Meteor;
-    public override int BaseDamage => Balanced("meteor", 6.5f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("meteor", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     static bool Brand => AugmentManager.Fused(AugmentDefs.FzBrand);
     // 운석 전용 증강(유성우·거대 운석·불타는 구덩이)은 기본 운석에만 (2026-11-21 사용자: "[운석] 운석 +3 인데 대충돌도 늘어나").
@@ -42,7 +42,7 @@ public class MeteorGun : GunWeapon
         id = SaveId;
     }
 
-    public override void SetDamage() => Damage = Balanced("meteor", 6.5f);
+    public override void SetDamage() => Damage = Balanced("meteor", 25f);
 
     // 장전 시간: meteor_reload 초 × 특성·플레이어 공격속도·패시브 ÷ 증강 공격속도
     public override float getAttackSpeed()

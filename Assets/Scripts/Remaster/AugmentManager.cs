@@ -814,6 +814,11 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             InfiniteStage.Instance.JumpToStage(InfiniteStage.Instance.CurrentStage + 1000);
             ui.Toast($"[개발] {InfiniteStage.Instance.CurrentStage}스테이지로 이동", Color.white);
         }
+        // Home: 1스테이지로 (2026-11-22 사용자: 높은 스테이지 적은 너무 빠르고 세고 커서 DPS 재기 어려워요). F2(+20)로 다시 올라갈 수 있어요
+        if(Input.GetKeyDown(KeyCode.Home) && InfiniteStage.Instance != null) {
+            InfiniteStage.Instance.JumpToStage(1);
+            ui.Toast("[개발] 1스테이지로 이동", Color.white);
+        }
         // F9: 골드 많이 (무기 강화 확인용)
         if(Input.GetKeyDown(KeyCode.F9)) {
             GameManager.Enemy_Dead_Money_UP(1000000000L);
@@ -867,7 +872,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         ui.Toast("[개발] 테스트 모드: " + (DebugTestMode ? "켜짐 (적이 안 죽고 끝없이 나와요)" : "꺼짐 (스테이지 다시 시작)"), Color.white);
 #endif
     }
-    public static float DebugSpawnMul => DebugManyEnemies ? Tuning.Get("test_spawn_mul", 3f) : 1f;
+    public static float DebugSpawnMul => MeasuringMoving ? Tuning.Get("measure_spawn_mul", 10f) : DebugManyEnemies ? Tuning.Get("test_spawn_mul", 3f) : 1f;
+    // 테스트 모드에서 화면에 있을 수 있는 최대 적 수 (측정 "움직이는 적" 중엔 더 많이, 2026-11-22)
+    public static int DebugMaxEnemies => MeasuringMoving ? Tuning.GetInt("measure_max_enemies", 120) : Tuning.GetInt("test_max_enemies", 80);
     public bool DebugEquipAll => debugEquipAll;
 
     // 무기 상점 잠금을 풀고, 아직 없는 무기는 Lv.1 로 줘요 (Lv.1은 저장돼요)

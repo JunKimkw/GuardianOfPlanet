@@ -44,9 +44,31 @@ public abstract class WeaponBase : MonoBehaviour
     // (1 + 패시브 % + 특성 %)
     public float DamageMultiplier => 1f + ExtraDamagePercent + Trait(TraitsData.TraitsType.DamagePercent);
 
-    // 한 발 피해 = 플레이어 공격력 + (기본 + 추가) × 배율. long 이라 후반(수십억 이상)에도 넘치지 않아요.
+    // 한 발 피해 = (플레이어 공격력 + (기본 + 추가) × 배율) × 무기 비율. long 이라 후반(수십억 이상)에도 넘치지 않아요.
     // 증강: 무기 합체 위력(×3~×5)과 무기 전용 증강 보너스 (AugmentManager.WeaponPower)
-    public long HitDamage => ClampDamage((Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier) * AugmentManager.WeaponPower(Side));
+    public long HitDamage => ClampDamage((Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier) * Ratio(Side) * AugmentManager.WeaponPower(Side));
+
+    // 무기 비율 (2026-11-22 사용자 결정, "공격력 반영 비율"): 1발 전체에 곱해요.
+    //  측정(연습장 측정 모드)에서 1발이 거의 플레이어 공격력이라 무기 계수가 묻혀서, DPS 가 "1초에 몇 번 맞히나"로만 갈렸어요
+    //  (블랙홀·운석은 너무 세고 장전 5~6초인 폭격기·저격총은 너무 약했어요).
+    //  비율 = 5000 ÷ (움직이는 적(죽음)·멈춘 적 40·보스 1 DPS 의 기하평균). 5000 은 측정한 무기 10개 평균 (전체 세기는 그대로)
+    //  무기 계수(dmg_*)는 모두 같은 값으로 통일했어요: 무기 차이는 이 비율에만 있어서 무기 레벨이 올라도 균형이 그대로예요. 숫자 ratio_*
+    public static float Ratio(SideWeapon w)
+    {
+        switch(w) {
+            case SideWeapon.DoubleGun: return Tuning.Get("ratio_double", 0.70f);
+            case SideWeapon.Bomber: return Tuning.Get("ratio_bomber", 10.8f);
+            case SideWeapon.TrackingGun: return Tuning.Get("ratio_track", 2.0f);
+            case SideWeapon.Poison: return Tuning.Get("ratio_poison", 1.0f);
+            case SideWeapon.Orbital: return Tuning.Get("ratio_drone", 1.45f);
+            case SideWeapon.Lazer: return Tuning.Get("ratio_laser", 1.83f);
+            case SideWeapon.StrLaser: return Tuning.Get("ratio_blackhole", 0.44f);
+            case SideWeapon.Sniper: return Tuning.Get("ratio_sniper", 6.7f);
+            case SideWeapon.BounceGun: return Tuning.Get("ratio_bounce", 1.15f);
+            case SideWeapon.Meteor: return Tuning.Get("ratio_meteor", 0.45f);
+        }
+        return 1f;   // 기본총
+    }
 
     public static long ClampDamage(double v) => v >= 9e18 ? (long)9e18 : v <= 0 ? 0 : (long)v;
 

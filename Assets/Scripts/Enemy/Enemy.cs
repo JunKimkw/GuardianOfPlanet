@@ -280,15 +280,15 @@ public partial class Enemy : MonoBehaviour
         if(_typeofEnemy == typeofEnemy.InfiniteStage || _typeofEnemy == typeofEnemy.InfiniteStageBoss)
             OfflineProgress.RecordDamage(System.Math.Min(totalDamage, CurrentHealth) / NumberScale);
         // 개발용: 무기별 DPS 기록 (테스트 모드에선 체력이 다시 차니까 피해 전부)
-        DevTools.RecordHit((AugmentManager.DebugTestMode ? totalDamage : System.Math.Min(totalDamage, CurrentHealth)) / NumberScale);
+        DevTools.RecordHit((AugmentManager.DebugNoDeath ? totalDamage : System.Math.Min(totalDamage, CurrentHealth)) / NumberScale);
 
         // 처형: 남을 체력이 기준 이하면 바로 처치
-        if(aug != null && (!AugmentManager.DebugTestMode || (AugmentManager.DebugArena && !AugmentManager.DebugArenaInvincible)) && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))
+        if(aug != null && !AugmentManager.DebugNoDeath && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))
             totalDamage = CurrentHealth;
 
         // 개발용 테스트 모드: 체력이 다 닳으면 다시 채워요 (우주선에 닿아야 사라져요)
         // 연습장(2026-11-21 사용자 결정)은 적이 진짜 죽고 새로 나와요 (WeaponAugments.DebugArenaTick)
-        if(AugmentManager.DebugTestMode && (!AugmentManager.DebugArena || AugmentManager.DebugArenaInvincible) && CurrentHealth - totalDamage <= 0)
+        if(AugmentManager.DebugNoDeath && CurrentHealth - totalDamage <= 0)
             CurrentHealth = EnemyHealth + totalDamage;
 
         //Dead

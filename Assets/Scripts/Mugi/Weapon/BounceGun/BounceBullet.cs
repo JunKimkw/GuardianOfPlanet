@@ -6,6 +6,7 @@ public class BounceBullet : Bullet
     public BounceEnemy bounceEnemy;
     public int BounceTime;
     public long bullet_Damage;
+    public long rootDamage;   // 처음 쏜 탄의 피해 (튕긴 탄도 이어받아요)
     public Enemy TargetEnemy;
 
     protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.BounceBullet;
@@ -54,20 +55,27 @@ public class BounceBullet : Bullet
         base.DestroyBullet();
     }
 
-    public void setBulletStats(long damage) => bullet_Damage = damage;
+    public void setBulletStats(long damage) { bullet_Damage = damage; rootDamage = damage; }
 
     public void CreateBullet()
     {
         BounceBullet b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.BounceBullet).GetComponent<BounceBullet>();
 
-        int grow = AugmentManager.WL("bouncegrow");   // 증식 튕김: 튈 때마다 피해 +
-        if(grow > 0)
-            b.setBulletStats(WeaponBase.ClampDamage(bullet_Damage * (1.0 + AugmentDefs.BounceGrowDamage(grow))));
+        // 증식 튕김·탄성 가속: 튈 때마다 처음 피해의 +% 를 더해요 (2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만))
+        //  예전엔 증식 튕김이 앞 탄 피해에 곱해져서 튕김 강화와 같이 받으면 ×1.4^n 으로 불어났어요 (측정: 하나씩 ×1.8·×1.2 인데 같이 ×7.5)
+        int grow = AugmentManager.WL("bouncegrow"), acc = AugmentManager.WL("bn_accel");
+        long root = rootDamage > 0 ? rootDamage : bullet_Damage;
+        if(grow > 0 || acc > 0) {
+            double baseMul = grow > 0 || BounceGun.instance.NoDamageReduce ? 1.0 : System.Math.Pow(0.9, BounceTime);
+            double per = (grow > 0 ? AugmentDefs.BounceGrowDamage(grow) : 0f) + (acc > 0 ? AugmentDefs.BnAccelDamage(acc) : 0f);
+            b.setBulletStats(WeaponBase.ClampDamage(root * (baseMul + per * BounceTime)));
+        }
         else if(BounceGun.instance.NoDamageReduce)
             b.setBulletStats(bullet_Damage);
         else
             b.setBulletStats((long)(bullet_Damage * System.Math.Pow(0.9, BounceTime)));
 
+        b.rootDamage = root;
         b.isCritical = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
         b.isStunning = Random.Range(1, 101) <= Player.instance.FinalStunPower;
         b.transform.position = transform.position;

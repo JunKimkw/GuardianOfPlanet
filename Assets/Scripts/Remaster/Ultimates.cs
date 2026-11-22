@@ -127,7 +127,8 @@ public class UltimateFx : MonoBehaviour
             case AugmentDefs.FzConstellation: body = FateConstellation(dmg); break;
             case AugmentDefs.FzBrand: body = Judgment(dmg); break;
             case AugmentDefs.FzImpact: body = AsteroidImpact(dmg); break;
-            default: body = RainbowJudgment(dmg); break;
+            case AugmentDefs.FzStarlight:
+            default: body = Polaris(dmg); break;
         }
         yield return StartCoroutine(body);
         done?.Invoke();
@@ -1087,101 +1088,187 @@ public class UltimateFx : MonoBehaviour
     }
 
 
-    // 7 무지개 심판 (2026-11-21 사용자 요청: "네 입맛대로 시원하게, 임팩트 있게")
-    //  1) 모으기: 하늘에서 하얀 빛기둥이 우주선(프리즘)에 꽂히고, 우주선에 빛이 점점 모여요
-    //  2) 분광: 빛이 7색 빔 부채로 갈라져 우주선을 축으로 화면을 한 바퀴 쓸어요. 빔마다 지나가는 적을 한 번씩 (최대 7번)
-    //  3) 마무리: 빔이 사라지는 순간 하얀 충격파가 화면 끝까지 퍼지며 모든 적에게 한 번 더
-    //  tuning.txt ult_prism_* (피해 숫자는 나중에 한꺼번에)
-    IEnumerator RainbowJudgment(long dmg)
+    // 7 북극성 (2026-11-21 사용자 결정, 별빛 섬광(360 레이저 + 운석) 종결. 예전 "무지개 심판" 자리: 무지개가 유치하다고 해서)
+    //  1) 배경이 밤하늘처럼 어두워지고(적·우주선은 그대로) 작은 별들이 반짝이며, 화면 위쪽 가운데(북쪽)에 거대한 별이 떠올라요
+    //  2) 북극성이 ult_polaris_twinkles(3)번 반짝여요. 반짝일 때마다 화면을 가로지르는 빛살이 번쩍이고
+    //     (가로·세로 → 대각선 → 마지막은 8갈래. 방향만 바뀌고 돌지 않아요), 화면의 모든 적 위에서 별빛이 함께 터져요 (적마다 1번씩 피해)
+    //  3) 마지막 반짝임은 8갈래로 크게 터지며 화면이 하얗게 번쩍이고, 모든 적에게 큰 피해
+    //  숫자 ult_polaris_* (피해 숫자는 나중에 한꺼번에)
+    IEnumerator Polaris(long dmg)
     {
         float w = HalfW, h = HalfH;
-        float reach = Mathf.Sqrt(w * w + h * h) * 1.15f;   // 화면 대각선보다 조금 길게
-        int n = Mathf.Clamp(Mathf.RoundToInt(M("ult_prism_beams", 7f)), 1, 31);
-        float spread = M("ult_prism_spread", 70f), width = M("ult_prism_width", 0.75f);
-        long sweepHit = Mul(dmg, M("ult_prism_hit_mul", 0.6f)), finalHit = Mul(dmg, M("ult_prism_final_mul", 2f));
+        Vector3 cam = Cam;
+        float reach = Mathf.Sqrt(w * w + h * h) * 2.2f;   // 위쪽에서 뻗어도 화면 아래 끝까지 닿게
+        int twinkles = Mathf.Clamp(Mathf.RoundToInt(M("ult_polaris_twinkles", 3f)), 1, 8);
+        float gap = M("ult_polaris_gap", 0.5f), dim = M("ult_polaris_dim", 0.55f), size = M("ult_polaris_size", 1.6f);
+        long hit = Mul(dmg, M("ult_polaris_hit_mul", 0.6f)), finalHit = Mul(dmg, M("ult_polaris_final_mul", 2f));
+        var nightCol = new Color(0.02f, 0.03f, 0.1f);
 
-        // 1) 모으기
-        float charge = M("ult_prism_charge", 0.55f);
-        var pillar = NewLine(Color.white, 0.05f);
-        var pillarGlow = NewLine(new Color(0.8f, 0.9f, 1f, 0.5f), 0.2f);
-        var orb = Shape(Color.white, Vector2.one * 0.2f, 535);
-        for(float t = 0f; t < charge; t += Time.deltaTime) {
-            float k = t / charge;
-            Vector3 s = Ship; s.z = 0f;
-            SetSeg(pillar, s + Vector3.up * reach, s);
-            SetSeg(pillarGlow, s + Vector3.up * reach, s);
-            pillar.startWidth = pillar.endWidth = Mathf.Lerp(0.05f, 0.35f, k);
-            pillarGlow.startWidth = pillarGlow.endWidth = Mathf.Lerp(0.2f, 1.1f, k);
-            orb.transform.position = s;
-            orb.transform.localScale = Vector3.one * Mathf.Lerp(0.2f, 1.4f, k * k) * (1f + 0.15f * Mathf.Sin(t * 50f));
-            if(Random.value < 0.35f) {   // 사방에서 빛 조각이 빨려 들어와요
-                Vector2 r = Random.insideUnitCircle.normalized * Random.Range(1.5f, 3f);
-                RemasterFx.Line(s + (Vector3)r, s + (Vector3)r * 0.3f, Color.HSVToRGB(Random.value, 0.5f, 1f));
-            }
+        // 2026-11-22 사용자: "애니메이션 시작할 때부터 적들 멈춰" → 시작부터 마지막 연타가 끝날 때까지 모든 적이 멈춰요 (보스도)
+        float freeze = M("ult_polaris_rise", 0.6f) + (twinkles - 1) * gap + M("ult_polaris_charge", 0.7f) + M("ult_polaris_hold", 0.12f)
+                       + M("ult_polaris_burst_hits", 8f) * M("ult_polaris_burst_gap", 0.06f) + 0.3f;
+        foreach(var e in AugmentManager.EnemiesNear(Vector3.zero, 999f)) e.Stun(freeze);
+
+        // 1) 밤하늘 + 북극성 떠오르기. 어둠은 배경 층(Map)에만 깔아서 적·우주선은 그대로 보여요
+        var night = Shape(new Color(nightCol.r, nightCol.g, nightCol.b, 0f), Vector2.one * Mathf.Max(w, h) * 3f, 100);
+        night.sortingLayerName = "Map";
+        night.transform.position = cam;
+        var dots = new List<SpriteRenderer>();
+        for(int i = 0; i < 26; i++) {
+            var d = Sprite2(StarArt.Star, new Color(1f, 1f, 1f, 0f), Random.Range(0.12f, 0.3f), 101);
+            d.sortingLayerName = "Map";
+            d.transform.position = cam + new Vector3(Random.Range(-w, w), Random.Range(-h, h), 0f);
+            dots.Add(d);
+        }
+        Vector3 top = cam + new Vector3(0f, h * M("ult_polaris_height", 0.62f), 0f);
+        var halo = Shape(new Color(StarFlash.Glow.r, StarFlash.Glow.g, StarFlash.Glow.b, 0f), Vector2.one, 538);
+        var star = Sprite2(StarArt.Star, Color.white, 0.1f, 540);
+        halo.transform.position = star.transform.position = top;
+        float rise = M("ult_polaris_rise", 0.6f);
+        for(float t = 0f; t < rise; t += Time.deltaTime) {
+            float k = t / rise, e = 1f - (1f - k) * (1f - k);
+            night.color = new Color(nightCol.r, nightCol.g, nightCol.b, dim * k);
+            star.transform.localScale = Vector3.one * size * Mathf.Lerp(0.1f, 1f, e);
+            halo.transform.localScale = Vector3.one * size * 1.4f * e;
+            halo.color = new Color(StarFlash.Glow.r, StarFlash.Glow.g, StarFlash.Glow.b, 0.35f * k);
+            TwinkleDots(dots, k);
             yield return null;
         }
-        Destroy(pillar.gameObject);
-        Destroy(pillarGlow.gameObject);
-        Destroy(orb.gameObject);
 
-        // 2) 분광: 7색 빔 부채가 한 바퀴
-        Vector3 c0 = Ship; c0.z = 0f;
-        RemasterFx.Burst(c0, 2.2f, Color.white);
-        RemasterFx.Ring(c0, 3.5f, Color.white, 0.35f);
-        var glow = new LineRenderer[n];
-        var core = new LineRenderer[n];
-        for(int i = 0; i < n; i++) {
-            glow[i] = NewLine(Color.white, width);
-            core[i] = NewLine(Color.white, width * 0.3f);
-            core[i].sortingOrder = glow[i].sortingOrder + 1;
-        }
-        var hitMask = new Dictionary<Enemy, int>();   // 빔마다 한 번씩
-        float sweep = M("ult_prism_sweep", 1.6f), start = Random.Range(0f, 360f), nextSpark = 0f;
-        for(float t = 0f; t < sweep; t += Time.deltaTime) {
-            float k = t / sweep;
-            float turn = 360f * (k - Mathf.Sin(k * Mathf.PI * 2f) / (Mathf.PI * 2f));   // 천천히 → 빠르게 → 천천히 한 바퀴
-            float open = Mathf.Clamp01(t / 0.2f) * Mathf.Clamp01((sweep - t) / 0.15f);   // 처음엔 부채가 펼쳐지고, 끝에 접혀요
-            Vector3 c = Ship; c.z = 0f;
-            bool spark = t >= nextSpark;
-            if(spark) nextSpark = t + 0.06f;
-            for(int i = 0; i < n; i++) {
-                float f = n > 1 ? (float)i / (n - 1) : 0.5f;
-                float ang = (start + turn + (f - 0.5f) * spread * open) * Mathf.Deg2Rad;
-                var dir = new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), 0f);
-                Vector3 end = c + dir * reach * Mathf.Clamp01(t / 0.12f);
-                var col = Color.HSVToRGB(f * 0.83f, 0.75f, 1f);   // 빨강 → 보라
-                float flick = 1f + 0.15f * Mathf.Sin(t * 45f + i);
-                SetSeg(glow[i], c, end);
-                SetSeg(core[i], c, end);
-                glow[i].startWidth = width * 0.4f; glow[i].endWidth = width * flick;
-                core[i].startWidth = width * 0.12f; core[i].endWidth = width * 0.3f * flick;
-                glow[i].startColor = glow[i].endColor = new Color(col.r, col.g, col.b, 0.7f);
-                core[i].startColor = core[i].endColor = new Color(1f, 1f, 1f, 0.95f);
-                if(spark) RemasterFx.Burst(c + dir * Random.Range(1f, reach), width * 0.6f, col);
-                // 빔에 닿은 적 (빔마다 한 번)
-                float half = width * 0.5f + 0.2f;
-                foreach(var e in AugmentManager.EnemiesNear(c, reach)) {
-                    Vector3 d = e.transform.position - c; d.z = 0f;
-                    float along = Vector3.Dot(d, dir);
-                    if(along <= 0f || (d - dir * along).magnitude > half) continue;
-                    hitMask.TryGetValue(e, out int m);
-                    if((m & (1 << i)) != 0) continue;
-                    hitMask[e] = m | (1 << i);
-                    RemasterFx.Burst(e.transform.position, 0.35f, col);
-                    Hit(e, sweepHit);
+        // 2) 반짝임
+        for(int i = 0; i < twinkles; i++) {
+            bool last = i == twinkles - 1;
+            if(last) {
+                // 마지막 한 방 전 모으기 (2026-11-22 사용자: "한방이 없어 보여, 임팩트가"):
+                // 밤하늘이 더 어두워지고, 하늘의 작은 별들과 빛 조각이 북극성으로 빨려 들어가며 북극성이 작고 뜨겁게 졸아들어요 → 잠깐 숨 멈춤 → 폭발
+                float charge = M("ult_polaris_charge", 0.7f);
+                var starts = new List<Vector3>();
+                foreach(var d in dots) starts.Add(d.transform.position);
+                for(float t = 0f; t < charge; t += Time.deltaTime) {
+                    float k = t / charge, e = k * k;
+                    night.color = new Color(nightCol.r, nightCol.g, nightCol.b, Mathf.Lerp(dim, Mathf.Min(0.9f, dim * 1.6f), k));
+                    for(int j = 0; j < dots.Count; j++) {
+                        dots[j].transform.position = Vector3.Lerp(starts[j], top, e);
+                        dots[j].color = new Color(1f, 1f, 1f, 0.9f * (1f - 0.5f * k));
+                    }
+                    if(Random.value < 0.6f) {   // 사방에서 빛 조각이 빨려 들어와요
+                        Vector3 dir = Random.insideUnitCircle.normalized;
+                        RemasterFx.Line(top + dir * Random.Range(1.5f, 4f), top + dir * 0.4f, StarFlash.Glow);
+                    }
+                    star.transform.localScale = Vector3.one * size * Mathf.Lerp(1f, 0.45f, e) * (1f + 0.15f * Mathf.Sin(t * 60f));
+                    halo.transform.localScale = Vector3.one * size * Mathf.Lerp(1.4f, 3.5f, e);
+                    halo.color = new Color(StarFlash.Glow.r, StarFlash.Glow.g, StarFlash.Glow.b, Mathf.Lerp(0.35f, 0.8f, k));
+                    yield return null;
                 }
+                foreach(var d in dots) Destroy(d.gameObject);
+                dots.Clear();
+                yield return new WaitForSeconds(M("ult_polaris_hold", 0.12f));   // 숨 멈춤
             }
+            float ang = last || i % 2 == 0 ? 0f : 45f;
+            float thick = M("ult_polaris_ray_width", 0.9f) * (last ? M("ult_polaris_final_width", 2.2f) : 1f);
+            StarFlash.Spawn(top, reach, thick, last ? reach : 0f, last ? 0.9f : 0.45f, ang, size * (last ? 4.5f : 2.2f), 545);
+            RemasterFx.Ring(top, size * (last ? 2.5f : 1.4f), StarFlash.Glow, 0.3f);
+            if(last) {   // 폭발: 화면을 덮는 충격파 고리 + 화면 흔들림 + 강한 번쩍
+                RemasterFx.Burst(top, size * 3f, Color.white);
+                RemasterFx.Ring(top, reach * 0.55f, Color.white, 0.6f);
+                RemasterFx.Ring(top, reach * 0.4f, StarFlash.Gold, 0.5f);
+                RemasterFx.Ring(top, reach * 0.28f, StarFlash.Glow, 0.4f);
+                var camT = GameManager.instance.mainCamera.transform;
+                camT.DOComplete();
+                camT.DOShakePosition(M("ult_polaris_shake_time", 0.5f), M("ult_polaris_shake", 0.4f), 25, 90f, false, true);
+                night.color = new Color(nightCol.r, nightCol.g, nightCol.b, dim * 0.5f);   // 빛에 밤하늘이 걷혀요
+            }
+            var targets = last ? AugmentManager.EnemiesNear(Vector3.zero, 999f) : AugmentManager.NearestInRange(cam, 999);
+            var pts = new List<Vector3>();
+            foreach(var e in targets) {
+                Vector3 p = e.transform.position;
+                p.z = 0f;
+                pts.Add(p);
+                if(last) RemasterFx.Burst(p, 0.6f, StarFlash.Gold);
+                else Hit(e, hit);
+            }
+            if(last) StartCoroutine(PolarisBarrage(targets, finalHit));   // 마지막: 피해를 빠빠빠빠박 연타로
+            StartCoroutine(EnemyTwinkles(pts, last ? 1.4f : 0.75f, last, last ? 0.6f : 0.35f));
+            if(last) StartCoroutine(Flash(Color.white, M("ult_polaris_flash", 0.85f), 0.6f));
+            for(float t = 0f; t < gap; t += Time.deltaTime) {   // 북극성이 번쩍 커졌다가 돌아와요
+                float k = 1f - t / gap;
+                star.transform.localScale = Vector3.one * size * (1f + (last ? 1.6f : 0.45f) * k * k);
+                if(last) halo.transform.localScale = Vector3.one * size * Mathf.Lerp(1.4f, 3.5f, k);
+                TwinkleDots(dots, 1f);
+                yield return null;
+            }
+        }
+
+        // 3) 밤하늘 걷히기
+        float fade = 0.45f, nightA = night.color.a;   // 마지막 폭발에 이미 반쯤 걷힌 밤하늘에서 이어서
+        for(float t = 0f; t < fade; t += Time.deltaTime) {
+            float k = 1f - t / fade;
+            night.color = new Color(nightCol.r, nightCol.g, nightCol.b, nightA * k);
+            star.color = new Color(1f, 1f, 1f, k);
+            star.transform.localScale = Vector3.one * size * k;
+            halo.color = new Color(StarFlash.Glow.r, StarFlash.Glow.g, StarFlash.Glow.b, 0.35f * k);
+            TwinkleDots(dots, k);
             yield return null;
         }
-        for(int i = 0; i < n; i++) { Destroy(glow[i].gameObject); Destroy(core[i].gameObject); }
+        Destroy(night.gameObject);
+        Destroy(star.gameObject);
+        Destroy(halo.gameObject);
+        foreach(var d in dots) Destroy(d.gameObject);
+    }
 
-        // 3) 마무리: 하얀 충격파가 화면 끝까지
-        Vector3 cf = Ship; cf.z = 0f;
-        RemasterFx.Shockwave(cf);
-        RemasterFx.Burst(cf, Mathf.Max(w, h) * 1.8f, new Color(1f, 1f, 1f, 0.6f));
-        for(int i = 0; i < 7; i++) RemasterFx.Ring(cf, 2f + i * 1.2f, Color.HSVToRGB(i / 7f, 0.6f, 1f), 0.3f + i * 0.05f);
-        foreach(var e in AugmentManager.EnemiesNear(Vector3.zero, 999f)) Hit(e, finalHit);
-        yield return new WaitForSeconds(0.3f);
+    // 북극성 마지막 연타 (2026-11-22 사용자: "딱 터질 때 데미지가 한 번에 빠빠빠빠박"):
+    //  모든 적에게 ult_polaris_burst_hits 번을 ult_polaris_burst_gap 초 간격으로 몰아쳐요. 합치면 마지막 피해(ult_polaris_final_mul)와 같아요
+    IEnumerator PolarisBarrage(List<Enemy> targets, long total)
+    {
+        int n = Mathf.Clamp(Mathf.RoundToInt(M("ult_polaris_burst_hits", 8f)), 1, 30);
+        float gap = M("ult_polaris_burst_gap", 0.06f);
+        long each = Mul(total, 1.0 / n);
+        for(int i = 0; i < n; i++) {
+            var col = i % 2 == 0 ? Color.white : StarFlash.Gold;
+            foreach(var e in targets) {
+                if(!Alive(e)) continue;
+                Vector3 p = e.transform.position;
+                p.z = 0f;
+                RemasterFx.Burst(p + (Vector3)(Random.insideUnitCircle * 0.2f), 0.3f, col);
+                Hit(e, each);
+            }
+            if(gap > 0f) yield return new WaitForSeconds(gap);
+        }
+    }
+
+    // 밤하늘 작은 별들이 제각각 깜빡여요 (k: 전체 밝기)
+    static void TwinkleDots(List<SpriteRenderer> dots, float k)
+    {
+        float t = Time.time;
+        for(int i = 0; i < dots.Count; i++)
+            dots[i].color = new Color(1f, 1f, 1f, Mathf.Clamp01(k * (0.45f + 0.4f * Mathf.Sin(t * (3f + i % 5) + i * 1.7f))));
+    }
+
+    // 적 위 별빛: 반짝이 그림이 톡 커졌다 사라져요. eight 면 45도 기울인 금색 반짝이를 겹쳐 8갈래로
+    IEnumerator EnemyTwinkles(List<Vector3> pts, float size, bool eight, float dur)
+    {
+        var main = new List<SpriteRenderer>();
+        var diag = new List<SpriteRenderer>();
+        foreach(var p in pts) {
+            var a = Sprite2(StarArt.Star, Color.white, 0.01f, 537);
+            a.transform.position = p;
+            main.Add(a);
+            if(!eight) continue;
+            var b = Sprite2(StarArt.Star, StarFlash.Gold, 0.01f, 536);
+            b.transform.position = p;
+            b.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+            diag.Add(b);
+        }
+        for(float t = 0f; t < dur; t += Time.deltaTime) {
+            float k = t / dur;
+            float s = size * Mathf.Sin(Mathf.Min(1f, k * 1.6f) * Mathf.PI * 0.5f) * (1f - 0.3f * k);
+            float a = 1f - k * k;
+            foreach(var sr in main) { sr.transform.localScale = Vector3.one * s; sr.color = new Color(1f, 1f, 1f, a); }
+            foreach(var sr in diag) { sr.transform.localScale = Vector3.one * s * 0.75f; sr.color = new Color(StarFlash.Gold.r, StarFlash.Gold.g, StarFlash.Gold.b, a); }
+            yield return null;
+        }
+        foreach(var sr in main) Destroy(sr.gameObject);
+        foreach(var sr in diag) Destroy(sr.gameObject);
     }
 
     // 8 사건의 지평선 (2026-11-20 사용자 요청: 모으고 → 레이저로 지지다가 → 텀 → 저격으로 마무리)
@@ -1269,9 +1356,24 @@ public class UltimateFx : MonoBehaviour
         RemasterFx.Beam(muzzle, muzzle + sdir * 30f, new Color(1f, 1f, 1f, 0.9f), ultBeam * 0.35f);
         RemasterFx.Burst(c, 1f, gold);
         RemasterFx.Ring(c, R, new Color(0.75f, 0.4f, 1f), 0.35f);
-        foreach(var e in AugmentManager.EnemiesNear(c, R))
+        var shot = AugmentManager.EnemiesNear(c, R);
+        foreach(var e in shot)
             AugmentManager.WeaponHit(e, hit, true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
         Destroy(hole);
+        // 2026-11-22 사용자: 저격에 맞은 적이 우주선 반대쪽으로 부채꼴로 퍼지며 ult_singularity_push 칸 밀려요 (특이점 저격 무기와 같은 방식, 무기는 2칸)
+        //  밀어내는 중심을 구멍보다 singularity_fan_back 칸 뒤(우주선 쪽)에 둬요. 우주선 쪽으로 가는 적은 반대로 꺾어요
+        shot.RemoveAll(e => !Alive(e));
+        if(shot.Count > 0) new GameObject("UltSingularityPush").AddComponent<MeteorScatter>().Run(c - sdir * M("singularity_fan_back", 0.5f), shot, M("ult_singularity_push", 2.5f), 0.3f, -sdir, 0.3f);
+        // 2026-11-22 사용자: 블랙홀로 끌려가던 적이 블랙홀이 사라질 때 우주선 근처에 멈추면 안 돼요 (소행성 충돌과 같은 조치)
+        //  우주선에서 ult_singularity_ship_safe 칸 안의 적은 우주선 반대쪽으로 그만큼 밀어내고, 0.8초 동안 우주선에 닿아도 피해 없음
+        Vector3 ship = Ship;
+        ship.z = 0f;
+        float safe = M("ult_singularity_ship_safe", 2.5f);
+        var nearShip = AugmentManager.EnemiesNear(ship, safe);
+        if(nearShip.Count > 0) {
+            foreach(var e in nearShip) e.gravityUntil = Time.time + 0.8f;
+            new GameObject("UltShipPush").AddComponent<MeteorScatter>().Run(ship, nearShip, safe, 0.35f);
+        }
     }
 
     static Material lineMat;   // 선마다 새 재질을 만들면 쌓여서 하나를 같이 써요 (색은 선마다 따로)

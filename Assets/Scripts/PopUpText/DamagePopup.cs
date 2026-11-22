@@ -8,7 +8,7 @@ public class DamagePopup : MonoBehaviour
     public static DamagePopup Create(Vector3 position, double damageAmount, bool isCriticalHit)
     {
         GameObject damagepopupTransform = ObjectPoolPopUp.Instance.GetPoolObject(PoolObjectTypePopUp.Damage);
-        damagepopupTransform.transform.position = position;
+        damagepopupTransform.transform.position = Spread(position);
         damagepopupTransform.SetActive(true);
         DamagePopup damagepopup = damagepopupTransform.GetComponent<DamagePopup>();
         damagepopup.SetUp(damageAmount, isCriticalHit);
@@ -18,13 +18,31 @@ public class DamagePopup : MonoBehaviour
     public static DamagePopup Create(Vector3 position, double damageAmount , bool isCriticalHit, Color c)
     {
         GameObject damagepopupTransform = ObjectPoolPopUp.Instance.GetPoolObject(PoolObjectTypePopUp.Damage);
-        damagepopupTransform.transform.position = position;
+        damagepopupTransform.transform.position = Spread(position);
         damagepopupTransform.SetActive(true);
         damagepopupTransform.GetComponent<TextMeshPro>().color = c;
         DamagePopup damagepopup = damagepopupTransform.GetComponent<DamagePopup>();
         damagepopup.SetUp(damageAmount, isCriticalHit);
 
         return damagepopup;
+    }
+
+    // 2026-11-22 사용자: "데미지가 중첩되면 너무 겹쳐 있어, 약간 띄움이 필요해"
+    //  같은 자리(popup_stack_radius 칸 안)에 popup_stack_time 초 안에 연달아 뜨면 위로 한 칸(popup_stack_step)씩 쌓아요 (popup_stack_max 칸에서 다시 아래부터).
+    //  좌우로도 살짝(popup_jitter) 흩고, 날아가는 방향도 좌우로 섞어요. 예전엔 모두 적 중심 한 점에서 같은 방향으로 움직여 완전히 포개졌어요
+    static readonly List<(Vector3 p, float t)> recent = new List<(Vector3, float)>();
+
+    static Vector3 Spread(Vector3 p)
+    {
+        float now = Time.time, win = Tuning.Get("popup_stack_time", 0.45f), r = Tuning.Get("popup_stack_radius", 0.4f);
+        recent.RemoveAll(x => now - x.t > win);
+        int n = 0;
+        foreach(var x in recent) if(((Vector2)(x.p - p)).sqrMagnitude <= r * r) n++;
+        recent.Add((p, now));   // 원래 자리로 기억해요 (같은 적끼리 묶이게)
+        if(recent.Count > 300) recent.RemoveAt(0);
+        int max = Mathf.Max(1, Tuning.GetInt("popup_stack_max", 4));
+        float step = Tuning.Get("popup_stack_step", 0.12f), jit = Tuning.Get("popup_jitter", 0.1f);
+        return p + new Vector3(Random.Range(-jit, jit), (n % max) * step + Random.Range(0f, jit * 0.5f), 0f);
     }
 
     private static int sortingOrder;
@@ -62,7 +80,7 @@ public class DamagePopup : MonoBehaviour
 
         sortingOrder++;
         textmesh.sortingOrder = sortingOrder;
-        moveVector = new Vector3(0.7f, 1) * 0.6f;
+        moveVector = new Vector3(Random.Range(-0.7f, 0.7f), 1) * 0.6f;   // 좌우로 섞어요 (예전엔 모두 오른쪽 위)
     }
 
     private void Update()

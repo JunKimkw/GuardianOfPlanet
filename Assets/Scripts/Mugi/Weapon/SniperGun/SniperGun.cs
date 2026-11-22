@@ -34,12 +34,12 @@ public class SniperGun : GunWeapon
         if(Railgun && c > 0) t *= 1f - AugmentDefs.RgCharge(c);
         return t;
     }
-    public override int BaseDamage => Balanced("sniper", 99f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("sniper", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Balanced("sniper", 99f);
+        Damage = Balanced("sniper", 25f);
 
     protected override void Update()
     {

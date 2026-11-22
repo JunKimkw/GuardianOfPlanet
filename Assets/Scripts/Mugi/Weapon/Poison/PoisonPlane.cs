@@ -22,12 +22,12 @@ public class PoisonPlane : WeaponBase
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.Poison;
     public override SideWeapon Side => SideWeapon.Poison;
-    public override int BaseDamage => Balanced("poison", 34f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("poison", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        PoisonDamage = Balanced("poison", 34f);
+        PoisonDamage = Balanced("poison", 25f);
 
     void Update()
     {

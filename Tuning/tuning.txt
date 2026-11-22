@@ -78,7 +78,7 @@ split_v_angle = 30          # V 자로 갈라질 때 좌우 각도 (도)
 debug_split_log = 0         # 1 = 탄 속도를 실제로 재서 콘솔에 찍어요 ([분열 측정]). 확인이 끝나면 0
 
 # ---- 테스트 모드
-test_spawn_mul = 3          # "적 3배"를 켰을 때 나오는 속도 배율
+test_spawn_mul = 5          # "적 3배"를 켰을 때 나오는 속도 배율 (2026-11-22: DPS 재기용으로 3 → 5)
 test_max_enemies = 80       # 테스트 모드에서 화면에 있을 수 있는 최대 적 수
 
 # ---- 종결 증강 (합체 무기마다 1개)
@@ -136,7 +136,7 @@ drone_orbit_speed = 1.2     # 도는 속도 (라디안/초, 1.2 = 한 바퀴 약
 drone_fire_interval = 0.6   # 드론 1대가 쏘는 간격 (초). 속사·공격속도가 줄여요
 drone_bullet_speed = 7      # 드론 탄 속도 (칸/초)
 drone_damage_mul = 1        # 드론 탄 1발 피해 배율 (무기 1발 대비)
-drone_extra_damage = 0.7    # "추가 발사" 증강으로 더 나가는 탄의 피해 (원래 탄 대비)
+drone_extra_damage = 0.35   # "추가 발사" 증강으로 더 나가는 탄의 피해 (원래 탄 대비) (2026-11-22 v3: 0.7 → 0.35)
 drone_extra_spread = 12     # 추가 탄이 퍼지는 각도 (도)
 toxsat_slow = 0.3           # 독안개 드론: 탄에 맞은 적 둔화 (0.3 = 30%)
 toxsat_slow_time = 2        # 둔화 시간 (초)
@@ -148,16 +148,28 @@ poison_stack_bonus = 0.01   # 독 무기(독 지대·역병 폭탄·독안개 �
 
 # ---- 무기 밸런스 (1발 피해 = 계수 × 레벨 곡선. 레벨 곡선은 모든 무기 같아요, Lv0 = 1, Lv100 = 12.6, Lv300 = 63.6)
 # 증강 없이 보스 1마리 DPS 가 비슷해지게 정했어요 (단일 무기 = 100%, 광역·부가 효과 무기는 낮게). 기본총은 예전 그대로
-dmg_double = 11.9    # 쌍발총 100%
-dmg_track = 31.7     # 유도탄 100%
-dmg_sniper = 99      # 저격총 100%
-dmg_drone = 19       # 드론 100% (1대 기준)
-dmg_blackhole = 9.5   # 블랙홀 (예전 직선 레이저 자리). 1틱 피해 = 이 계수 x 레벨 곡선
-dmg_bounce = 15      # 튕김총 (실제 시뮬: 보스 235, 무리 650. 여러 적에게 튕겨서 무리에서 강해요)
-dmg_poison = 34      # 독 비행기 (실제 시뮬: 보스 350, 단단한 무리 440, 적 적을 때 225)
-dmg_bomber = 98.4    # 폭격기 60% (폭발 광역)
-dmg_meteor = 6.5     # 운석 (임시, 26 → 13 → 6.5 · 장전 4 → 2 → 1초. 보스 1마리 DPS 가 폭격기와 같음)
-dmg_laser = 52.3     # 360 레이저 22% (화면 전체를 쓸어요. 무리에선 1등)
+# 2026-11-22 무기 계수 통일: 무기 차이는 아래 ratio_* (1발 전체에 곱하는 무기 비율)에만 둬요. 예전 값: 쌍발총 11.9, 유도탄 31.7, 저격총 99, 드론 19, 블랙홀 9.5, 튕김총 15, 독 34, 폭격기 98.4, 운석 6.5, 360 레이저 52.3
+dmg_double = 25
+dmg_track = 25
+dmg_sniper = 25
+dmg_drone = 25
+dmg_blackhole = 25
+dmg_bounce = 25
+dmg_poison = 25
+dmg_bomber = 25
+dmg_meteor = 25
+dmg_laser = 25
+# 무기 비율 (2026-11-22): 1발 = (플레이어 공격력 + 무기 계수 × 레벨 곡선) × 비율. 측정 3상황(움직이는 적 죽음·멈춘 적 40·보스) DPS 의 기하평균이 모두 약 5000 이 되게
+ratio_double = 0.70     # 쌍발총 (측정 종합 7164)
+ratio_bomber = 10.8     # 폭격기 (465, 장전 5초)
+ratio_track = 2.0       # 유도탄 (2445)
+ratio_poison = 1.0      # 독 비행기 (5040)
+ratio_drone = 1.45      # 드론 (3427)
+ratio_laser = 1.83      # 360 레이저 (2727)
+ratio_blackhole = 0.44  # 블랙홀 (11260)
+ratio_sniper = 6.7      # 저격총 (746, 장전 6초)
+ratio_bounce = 1.15     # 튕김총 (4331)
+ratio_meteor = 0.45     # 운석 (11227)
 
 # ---- 합체: 위성 레이저
 satlaser_tick = 0.1          # 위성 레이저 피해 간격 (초)
@@ -210,7 +222,11 @@ ult_singularity_laser_mul = 0.15   # 사건의 지평선: 레이저 0.1초마다
 ult_singularity_aim_time = 0.7     # 사건의 지평선: 레이저가 꺼지고 저격 전까지 텀 (조준선만, 초)
 ult_singularity_size = 0.8     # 사건의 지평선: 블랙홀 그림 지름 (화면 반폭 대비)
 ult_singularity_hold = 0.15    # 사건의 지평선: 적이 도는 원 크기 (화면 반폭 대비)
-singularity_aim_time = 0.4   # 특이점 저격: 블랙홀이 닫히기 전 빨간 조준선이 보이는 시간 (초)
+singularity_aim_time = 1.2   # 특이점 저격: 블랙홀이 닫히기 이 시간(초) 전부터 빨간 조준선이 보여요 (블랙홀은 3초 열려요. 2026-11-22: 0.4 → 1.2, 더 빨리 뜨게)
+singularity_push = 2         # 특이점 저격: 저격에 맞은 모인 적이 우주선 반대쪽으로 부채꼴로 퍼지며 밀리는 거리 (칸, 적마다 70~100%, 보스 30%)
+singularity_fan_back = 0.5   # 특이점 저격·사건의 지평선: 부채꼴 넓이 (작을수록 넓게 퍼져요, 클수록 한 방향으로)
+singularity_echo_delay = 0.35 # 특이점 저격 여진: 저격 뒤 이만큼(초) 기다렸다가 적이 가장 몰린 곳에 작은 블랙홀 (밀린 적이 자리 잡을 때까지)
+singularity_avoid = 1.5      # 특이점 저격: 다음 블랙홀은 직전 자리에서 블랙홀 반경 × 이 값 안은 피해요 (거기밖에 없으면 그래도 열어요)
 
 # ---- 저격총 (2026-11-20: 보스 사냥꾼 + 남는 피해 이월)
 sniper_boss_bonus = 0.5      # 보스에게 피해 +50% (레일건도 같이)
@@ -296,20 +312,108 @@ ult_zodiac_seg = 0.25        # 종결: 별자리 선 한 칸 그리는 시간 (�
 singularity_hit_width = 0.6        # 특이점 저격: 저격 빔이 지나가는 길의 판정 폭 (칸)
 singularity_beam_width = 0.45      # 특이점 저격: 저격 빔 그림 굵기 (칸, 예전 0.07)
 ult_singularity_beam_width = 0.6   # 사건의 지평선: 마지막 저격 빔 그림 굵기 (칸, 예전 0.14)
+ult_singularity_ship_safe = 2.5    # 사건의 지평선: 블랙홀이 사라질 때 우주선에서 이 거리(칸) 안의 적은 우주선 반대쪽으로 이만큼 밀어내요 (0.8초 동안 우주선에 닿아도 피해 없음)
+ult_singularity_push = 2.5         # 사건의 지평선: 마지막 저격에 맞은 적이 우주선 반대쪽으로 부채꼴로 퍼지며 밀리는 거리 (칸)
 
-# ---- 프리즘 빔 연출 (2026-11-21): 쏘기 시작하면 번쩍 + 빔이 쭉 뻗어 나가요 (판정은 그대로)
-prism_shoot_time = 0.18      # 빔이 화면 끝까지 뻗는 시간 (초)
-prism_flash = 0.7            # 시작할 때 우주선 번쩍 크기 (칸)
-prism_glow_width = 0.5       # 무지개 빛무리 굵기 (칸, 굵은 광선 증강만큼 커져요)
-prism_core_width = 0.14      # 하얀 심 굵기 (칸)
-# 종결 무지개 심판 (2026-11-21 다시 만듦): 빛 모으기 → 7색 빔 부채가 한 바퀴 → 하얀 충격파
-ult_prism_charge = 0.55      # 빛을 모으는 시간 (초)
-ult_prism_sweep = 1.6        # 한 바퀴 도는 시간 (초)
-ult_prism_beams = 7          # 빔 수 (무지개 7색)
-ult_prism_spread = 70        # 부채 펼친 각도 (도)
-ult_prism_width = 0.75       # 빔 굵기 (칸)
-ult_prism_hit_mul = 0.6      # 빔 하나가 지나갈 때 피해 = 360 레이저 1발 × 이 값 (빔마다 한 번, 피해 숫자는 나중에)
-ult_prism_final_mul = 2      # 마지막 충격파 피해 (화면 전체)
+# ---- 별빛 섬광 (2026-11-21, 360 레이저 + 운석. 예전 프리즘 빔 자리): 하늘에서 별이 떨어지고 닿으면 가로·세로 빛살
+starlight_reload = 1         # 별이 떨어지는 간격 (초, 공격속도 특성·증강만큼 빨라져요)
+starlight_reload_min = 0.4   # 가장 짧은 간격 (초)
+starlight_count = 3          # 한 번에 떨어지는 별 (서로 다른 적, + 별무리, + 탄 추가 증강)
+starlight_gap = 0.12         # 별 사이 간격 (초)
+starlight_fall_time = 0.3    # 별이 하늘에서 떨어지는 시간 (초, 떨어지는 동안 적을 따라가요)
+starlight_from_x = -1.6      # 별 출발점: 목표에서 옆으로 (칸, 별마다 ±0.8 흔들어요)
+starlight_from_y = 6.5       # 별 출발점: 목표에서 위로 (칸)
+starlight_hit_mul = 0.4      # 피해: 빛살에 맞은 적마다 360 레이저 1발 × 이 값 (임시, 피해 숫자는 나중에)
+starlight_ray_len = 2.2      # 빛살 길이: 가운데에서 끝까지 (칸, + 긴 빛살)
+starlight_ray_width = 0.4    # 빛살 그림 굵기 (칸)
+starlight_hit_band = 0.35    # 빛살 판정 폭: 빛살 중심선에서 적 중심까지 (칸)
+starlight_ray_time = 0.45    # 빛살이 보이는 시간 (초)
+# 종결 북극성 (2026-11-21, 예전 무지개 심판 자리): 밤하늘 → 북극성이 세 번 반짝 → 마지막 8갈래
+ult_polaris_dim = 0.55       # 밤하늘 어둡기 (0~1, 배경만 어두워져요)
+ult_polaris_rise = 0.6       # 북극성이 떠오르는 시간 (초)
+ult_polaris_height = 0.62    # 북극성 높이 (화면 가운데에서 위 끝까지의 비율)
+ult_polaris_size = 1.6       # 북극성 크기 (칸)
+ult_polaris_twinkles = 3     # 반짝이는 횟수 (마지막 1번이 8갈래)
+ult_polaris_gap = 0.5        # 반짝임 사이 (초)
+ult_polaris_ray_width = 0.9  # 화면을 가로지르는 빛살 굵기 (칸, 마지막은 1.5배)
+ult_polaris_hit_mul = 0.6    # 반짝일 때마다 화면의 모든 적 피해 = 360 레이저 1발 × 이 값 (피해 숫자는 나중에)
+ult_polaris_final_mul = 2    # 마지막 8갈래 피해 (모든 적, 연타를 합친 값)
+ult_polaris_burst_hits = 8   # 마지막 연타 횟수 (빠빠빠빠박, 1번 피해 = 마지막 피해 ÷ 횟수)
+ult_polaris_burst_gap = 0.06 # 연타 간격 (초). 종결 시작부터 연타가 끝날 때까지 적이 멈춰요
+ult_polaris_charge = 0.7     # 마지막 한 방 전 모으기 (초): 작은 별·빛 조각이 북극성으로 빨려 들어가고 별이 졸아들어요
+ult_polaris_hold = 0.12      # 모은 뒤 터지기 전 잠깐 멈춤 (초)
+ult_polaris_final_width = 2.2 # 마지막 8갈래 빛살 굵기 배수
+ult_polaris_flash = 0.85     # 마지막 화면 번쩍 세기 (0~1)
+ult_polaris_shake = 0.4      # 마지막 화면 흔들림 세기
+ult_polaris_shake_time = 0.5 # 마지막 화면 흔들림 시간 (초)
 arena_enemy_size = 0.7     # 연습장: 적이 이 크기(칸)보다 크면 줄여요 (서로 겹쳐 보이지 않게)
 arena_hits = 15             # 연습장: 적 체력 = 지금 무기 1발 × 이 값 (방어력 0, 치명타면 더 빨리 죽어요). 죽으면 빈자리에 새로 나와요
 arena_boss_mul = 10         # 연습장: 보스 추가 체력 = 일반 적의 이 배수 (보스는 다시 안 나와요)
+# ---- 피해 숫자 겹침 (2026-11-22): 같은 자리에 연달아 뜨면 위로 쌓고 좌우로 살짝 흩어요
+popup_stack_time = 0.45      # 이 시간(초) 안에 같은 자리에 뜬 숫자끼리 쌓아요
+popup_stack_radius = 0.4     # 같은 자리로 보는 거리 (칸)
+popup_stack_step = 0.12      # 한 칸씩 위로 띄우는 높이 (칸, 2026-11-22: 0.3 은 너무 떠서 살짝 겹치게)
+popup_stack_max = 4          # 이만큼 쌓이면 다시 아래부터
+popup_jitter = 0.1           # 좌우로 흩는 정도 (칸)
+# ---- 중력 폭탄 블랙홀탄 (2026-11-22): 블랙홀을 바로 열지 않고 탄을 쏴서, 맞은 자리에 블랙홀 → 닫힐 때 거대 폭탄
+gravbomb_target = 0          # 0 = 가장 많이 몰린 무리로 (가는 길의 적은 무시), 1 = 가장 가까운 적으로
+gravbomb_shell_speed = 9     # 블랙홀탄 속도 (칸/초, 목표 적을 따라가요)
+gravbomb_shell_size = 0.4    # 블랙홀탄 크기 (칸)
+gravbomb_multi = 2           # 블랙홀탄 고르는 방식: 2 = 가까운 적 순 (기본, 모든 탄. 서로 겹치지 않게), 0 = 폭격기처럼 부채꼴, 1 = 많은 무리 순 (0·1 은 첫 탄을 gravbomb_target 으로)
+gravbomb_fan_angle = 25      # 부채꼴: 탄 사이 각도 (도)
+gravbomb_push = 2            # 중력 폭탄: 폭발에 맞은 적이 우주선 반대쪽으로 부채꼴로 퍼지며 밀리는 거리 (칸, 특이점 저격과 같은 방식, 부채 넓이는 singularity_fan_back)
+dps_run_min = 15             # DPS 기록: 무기를 바꿀 때 이 시간(게임 초) 이상 잰 것만 Tuning/dps_runs.txt 에 남겨요
+# ---- 측정 모드 (2026-11-22, 연습장 창 아래 "측정" 버튼): 기본 무기 10개를 차례로 자동 측정
+measure_seconds = 20         # 무기 하나를 재는 시간 (게임 초). 회차마다 따로 재서 평균 (2026-11-22: 30 → 20, 대신 3번)
+measure_warmup = 10          # 무기를 바꾼 뒤 재기 전에 미리 돌리는 시간 (게임 초). 시작이 느린 무기(360 레이저 10초 대기 등)가 손해 보지 않게
+measure_warmup_jitter = 5    # 미리 돌리는 시간에 0 ~ 이만큼(초)을 무작위로 더해요 (회차마다 시작 시점이 달라 주기 운이 평균돼요)
+measure_repeats = 3          # 칸(상황·증강 단계·무기)마다 재는 횟수. 회차마다 연습장 적 자리를 새로 섞어요
+measure_spawn_mul = 10       # 측정 "움직이는 적": 적이 나오는 속도 배율 (센 무기가 적을 기다리지 않게)
+measure_max_enemies = 120    # 측정 "움직이는 적": 화면 최대 적 수
+measure_hp_aug_0 = 1         # 측정 "움직이는 적": 적 체력 배율 (증강 없음)
+measure_hp_aug_1 = 1.5       # 증강 일부
+measure_hp_aug_2 = 2         # 증강 1레벨
+measure_hp_aug_3 = 3         # 증강 중간
+measure_hp_aug_4 = 4         # 증강 최대 (실제 게임에서 강해지면 높은 스테이지로 가는 것과 같아요)
+measure_speed = 5            # 측정 중 게임 속도
+measure_hits = 15            # 측정 "움직이는 적": 적 체력 = 플레이어 공격력 × 이 값 (약 이만큼 맞으면 죽어요)
+measure_armor = 1            # 측정 "단단한 적": 방어력 = 플레이어 공격력 × 이 값 (1 = 평균 무기 1발이 관통력 0이면 절반만 들어가요)
+measure_scatter_count = 7    # 측정 "흩어진": 화면에 흩어 세우는 적 수
+measure_near_count = 12      # 측정 "우주선 근처": 우주선 둘레에 세우는 적 수
+measure_near_min = 1.8       # 측정 "우주선 근처": 우주선에서 가장 가까운 거리 (칸)
+measure_near_max = 2.6       # 측정 "우주선 근처": 가장 먼 거리 (칸)
+dps_switch_warmup = 3        # DPS 기록(손으로 켠 것): 무기를 바꾼 직후 빼는 시간 (게임 초)
+# ---- 밤새 측정 (2026-11-22, 연습장 창 "밤새 측정" 버튼): 속도 비교 x1 vs x1.5 → 기본 무기 3단계 → 추가 상황 3개 → 합체 무기 2단계 → 종결 (x1.5, 약 6시간 25분)
+overnight_speed = 1.5        # 밤새 측정 중 게임 속도 (2026-11-22 사용자: x1 이 가장 정확, 1.5 까지 괜찮아요). 속도 비교는 x1 과 이 값
+overnight_base_repeats = 3   # 기본 무기 칸마다 재는 횟수 (증강 없음·1레벨·최대 3단계)
+overnight_fusion_repeats = 2 # 합체 무기 칸마다 재는 횟수
+overnight_ult_repeats = 1    # 종결 칸마다 재는 횟수
+measure_ult_seconds = 12     # 종결을 쓴 뒤 재는 시간 (게임 초)
+measure_hp_fusion_0 = 4      # 측정 "움직이는 적": 적 체력 배율 (합체만, 합체 위력이 A 의 3배라서)
+measure_hp_fusion_1 = 8      # 합체 증강 최대
+measure_hp_fusion_2 = 8      # 종결
+overnight_extra_repeats = 2  # 밤새 측정 추가 상황(빠른 적·보스 + 졸개·시작 직후) 칸마다 재는 횟수 (기본 무기, 증강 없음·최대)
+measure_fast_mul = 2         # 측정 "빠른 적": 적 이동 속도 배율
+measure_minions = 20         # 측정 "보스 + 졸개": 보스와 같이 세우는 졸개 수
+measure_burst_seconds = 10   # 측정 "시작 직후": 미리 돌리지 않고 재는 시간 (게임 초)
+# ---- 증강 하나씩 측정 (2026-11-22, 연습장 창 "증강 하나씩" 버튼): 전용 증강 30개를 하나씩 최대로 · 움직이는 적/멈춘 적 40/보스 1
+solo_aug_repeats = 2         # 칸마다 재는 횟수
+measure_hp_solo = 3          # "움직이는 적" 적 체력 배율 (증강 하나 최대일 때)
+measure_isolate = 5          # 무기를 바꾼 뒤 앞 무기 효과가 끝나길 기다리는 시간 (게임 초). 그 뒤 적을 새로 세우고 미리 돌리기 시작. 시작 직후 측정은 안 써요
+# ---- 증강 조정안 v3 (2026-11-22, 증강 하나씩 측정 결과. 탄 개수는 그대로, 피해만). 레벨 L 값 = base + step × (L-1)
+drone_share = 0.3333         # 드론 추가: 한 대 피해 = 1 / (1 + 이 값 × 레벨) → 1/2/3/4대 = 100/75/60/50%
+carpet_damage = 0.4          # 연속 투하 추가 폭탄 피해 (원래 폭탄 대비, 예전 1)
+bm_second_base = 0.4         # 2차 폭발 피해 (예전 40~100%)
+bm_second_step = 0.05
+dg_rapid_base = 0.4          # 쌍둥이 연사 공격속도 (예전 15~35%, v3 40~100%)
+dg_rapid_step = 0.15
+dg_accel_dmg_base = 0.25     # 탄 가속 피해 + (새로, 25~85%)
+dg_accel_dmg_step = 0.15
+tk_homing_dmg_base = 0.15    # 추적 강화 미사일 피해 + (새로)
+tk_homing_dmg_step = 0.1
+bh_big_dmg_base = 0.5        # 거대 중력 빨아들이는 피해 + (새로, 50~150%)
+bh_big_dmg_step = 0.25
+bh_collapse_base = 1         # 초신성 붕괴 폭발 피해 + (예전 50~150%, v3 100~340%)
+bh_collapse_step = 0.6
+bn_accel_dmg_base = 0.05     # 탄성 가속: 튈 때마다 처음 피해의 + (새로)
+bn_accel_dmg_step = 0.025

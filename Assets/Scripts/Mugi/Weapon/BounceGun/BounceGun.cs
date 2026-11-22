@@ -19,12 +19,12 @@ public class BounceGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.BounceGun;
     public override SideWeapon Side => SideWeapon.BounceGun;
-    public override int BaseDamage => Balanced("bounce", 15f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("bounce", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Balanced("bounce", 15f);
+        Damage = Balanced("bounce", 25f);
 
     // 한 번 발사하는 탄들은 "이미 맞힌 적" 목록을 같이 써요
     protected override void Fire()

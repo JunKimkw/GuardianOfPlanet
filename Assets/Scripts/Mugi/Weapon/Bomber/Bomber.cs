@@ -16,12 +16,12 @@ public class Bomber : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.Bomber;
     public override SideWeapon Side => SideWeapon.Bomber;
-    public override int BaseDamage => Balanced("bomber", 98.4f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("bomber", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Balanced("bomber", 98.4f);
+        Damage = Balanced("bomber", 25f);
 
     // 폭탄 목표: 적이 가장 많이 모인 곳 (없으면 마우스/가까운 적). 화면 안으로 맞추고, 적이 다가오는 만큼 조금 앞을 노려요
     Vector3 aimPoint;
@@ -59,10 +59,11 @@ public class Bomber : GunWeapon
         Vector3 dir = (center - transform.position).normalized;
         Vector3 side = new Vector3(-dir.y, dir.x, 0f);
         float gap = BomberBullet.BaseRadius * 1.4f;
+        long extraDmg = ClampDamage(dmg * (double)AugmentDefs.CarpetDamage);   // 추가 폭탄 피해 (2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만))
         for(int i = 0; i < extra; i++) {
             int step = i / 2 + 1;
             float sign = (i % 2 == 0) ? 1f : -1f;
-            SpawnBomb(ClampToScreen(center + side * (gap * step * sign)), dmg);
+            SpawnBomb(ClampToScreen(center + side * (gap * step * sign)), extraDmg);
         }
     }
 

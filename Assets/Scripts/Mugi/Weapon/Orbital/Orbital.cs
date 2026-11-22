@@ -24,13 +24,13 @@ public class Orbital : ContactWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.CodeA;
     public override SideWeapon Side => SideWeapon.Orbital;
-    public override int BaseDamage => Balanced("drone", 19f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("drone", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
     protected override float HitInterval => 0.15f;
 
     static bool ToxSat => AugmentManager.Fused(AugmentDefs.FzToxSat);
 
     public override void SetDamage() =>
-        OribitalDamage = Balanced("drone", 19f);
+        OribitalDamage = Balanced("drone", 25f);
 
     void Awake()
     {
@@ -102,21 +102,22 @@ public class Orbital : ContactWeapon
         }
     }
 
-    // 드론이 쏠 때 (Drone 이 불러요). 증강 "추가 발사": 탄 +L발이 부채꼴로 더 나가요 (추가 탄 피해 70%)
+    // 드론이 쏠 때 (Drone 이 불러요). 증강 "추가 발사": 탄 +L발이 부채꼴로 더 나가요 (추가 탄 피해 drone_extra_damage 35%)
     public void FireFrom(Vector3 from, Enemy target)
     {
         Vector3 dir = target.pos - from;
         dir.z = 0f;
         if(dir.sqrMagnitude < 0.0001f) return;
         dir.Normalize();
-        long dmg = ClampDamage(HitDamage * (double)Tuning.Get("drone_damage_mul", 1f));
+        // 드론 추가: 드론이 늘수록 한 대 피해가 줄어요 (2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만))
+        long dmg = ClampDamage(HitDamage * (double)Tuning.Get("drone_damage_mul", 1f) * AugmentDefs.ObShare(AugmentManager.WL("ob_extra")));
         float speed = Tuning.Get("drone_bullet_speed", 7f);
         float critDmg = Player.instance.FinalCriticalDamage + ExtraCritDamage;
         DroneBullet.Spawn(from, dir, speed, dmg, RollCrit(ExtraCritChance), RollStun(StunPercent), critDmg, ToxSat);
 
         int extra = AugmentManager.WL("ob_multi");
         if(extra <= 0) return;
-        long extraDmg = ClampDamage(dmg * (double)Tuning.Get("drone_extra_damage", 0.7f));
+        long extraDmg = ClampDamage(dmg * (double)Tuning.Get("drone_extra_damage", 0.35f));
         float spread = Tuning.Get("drone_extra_spread", 12f);
         for(int i = 0; i < extra; i++) {
             float ang = (i % 2 == 0 ? 1f : -1f) * spread * (i / 2 + 1);   // +12°, -12°, +24° ...

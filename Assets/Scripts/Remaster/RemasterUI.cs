@@ -817,7 +817,7 @@ public class RemasterUI : MonoBehaviour
     public void ShowDebugArena()
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        var p = OpenModal(new Vector2(980, 1640), out Action close);
+        var p = OpenModal(new Vector2(980, 1730), out Action close);
         BuildDebugArena(p, close);
 #endif
     }
@@ -866,7 +866,32 @@ public class RemasterUI : MonoBehaviour
                 on ? BPurple : BGray, () => { mgr.DebugSoloFusion(f); refresh(); }, 22);
         }
 
-        Btn(p, "지금 무기\n증강 보기", new Vector2(290, 100), new Vector2(-310, -700), BBlue, () => {
+        // 측정 모드 (2026-11-22): 기본 무기 10개를 자동으로 바꿔 가며 DPS 를 Tuning/dps_measure.txt 에 남겨요
+        //  (회차 3번 · 무기마다 미리 10초 돌리고 20초 재기. 상황 하나에 약 3분)
+        Label(p, mgr.Measuring ? "<color=#7CFF8A>측정 중</color> (상황 하나 = 무기 10개 × 3회, 약 3분)" : "측정 모드: 무기 10개 × 3회 자동 측정 (증강은 지워요)", new Vector2(900, 40), new Vector2(0, -490), 24, TextDim);
+        // 2026-11-22: 상황 6개 + 전부 + 전용 증강 켜고 끄기 + 멈추기 (5개씩 2줄)
+        var mbtn = new Vector2(176, 66);
+        Btn(p, "측정\n움직이는 적", mbtn, new Vector2(-370, -545), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(0); }, 20);
+        Btn(p, "측정\n멈춘 적 40", mbtn, new Vector2(-185, -545), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(1); }, 20);
+        Btn(p, "측정\n보스", mbtn, new Vector2(0, -545), BRed, () => { CloseAllModals(); mgr.DebugMeasure(2); }, 20);
+        Btn(p, "측정\n단단한 적 40", mbtn, new Vector2(185, -545), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(3); }, 20);
+        Btn(p, "측정\n흩어진 7", mbtn, new Vector2(370, -545), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(4); }, 20);
+        Btn(p, "측정\n우주선 근처 12", mbtn, new Vector2(-370, -617), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(5); }, 20);
+        Btn(p, "측정 전부\n(6상황, 약 20분)", mbtn, new Vector2(-185, -617), BPurple, () => { CloseAllModals(); mgr.DebugMeasure(6); }, 20);
+        // 전용 증강 단계 (누를 때마다 다음 단계): 위 버튼들로 한 상황씩 잴 때 쓰여요
+        Btn(p, $"전용 증강\n{AugmentManager.MeasureAugNames[AugmentManager.MeasureAugStage]}", mbtn, new Vector2(0, -617), AugmentManager.MeasureAugStage > 0 ? BGreen : BGray,
+            () => { AugmentManager.MeasureAugStage = (AugmentManager.MeasureAugStage + 1) % AugmentManager.MeasureAugNames.Length; refresh(); }, 20);
+        Btn(p, "측정\n멈추기", mbtn, new Vector2(185, -617), mgr.Measuring ? BYellow : BGray, () => { mgr.DebugMeasureStop(); refresh(); }, 20);
+        // 한 번 누르면 증강 5단계(없음·일부·1레벨·중간·최대) × 6상황을 전부 차례로 (약 1시간 40분)
+        Btn(p, "측정 전체\n증강 5단계 (1시간 40분)", mbtn, new Vector2(370, -617), BRed, () => { CloseAllModals(); mgr.DebugMeasure(7); }, 17);
+        // 기록이 빠진 칸(제대로 잰 회차가 모자란 칸)만 다시 · 속도 비교 x1 vs x5 (2026-11-22)
+        Btn(p, "빈 칸만 다시", new Vector2(220, 60), new Vector2(-345, -688), BYellow, () => { CloseAllModals(); mgr.DebugMeasure(8); }, 20);
+        Btn(p, "속도 비교\n(약 7분)", new Vector2(220, 60), new Vector2(-115, -688), BBlue, () => { CloseAllModals(); mgr.DebugMeasure(9); }, 18);
+        // 증강 하나씩 (2026-11-22): 전용 증강 30개를 하나씩 최대로 · 3상황 · 2회
+        Btn(p, "증강 하나씩\n(약 1시간 15분)", new Vector2(220, 60), new Vector2(115, -688), BPurple, () => { CloseAllModals(); mgr.DebugMeasure(15); }, 18);
+        // 밤새 측정 (2026-11-22 사용자: 자는 동안 6시간쯤): 속도 비교 → 기본 무기 5단계 → 합체 무기 → 종결
+        Btn(p, "밤새 측정\n(약 6시간 25분)", new Vector2(220, 60), new Vector2(345, -688), BRed, () => { CloseAllModals(); mgr.DebugMeasure(10); }, 18);
+        Btn(p, "지금 무기\n증강 보기", new Vector2(290, 80), new Vector2(-310, -775), BBlue, () => {
             var cur = mgr.DebugSoloWeapon();
             if(cur == SideWeapon.None) { Toast("[개발] 먼저 무기를 하나 골라 주세요", Color.white); return; }
             ShowDebugWeaponAugs(cur, refresh);
@@ -874,9 +899,9 @@ public class RemasterUI : MonoBehaviour
         // 종결 발동 (2026-11-21 사용자 요청): 지금 고른 합체 무기의 종결을 바로 (창을 닫고 발동). 게임 중엔 U 키
         int curFusion = mgr.CurrentUltFusion();
         Btn(p, curFusion >= 0 ? $"종결 발동\n<size=70%>{AugmentDefs.UltNames[curFusion]}</size>" : "종결 발동\n<size=70%>(합체 무기만)</size>",
-            new Vector2(290, 100), new Vector2(0, -700), curFusion >= 0 ? BYellow : BGray, () => { CloseAllModals(); mgr.DebugTriggerCurrentUlt(); }, 26);
-        Btn(p, "닫기", new Vector2(290, 100), new Vector2(310, -700), BGray, () => close(), 34);
-        Label(p, "P 연습장 · U 종결 발동 · F7 게임 속도 · F12 스크린샷", new Vector2(900, 40), new Vector2(0, -780), 24, TextDim);
+            new Vector2(290, 80), new Vector2(0, -775), curFusion >= 0 ? BYellow : BGray, () => { CloseAllModals(); mgr.DebugTriggerCurrentUlt(); }, 26);
+        Btn(p, "닫기", new Vector2(290, 80), new Vector2(310, -775), BGray, () => close(), 34);
+        Label(p, "P 연습장 · U 종결 발동 · F7 게임 속도 · F12 스크린샷", new Vector2(900, 40), new Vector2(0, -840), 24, TextDim);
     }
 
     // [개발] 무기 하나의 증강만: 전용 3개 + 합체 카드 + 합체 전용 증강
@@ -1068,7 +1093,7 @@ public class RemasterUI : MonoBehaviour
         Btn(p, "보스\n소환", small, new Vector2(0, -840), BRed, () => mgr.DebugSpawnBoss(), 26);
         Btn(p, $"속도\nx{Time.timeScale:0.#}", small, new Vector2(185, -840), BYellow, () => { DevTools.CycleSpeed(); BuildDebugAugments(p, close); }, 26);
         Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(370, -840), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); BuildDebugAugments(p, close); }, 26);
-        Label(p, "F7 게임 속도 · F12 스크린샷 · F2 +20스테이지 · F9 골드 +10억 · F5 원정 준비", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
+        Label(p, "F7 게임 속도 · F12 스크린샷 · F2 +20스테이지 · Home 1스테이지 · F9 골드 +10억 · F5 원정 준비", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
     }
     #endregion
 

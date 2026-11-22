@@ -42,7 +42,7 @@ public partial class AugmentManager
     // ---- 양쪽 합체 (2026-11-20 사용자 결정): A 나 B 어느 쪽 무기로도 합체할 수 있어요.
     // 고른 쪽 무기(재료)의 전용 증강 3개를 모으면 카드가 나와요. 합체 무기의 동작은 항상 A 코드라서,
     // B 로 합체했는데 A 가 출격 중이 아니면 B 자리에 A 가 들어와요 (IsEquipped 에서 계산, 출격 칸 자체는 안 바꿔요).
-    // B 로 합체하려면 A 무기를 가지고(상점에서 열어) 있어야 해요. 레일건·프리즘 빔처럼 짝이 없으면 A 로만.
+    // B 로 합체하려면 A 무기를 가지고(상점에서 열어) 있어야 해요. 레일건·혜성탄처럼 짝이 없으면 A 로만.
 
     // 그 무기로 합체할 준비가 됐는지: 출격 중이고(합체 교체 전 기준) 전용 증강 3개를 다 모았음
     bool ViaReady(SideWeapon w)
@@ -350,6 +350,7 @@ public partial class AugmentManager
         DebugArena = true;
         DebugTestMode = true;
         em.removeAllEnemies();
+        arenaHome.Clear();
         arenaTarget = count;
         var spots = ArenaSpots();
         int n = Mathf.Min(count, spots.Count);
@@ -381,19 +382,76 @@ public partial class AugmentManager
     }
 
     // 작은 적 하나: 가장 작은 종류(그래도 크면 arena_enemy_size 칸으로 줄임), 멈춤, 체력 = 지금 무기 1발 × arena_hits, 방어력 0 (몇 대에 죽는지 보이게)
-    void SpawnArenaEnemy(Vector3 at)
+    void SpawnArenaEnemy(Vector3 at, bool exact = false)
     {
         var stage = InfiniteStage.Instance;
         var em = EnemyManager.Instance;
         if(stage == null || em == null || stage.enemyPrefab == null || stage.enemyPrefab.Length == 0) return;
         em.createInfiniteEnemy(SmallestPrefab(stage.enemyPrefab), stage.EnemyScale);
         var e = em.enemyData[em.enemyData.Count - 1];
-        e.transform.position = at + new Vector3(Random.Range(-0.15f, 0.15f), Random.Range(-0.15f, 0.15f), 0f);
+        e.transform.position = exact ? at : at + new Vector3(Random.Range(-0.15f, 0.15f), Random.Range(-0.15f, 0.15f), 0f);
         float want = Tuning.Get("arena_enemy_size", 0.7f), size = VisualSize(e.gameObject);
         if(size > want) e.ApplyLook(ExpeditionZones.StageTint(stage.CurrentStage), want / size);
         e.Armor = 0;
         e.EnemyHealth = e.CurrentHealth = System.Math.Max(1.0, ArenaRefDamage() * e.NumberScale * Tuning.Get("arena_hits", 15f));
         e.DebugFrozen = true;
+        arenaHome[e] = e.transform.position;
+    }
+
+    // 연습장 적이 처음 선 자리 (2026-11-22 밤새 측정 점검: 블랙홀·특이점 저격·중력 폭탄이 끌어모으거나 밀어낸 적이
+    //  다음 무기 측정까지 그대로 남아서, 뒤 무기가 모인 적을 때리거나(이득) 화면 밖으로 밀린 적을 못 때렸어요(피해 0))
+    //  → 측정에서 무기를 바꿀 때마다 이 자리로 되돌려요
+    readonly Dictionary<Enemy, Vector3> arenaHome = new Dictionary<Enemy, Vector3>();
+    public void DebugArenaResetSpots()
+    {
+        var gone = new List<Enemy>();
+        foreach(var kv in arenaHome) {
+            var e = kv.Key;
+            if(e == null || !e.gameObject.activeInHierarchy || e._state == Enemy.EnemyState.dead) { gone.Add(e); continue; }
+            e.transform.position = kv.Value;
+        }
+        foreach(var e in gone) arenaHome.Remove(e);
+    }
+
+    // 연습장 적을 기억한 자리에 새로 세워요 (2026-11-22 사용자: "측정할 때 이전 무기에 영향 안 가게")
+    //  자리만 옮기면 앞 무기가 건 독·느려짐·기절·표식이 그대로 남아서, 적을 지우고 같은 자리에 새 적을 세워요 (보스·단단한 적 방어력도 그대로)
+    double measureArenaArmor;
+    public void DebugArenaRespawnHome()
+    {
+        var em = EnemyManager.Instance;
+        if(em == null || !DebugArena) return;
+        var spots = new List<Vector3>();
+        bool boss = false;
+        foreach(var kv in arenaHome) {
+            var e = kv.Key;
+            if(e == null || !e.gameObject.activeInHierarchy || e._state == Enemy.EnemyState.dead) continue;
+            if(em.bossData.Contains(e)) boss = true; else spots.Add(kv.Value);
+        }
+        em.removeAllEnemies();
+        arenaHome.Clear();
+        foreach(var p in spots) SpawnArenaEnemy(p, true);
+        if(boss) DebugArenaBoss();
+        if(measureArenaArmor > 0) foreach(var e in em.enemyData) if(e != null) e.Armor = measureArenaArmor;
+    }
+
+    // 앞 무기 영향 끊기: 멈춘 적은 새로 세우고, 움직이는 적은 화면의 적을 다 치워요 (스테이지가 다시 내보내요)
+    void MeasureIsolate(int mode)
+    {
+        if(IsMovingMode(mode)) { if(EnemyManager.Instance != null) EnemyManager.Instance.removeAllEnemies(); }
+        else DebugArenaRespawnHome();
+    }
+
+    // 측정의 미리 돌리기: 새 무기로 바꾼 뒤 measure_isolate 초(앞 무기의 독 장판·블랙홀·종결 효과가 끝날 시간)를 기다렸다가
+    //  적을 한 번 더 새로 세우고, 그다음 미리 돌리기(warm)를 해요. 이 동안의 피해는 기록에 안 들어가요
+    static float MeasureIsolateSeconds(int mode) => mode == 13 ? 0f : Mathf.Max(0f, Tuning.Get("measure_isolate", 5f));
+    System.Collections.IEnumerator MeasureWarm(int mode, float warm)
+    {
+        float iso = MeasureIsolateSeconds(mode);
+        if(iso > 0f) {
+            yield return new WaitForSeconds(iso);
+            MeasureTry(() => MeasureIsolate(mode), "앞 무기 영향 끊기");
+        }
+        if(warm > 0f) yield return new WaitForSeconds(warm);
     }
 
     // 기준 피해: 연습장에서 혼자 싸우는 무기 1발 (합체 위력 포함). 여러 개면 그중 가장 센 것 (기본총 포함)
@@ -411,6 +469,7 @@ public partial class AugmentManager
 
     // 합체 무기 중 "1발"이 무기 피해(HitDamage)와 크게 다른 것 (2026-11-21 사용자: 위성 레이저가 15대를 맞아도 안 죽어요)
     //  위성 레이저: 위성 1틱 = 360 레이저 1발 × satlaser_tick_mul (세기 1배 기준) / 혜성탄: 머리 1번 = × comet_hit_mul / 별의 낙인: 운석 1발 = ÷ brand_damage_div
+//  마이크로 미사일: × micro_damage_mul / 별빛 섬광: 빛살 1번 = 360 레이저 1발 × starlight_hit_mul
     //  나머지 무기·합체는 1발(또는 1틱) ≈ HitDamage 라서 그대로
     static double ArenaHitScale(int fusion)
     {
@@ -419,6 +478,7 @@ public partial class AugmentManager
             case AugmentDefs.FzConstellation: return Tuning.Get("comet_hit_mul", 0.4f);
             case AugmentDefs.FzBrand: return 1.0 / Mathf.Max(1f, Tuning.Get("brand_damage_div", 3f));
             case AugmentDefs.FzMicro: return Tuning.Get("micro_damage_mul", 0.3f);
+            case AugmentDefs.FzStarlight: return Tuning.Get("starlight_hit_mul", 0.4f);
         }
         return 1.0;
     }
@@ -488,6 +548,7 @@ public partial class AugmentManager
         var cam = GameManager.instance.mainCamera;
         b.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y + cam.orthographicSize * 0.55f, 0f);
         b.DebugFrozen = DebugArena;
+        if(DebugArena) arenaHome[b] = b.transform.position;
         if(DebugArena) { b.Armor = 0; b.EnemyHealth = b.CurrentHealth = System.Math.Max(1.0, ArenaRefDamage() * b.NumberScale * Tuning.Get("arena_hits", 15f) * Tuning.Get("arena_boss_mul", 10f)); }   // 연습장 보스: 일반 적의 arena_boss_mul 배 (죽으면 다시 안 나와요)
 #endif
     }
@@ -503,6 +564,451 @@ public partial class AugmentManager
             foreach(var e in em.bossData) if(e != null) e.DebugFrozen = false;
         }
         ui.Toast("[개발] 연습장 끔 (적이 다시 움직이고 새로 나와요)", Color.white);
+#endif
+    }
+
+    // ---- 개발용 측정 모드 (2026-11-22 사용자: "측정 모드를 누르면 무기가 순서대로 바뀌게, 보스랑 멈춘 적도 버튼으로")
+    //  상황을 차려 놓고(증강 없이, 적이 안 죽게) 게임 속도 x5, DPS 기록을 켠 뒤 기본 무기 10개를 measure_seconds(게임 30초 = 현실 6초)씩 차례로 혼자 출격시켜요.
+    //  무기를 바꿀 때마다 DevTools 가 앞 무기 측정을 Tuning/dps_runs.txt 에 "[상황] 무기" 로 한 줄씩 남겨요 (바꾼 직후 measure_warmup 초는 빼요: 앞 무기 독 장판 등이 섞이지 않게)
+    //  0 = 움직이는 적 (1스테이지, 테스트 모드, 적 많이), 1 = 멈춘 적 40 (연습장, 적 무적), 2 = 보스 1 (연습장 적 0 + 멈춘 보스, 적 무적)
+    //  3 = 단단한 적 40 (방어력 = 공격력 × measure_armor), 4 = 흩어진 소수 (measure_scatter_count 마리), 5 = 우주선 근처 (둘레에 measure_near_count 마리) (2026-11-22 추가)
+    // ---- 개발용 측정 모드 (2026-11-22, 연습장 창 아래 "측정" 버튼). 결과는 Tuning/dps_measure.txt 에 무기·회차마다 한 줄씩
+    //  측정 방식 고침 (2026-11-22 사용자: "측정이 완벽하게 된 게 아니네, 4개 다 고쳐줘"):
+    //   1) 칸마다 measure_repeats(3)번 재요. 회차마다 연습장 적 자리를 새로 섞어서, 무기마다 같은 3가지 배치를 똑같이 겪어요. 정리할 때 평균을 내요.
+    //   2) 무기를 바꾼 뒤 measure_warmup(10)초 + 0~measure_warmup_jitter(5)초를 미리 돌리고 나서 measure_seconds(20)초를 재요.
+    //      360 레이저(처음 10초 대기)·블랙홀(8초)·저격총(6초)·폭격기(5초)처럼 시작이 느린 무기가 손해 보지 않고, 회차마다 시작 시점이 달라 주기 운도 평균돼요.
+    //   3) 움직이는 적: 더 많이(화면 최대 measure_max_enemies 120) 더 빨리(measure_spawn_mul 10배) 나오고, 증강 단계가 오를수록 적 체력도
+    //      measure_hp_aug_0~4 (1·1.5·2·3·4배)로 올라가요. 센 무기가 적이 나오기를 기다리느라 값이 막히지 않게 (실제 게임에서 강해지면 높은 스테이지로 가는 것과 같아요)
+    //   4) 속도 비교: 멈춘 적 40 한 배치에서 무기마다 x1 과 measure_speed(x5)로 번갈아 재서, 빠른 속도에서 탄이 적을 뚫고 지나가는지 봐요
+    //  상황: 0 = 움직이는 적 (1스테이지, 적이 죽음), 1 = 멈춘 적 40, 2 = 보스 1, 3 = 단단한 적 40 (방어력 = 공격력 × measure_armor),
+    //        4 = 흩어진 소수, 5 = 우주선 근처. 1~5 는 연습장(멈춘 적, 적 무적)
+    //        (2026-11-22 추가) 11 = 빠른 적 (움직이는 적, 이동 속도 × measure_fast_mul), 12 = 보스 + 졸개 (멈춘 보스 1 + 졸개 measure_minions 마리, 적 무적),
+    //        13 = 전투 시작 직후 (움직이는 적, 미리 돌리지 않고 처음 measure_burst_seconds 초만)
+    //  버튼: 0~5 = 그 상황, 6 = 여섯 상황 전부, 7 = 증강 5단계 × 여섯 상황, 8 = 빠진 칸만 다시, 9 = 속도 비교, 10 = 밤새 측정
+
+    // 측정 "움직이는 적": 테스트 모드(끝없이 나오고 스테이지 안 넘어감)인데도 적이 진짜 죽어요. 넘친 피해는 DPS 에서 빠져요 (실제 게임처럼)
+    //  체력 = 플레이어 공격력 × measure_hits (모든 무기 1발이 거의 공격력이라 약 15대) × 증강 단계 배율, 방어력 0
+    public static bool DebugMortal;
+    public static bool DebugNoDeath => DebugTestMode && (DebugArena ? DebugArenaInvincible : !DebugMortal);   // 개발용: 적이 안 죽는 상태
+    static readonly float[] MeasureHpDefaults = { 1f, 1.5f, 2f, 3f, 4f };
+    public static float MeasureHpMul => measureSoloAug != null ? Tuning.Get("measure_hp_solo", 3f) : MeasureFusionStage >= 0
+        ? Tuning.Get("measure_hp_fusion_" + MeasureFusionStage, MeasureFusionHpDefaults[Mathf.Clamp(MeasureFusionStage, 0, 2)])
+        : Tuning.Get("measure_hp_aug_" + MeasureAugStage, MeasureHpDefaults[Mathf.Clamp(MeasureAugStage, 0, 4)]);
+    public static void DebugMortalSetup(Enemy e)
+    {
+        if(e == null || Player.instance == null) return;
+        e.Armor = 0;
+        e.EnemyHealth = e.CurrentHealth = System.Math.Max(1.0, (double)Player.instance.FinalAttack_Damage * e.NumberScale * Tuning.Get("measure_hits", 15f) * MeasureHpMul);
+        if(MeasureFastEnemies) e.enemyMovingSpeed *= Tuning.Get("measure_fast_mul", 2f);
+    }
+    public static bool MeasureFastEnemies;   // 측정 "빠른 적"
+    static bool IsMovingMode(int mode) => mode == 0 || mode == 11 || mode == 13;
+    // 측정 "움직이는 적" 중에는 적이 더 많이, 더 빨리 (InfiniteStage 가 읽어요)
+    public static bool MeasuringMoving => DebugMortal && MeasureScene != null;
+
+    public static string MeasureScene;   // 지금 측정 상황 (기록 줄의 [ ] 안). null = 측정 모드 아님
+    Coroutine measureCo;
+    public bool Measuring => measureCo != null;
+    float measurePrevSpeed = 1f;
+    int measurePrevAugStage;
+
+    public void DebugMeasure(int mode)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if(measureCo != null) { StopCoroutine(measureCo); DevTools.MeasureAbort(); MeasureFinish(); }
+        measureCo = StartCoroutine(MeasureRun(mode));
+#endif
+    }
+
+    public void DebugMeasureStop()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if(measureCo != null) { StopCoroutine(measureCo); measureCo = null; }
+        DevTools.MeasureAbort();   // 재던 중인 무기는 덜 쟀으니 안 남겨요
+        MeasureFinish();
+        ui.Toast("[개발] 측정 멈춤 (결과: Tuning/dps_measure.txt)", Color.white);
+#endif
+    }
+
+    void MeasureFinish()
+    {
+        MeasureScene = null;
+        DebugMortal = false;
+        MeasureAugStage = measurePrevAugStage;
+        MeasureFusionStage = -1;
+        MeasureFastEnemies = false;
+        measureSpeedOverride = -1f;
+        measureRepeatsOverride = -1;
+        measureSoloAug = null;
+        measureArenaArmor = 0;
+        if(GameManager.instance != null) GameManager.instance.setTimeScale(measurePrevSpeed);
+    }
+
+    // 측정할 때 무기마다 넣는 그 무기 전용 증강 3개의 상태 (2026-11-22 사용자: 합체 전에 전용 증강은 거의 무조건 모으니까 단계별로 봐야 해요)
+    //  0 = 없음, 1 = 일부 (3개 중 앞 2개만 1레벨), 2 = 3개 모두 1레벨, 3 = 3개 모두 중간 레벨 (최대의 절반, 올림), 4 = 3개 모두 최대
+    public static int MeasureAugStage;
+    public static readonly string[] MeasureAugNames = { "증강 없음", "증강 일부", "증강 1레벨", "증강 중간", "증강 최대" };
+
+    System.Collections.IEnumerator MeasureRun(int mode)
+    {
+        var stage = InfiniteStage.Instance;
+        if(stage == null || !stage.IsRunning) { ui.Toast("[개발] 원정 전투 중에만 측정할 수 있어요", Color.white); measureCo = null; yield break; }
+        if(DevTools.DpsOn) DevTools.ToggleDps();   // 손으로 켠 DPS 기록은 꺼요
+        measurePrevSpeed = Time.timeScale;
+        measurePrevAugStage = MeasureAugStage;
+        DebugClearAugments();
+        yield return null;      // 2026-11-22 버그: 플레이어 공격력이 다음 프레임에 다시 계산돼서, 바로 읽으면 증강이 붙은 옛 값이었어요 (방어력이 6배로 나옴)
+        yield return null;
+        string title = mode == 15 ? "증강 하나씩 (3상황)" : mode == 10 ? "밤새 측정 (속도 비교 · 기본 무기 · 추가 상황 · 합체 무기 · 종결)" : mode == 7 ? "증강 5단계 × 6상황" : mode == 6 ? "6상황 · " + MeasureAugNames[MeasureAugStage] : mode == 8 ? "빈 칸만 다시" : mode == 9 ? "속도 비교" : "한 상황 · " + MeasureAugNames[MeasureAugStage];
+        DevTools.MeasureLine($"---- 측정 시작 {System.DateTime.Now:MM-dd HH:mm:ss} · {title} · 회차 {MeasureRepeats} · 미리 {Tuning.Get("measure_warmup", 10f):0.#}초 + 재기 {Tuning.Get("measure_seconds", 20f):0.#}초");
+        if(mode == 7) {
+            for(int a = 0; a < MeasureAugNames.Length; a++) {
+                MeasureAugStage = a;
+                for(int m = 0; m <= 5; m++) yield return MeasureSceneRun(m);
+            }
+        }
+        else if(mode == 6) { for(int m = 0; m <= 5; m++) yield return MeasureSceneRun(m); }
+        else if(mode == 8) yield return MeasureMissing();
+        else if(mode == 9) yield return MeasureSpeedCompare(new[] { 1f, Tuning.Get("measure_speed", 5f) });
+        else if(mode == 10) yield return MeasureOvernight();
+        else if(mode == 15) yield return MeasureSoloAugs();
+        else yield return MeasureSceneRun(mode);
+        MeasureFinish();
+        ui.Toast($"[개발] 측정 끝 · {title} (결과: Tuning/dps_measure.txt)", Color.white);
+        measureCo = null;
+    }
+
+    // 2026-11-22 (밤새 측정 점검): 무기 바꾸기·상황 차리기에서 오류가 한 번 나면 측정 전체가 멈춰서 몇 시간이 허탕이 돼요.
+    //  그래서 그런 곳은 여기로 감싸서, 오류가 나면 그 칸만 건너뛰고 dps_measure.txt 에 "!!" 줄로 남긴 뒤 계속해요
+    bool MeasureTry(System.Action a, string what)
+    {
+        try { a(); return true; }
+        catch(System.Exception ex) {
+            Debug.LogError($"[측정] {what} 실패: {ex}");
+            DevTools.MeasureLine($"!! {System.DateTime.Now:HH:mm:ss} {what} 실패: {ex.GetType().Name} {ex.Message}");
+            return false;
+        }
+    }
+
+    static int MeasureRepeats => measureRepeatsOverride > 0 ? measureRepeatsOverride : Mathf.Max(1, Tuning.GetInt("measure_repeats", 3));
+
+    static List<SideWeapon> AllSideWeapons()
+    {
+        var list = new List<SideWeapon>();
+        foreach(SideWeapon w in System.Enum.GetValues(typeof(SideWeapon))) if(w != SideWeapon.None) list.Add(w);
+        return list;
+    }
+
+    // ---- 밤새 측정 (2026-11-22 사용자: "자는 동안 6시간쯤 돌리게, 측정할 수 있는 건 다") — 버튼 mode 10
+    //  1) 속도 비교 x1 · overnight_speed(x3) · measure_speed(x5)  (멈춘 적 40 한 배치, 증강 없이)
+    //  2) 기본 무기 10개 × 전용 증강 5단계 × 6상황 × overnight_base_repeats(4)회
+    //  3) 합체 무기 13개 × 2단계(합체만 / 합체 증강 3개 최대) × 6상황 × overnight_fusion_repeats(3)회 (A 무기 전용 증강은 합체하면 없어지니까 빼요)
+    //  4) 종결 13개 × 6상황 × overnight_ult_repeats(2)회: 합체 증강 최대로 미리 돌린 뒤 종결을 한 번 쓰고 measure_ult_seconds(12)초를 재요.
+    //     종결 몫 = 이 줄의 피해 − 같은 상황 "합체 증강 최대" 줄의 DPS × 같은 시간 (정리할 때 계산해요)
+    //  2~4 는 overnight_speed(x3)로 재요 (x5 는 속도 비교 결과를 보기 전이라 빗나감이 걱정돼서). 미리 돌리기·재는 시간은 measure_* 그대로
+    static float measureSpeedOverride = -1f;
+    static int measureRepeatsOverride = -1;
+    static float MeasureSpeed => measureSpeedOverride > 0f ? measureSpeedOverride : Tuning.Get("measure_speed", 5f);
+
+    // 합체 측정 단계: -1 = 합체 아님, 0 = 합체만, 1 = 합체 증강 최대, 2 = 종결 (합체 증강 최대 + 종결 한 번)
+    public static int MeasureFusionStage = -1;
+    static readonly string[] MeasureFusionNames = { "합체", "합체 증강 최대", "종결" };
+    static readonly float[] MeasureFusionHpDefaults = { 4f, 8f, 8f };   // 움직이는 적 체력 배율 (합체는 A 의 3~5배라서)
+
+    System.Collections.IEnumerator MeasureOvernight()
+    {
+        // 2026-11-22 사용자: "x1 이 제일 정확하니 x1, 아니면 1.5" → x1.5 로, 6시간 안에 들어가게 증강 3단계(없음·1레벨·최대)·회차를 줄였어요
+        float speed = Tuning.Get("overnight_speed", 1.5f);
+        // 1) 속도 비교 x1 vs 밤새 속도 (그 속도가 x1 과 같은 값을 내는지)
+        yield return MeasureSpeedCompare(new[] { 1f, speed });
+        measureSpeedOverride = speed;
+        // 2) 기본 무기
+        measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("overnight_base_repeats", 3));
+        foreach(int a in new[] { 0, 2, 4 }) {   // 증강 없음 · 1레벨 · 최대 ("일부"·"중간"은 시간 때문에 빼요)
+            MeasureAugStage = a;
+            for(int m = 0; m <= 5; m++) yield return MeasureSceneRun(m);
+        }
+        // 2-2) 추가 상황 (2026-11-22 사용자: "6개 상황 말고 더 추가해도 돼"): 빠른 적 · 보스 + 졸개 · 시작 직후. 시간 때문에 증강 없음·최대만
+        measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("overnight_extra_repeats", 2));
+        foreach(int a in new[] { 0, 4 }) {
+            MeasureAugStage = a;
+            foreach(int m in new[] { 11, 12, 13 }) yield return MeasureSceneRun(m);
+        }
+        MeasureAugStage = 0;
+        // 3) 합체 무기
+        measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("overnight_fusion_repeats", 2));
+        for(int s = 0; s <= 1; s++) {
+            MeasureFusionStage = s;
+            for(int m = 0; m <= 5; m++) yield return MeasureFusionSceneRun(m);
+        }
+        // 4) 종결
+        measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("overnight_ult_repeats", 1));
+        MeasureFusionStage = 2;
+        for(int m = 0; m <= 5; m++) yield return MeasureFusionSceneRun(m);
+        MeasureFusionStage = -1;
+    }
+
+    // 합체 무기 한 상황: 회차마다 배치를 새로 섞고 합체 무기 13개를 차례로
+    System.Collections.IEnumerator MeasureFusionSceneRun(int mode)
+    {
+        int reps = MeasureRepeats, n = AugmentDefs.Fusions.Length;
+        for(int r = 0; r < reps; r++) {
+            string scene = null;
+            if(!MeasureTry(() => scene = MeasureSetupScene(mode) + " +" + MeasureFusionNames[MeasureFusionStage], $"상황 차리기 {mode}")) continue;
+            yield return null;
+            for(int f = 0; f < n; f++)
+                yield return MeasureFusionOne(mode, f, scene, $"회차 {r + 1}/{reps}", MeasureSpeed, $"{f + 1}/{n}");
+        }
+    }
+
+    System.Collections.IEnumerator MeasureFusionOne(int mode, int f, string scene, string note, float speed, string progress)
+    {
+        string fname = AugmentDefs.Fusions[f].name;
+        bool ok = MeasureTry(() => {
+            if(IsMovingMode(mode)) {
+                InfiniteStage.Instance.JumpToStage(1);
+                if(EnemyManager.Instance != null) EnemyManager.Instance.removeAllEnemies();
+            } else DebugArenaRespawnHome();   // 앞 무기가 옮기거나 상태를 건 적을 같은 자리에 새로
+            DebugClearAugments();
+            DebugSoloFusion(f);   // A 를 혼자 출격시키고 합체 (합체하면 A 전용 증강은 없어요)
+            if(MeasureFusionStage >= 1)
+                foreach(var id in AugmentDefs.Fusions[f].augs) { var d = AugmentDefs.Get(id); if(d != null) DebugAddAugment(d, true); }
+            GameManager.instance.setTimeScale(speed);   // 스테이지를 다시 시작하면 저장된 속도로 돌아가서 그 뒤에 맞춰요
+        }, $"합체 준비 {scene} {fname}");
+        if(!ok) yield break;
+        float warm = Tuning.Get("measure_warmup", 10f) + Random.Range(0f, Tuning.Get("measure_warmup_jitter", 5f));
+        MeasureScene = scene;
+        string name = AugmentDefs.Fusions[f].name;
+        DevTools.MeasureBegin(name, $"{note} · x{speed:0.#}", MeasureIsolateSeconds(mode) + warm);
+        ui.Toast($"[개발] 측정 [{scene}] {note} · {progress}: {name}", Color.white);
+        if(MeasureFusionStage == 2) {   // 종결: 미리 돌린 뒤 한 번 쓰고 그때부터 재요
+            yield return MeasureWarm(mode, warm);
+            MeasureTry(() => DebugTriggerUltimate(f), $"종결 발동 {scene} {fname}");
+            yield return new WaitForSeconds(Mathf.Max(3f, Tuning.Get("measure_ult_seconds", 12f)));
+        } else {
+            yield return MeasureWarm(mode, warm);
+            yield return new WaitForSeconds(Mathf.Max(5f, Tuning.Get("measure_seconds", 20f)));
+        }
+        DevTools.MeasureEnd();
+    }
+
+    // ---- 증강 하나씩 (2026-11-22 사용자: 3상황 2회) — 버튼 mode 15
+    //  기본 무기 10개 × 전용 증강마다, 그 증강 하나만 최대로 넣고 움직이는 적 · 멈춘 적 40 · 보스 1 에서 solo_aug_repeats(2)회 재요.
+    //  증강 없는 값(밤새 측정)과 나누면 증강 하나가 몇 배를 올리는지 나와요. 속도는 overnight_speed (x1.5)
+    //  기록 줄 이름: [상황 +단독 증강이름] 무기
+    static AugmentDef measureSoloAug;
+    System.Collections.IEnumerator MeasureSoloAugs()
+    {
+        measureSpeedOverride = Tuning.Get("overnight_speed", 1.5f);
+        int reps = Mathf.Max(1, Tuning.GetInt("solo_aug_repeats", 2));
+        var jobs = new List<(SideWeapon w, AugmentDef d)>();
+        foreach(var w in AllSideWeapons()) foreach(var d in AugmentDefs.WeaponAugs(w)) jobs.Add((w, d));
+        MeasureAugStage = 0;
+        int total = 3 * reps * jobs.Count, done = 0;
+        foreach(int mode in new[] { 0, 1, 2 }) {
+            for(int r = 0; r < reps; r++) {
+                string scene = null;
+                measureSoloAug = null;
+                if(!MeasureTry(() => scene = MeasureSetupScene(mode), $"상황 차리기 {mode}")) continue;
+                yield return null;
+                foreach(var job in jobs) {
+                    measureSoloAug = job.d;
+                    done++;
+                    yield return MeasureWeapon(mode, job.w, scene + " +단독 " + job.d.name, $"회차 {r + 1}/{reps}", MeasureSpeed, $"{done}/{total}");
+                }
+            }
+        }
+        measureSoloAug = null;
+    }
+
+    // 한 상황: 회차마다 배치를 새로 섞고, 그 배치에서 무기를 차례로
+    System.Collections.IEnumerator MeasureSceneRun(int mode)
+    {
+        int reps = MeasureRepeats;
+        var list = AllSideWeapons();
+        for(int r = 0; r < reps; r++) {
+            string scene = null;
+            if(!MeasureTry(() => scene = MeasureSetupScene(mode), $"상황 차리기 {mode}")) continue;
+            yield return null;   // 적이 생기고 자리 잡게
+            for(int i = 0; i < list.Count; i++)
+                yield return MeasureWeapon(mode, list[i], scene, $"회차 {r + 1}/{reps}", MeasureSpeed, $"{i + 1}/{list.Count}");
+        }
+    }
+
+    // 상황 차리기 (회차마다 새로). 돌려주는 값 = 기록 줄의 [ ] 안 이름
+    string MeasureSetupScene(int mode)
+    {
+        var stage = InfiniteStage.Instance;
+        string scene;
+        MeasureFastEnemies = mode == 11;
+        if(IsMovingMode(mode)) {
+            if(DebugArena) DebugArenaStop();
+            DebugTestMode = true;          // 끝없이 나오고 스테이지가 안 넘어가요
+            DebugMortal = true;            // 그래도 적은 죽어요
+            DebugManyEnemies = true;
+            stage.JumpToStage(1);
+            if(EnemyManager.Instance != null) EnemyManager.Instance.removeAllEnemies();
+            scene = mode == 11 ? "빠른 적 (죽음)" : mode == 13 ? "시작 직후 (죽음)" : "움직이는 적 (죽음)";
+        } else {
+            DebugMortal = false;
+            DebugArenaInvincible = true;
+            int count = mode == 1 || mode == 3 ? 40 : mode == 4 ? Tuning.GetInt("measure_scatter_count", 7) : mode == 12 ? Tuning.GetInt("measure_minions", 20) : 0;
+            DebugArenaStart(count);        // 자리를 새로 섞어요
+            if(mode == 2 || mode == 12) DebugArenaBoss();
+            if(mode == 3) {   // 단단한 적: 방어력 = 플레이어 공격력 × measure_armor (1이면 평균 무기 1발이 관통력 0일 때 절반만 들어가요)
+                double armor = Player.instance != null ? Player.instance.FinalAttack_Damage * (double)Tuning.Get("measure_armor", 1f) : 0;
+                foreach(var e in EnemyManager.Instance.enemyData) if(e != null) e.Armor = armor;
+            }
+            measureArenaArmor = mode == 3 && Player.instance != null ? Player.instance.FinalAttack_Damage * (double)Tuning.Get("measure_armor", 1f) : 0;
+            if(mode == 5) {   // 우주선 근처: 우주선 둘레 measure_near_min ~ measure_near_max 칸에 고르게
+                Vector3 ship = WeaponManager.instance != null && WeaponManager.instance.mainWeapon != null ? WeaponManager.instance.mainWeapon.transform.position : Vector3.zero;
+                ship.z = 0f;
+                int n = Tuning.GetInt("measure_near_count", 12);
+                float r0 = Tuning.Get("measure_near_min", 1.8f), r1 = Tuning.Get("measure_near_max", 2.6f);
+                for(int k = 0; k < n; k++) {
+                    float ang = (360f * k / n + Random.Range(-10f, 10f)) * Mathf.Deg2Rad;
+                    SpawnArenaEnemy(ship + new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), 0f) * Random.Range(r0, r1));
+                }
+            }
+            scene = mode == 1 ? "멈춘 적 40" : mode == 2 ? "보스 1" : mode == 3 ? "단단한 적 40" : mode == 4 ? $"흩어진 {count}" : mode == 12 ? $"보스 + 졸개 {count}" : "우주선 근처";
+        }
+        if(MeasureAugStage > 0) scene += " +" + MeasureAugNames[MeasureAugStage];
+        return scene;
+    }
+
+    // 무기 하나 재기: (움직이는 적이면 적을 치우고 처음부터) 증강 넣기 → 혼자 출격 → 미리 돌리기 → 재기 → 한 줄 남기기
+    System.Collections.IEnumerator MeasureWeapon(int mode, SideWeapon w, string scene, string note, float speed, string progress)
+    {
+        bool ok = MeasureTry(() => {
+            if(IsMovingMode(mode)) {   // 무기가 바뀌면 적을 다 치우고 처음부터 다시 (모든 무기가 같은 조건)
+                InfiniteStage.Instance.JumpToStage(1);
+                if(EnemyManager.Instance != null) EnemyManager.Instance.removeAllEnemies();
+            } else DebugArenaRespawnHome();   // 앞 무기가 옮기거나 상태를 건 적을 같은 자리에 새로
+            // 이 무기 전용 증강만, 지금 단계만큼. "증강 없음"이면 앞 측정에서 남은 증강을 지워요
+            //  (2026-11-22 점검 버그: 밤새 측정의 추가 상황은 "증강 최대" 다음에 "증강 없음"을 재서, 앞 무기 증강이 남아 있었어요)
+            if(measureSoloAug != null) {   // 증강 하나씩: 그 증강 하나만 최대 레벨로
+                DebugClearAugments();
+                for(int guard = 0; guard < 20 && Level(measureSoloAug.id) < measureSoloAug.maxLevel; guard++) DebugAddAugment(measureSoloAug, false);
+            }
+            else if(MeasureAugStage > 0) MeasureGiveAugs(w);
+            else if(levels.Count > 0) DebugClearAugments();
+            DebugSolo(w);
+            GameManager.instance.setTimeScale(speed);   // 스테이지를 다시 시작하면 저장된 속도로 돌아가서 그 뒤에 맞춰요
+        }, $"무기 준비 {scene} {AugmentDefs.WeaponName(w)}");
+        if(!ok) yield break;
+        bool burst = mode == 13;   // 시작 직후: 미리 돌리지 않고 처음 몇 초만 (시작이 느린 무기의 단점)
+        float warm = burst ? 0f : Tuning.Get("measure_warmup", 10f) + Random.Range(0f, Tuning.Get("measure_warmup_jitter", 5f));
+        float len = burst ? Mathf.Max(3f, Tuning.Get("measure_burst_seconds", 10f)) : Mathf.Max(5f, Tuning.Get("measure_seconds", 20f));
+        MeasureScene = scene;
+        DevTools.MeasureBegin(AugmentDefs.WeaponName(w), $"{note} · x{speed:0.#}", MeasureIsolateSeconds(mode) + warm);
+        ui.Toast($"[개발] 측정 [{scene}] {note} · {progress}: {AugmentDefs.WeaponName(w)}", Color.white);
+        yield return MeasureWarm(mode, warm);   // 게임 시간
+        yield return new WaitForSeconds(len);
+        DevTools.MeasureEnd();
+    }
+
+    // 속도 비교: 멈춘 적 40 한 배치(끝까지 같은 자리)에서 무기마다 x1 → x5 를 번갈아 (증강 없이)
+    System.Collections.IEnumerator MeasureSpeedCompare(float[] speeds)
+    {
+        MeasureAugStage = 0;
+        if(!MeasureTry(() => MeasureSetupScene(1), "상황 차리기 (속도 비교)")) yield break;
+        yield return null;
+        var list = AllSideWeapons();
+        for(int i = 0; i < list.Count; i++)
+            foreach(float sp in speeds)
+                yield return MeasureWeapon(1, list[i], $"속도 비교 x{sp:0.#}", "같은 배치", sp, $"{i + 1}/{list.Count}");
+    }
+
+    // 지금 단계에 맞게 이 무기 전용 증강을 넣어요 (다른 증강은 지워요)
+    void MeasureGiveAugs(SideWeapon w)
+    {
+        DebugClearAugments();
+        var defs = AugmentDefs.WeaponAugs(w);
+        for(int k = 0; k < defs.Count; k++) {
+            var d = defs[k];
+            int want = MeasureAugStage switch {
+                1 => k < 2 ? 1 : 0,
+                2 => 1,
+                3 => (d.maxLevel + 1) / 2,
+                4 => d.maxLevel,
+                _ => 0,
+            };
+            for(int guard = 0; guard < 20 && Level(d.id) < want; guard++) DebugAddAugment(d, false);
+        }
+    }
+
+    // ---- 빈 칸만 다시 (2026-11-22 사용자: "오류로 비어 있는 측정값들만 다시 측정하자")
+    //  dps_measure.txt 에서 기록은 있는데 무기 피해가 하나도 없는 줄(기본총만 있거나 아무것도 없음)을 찾아 그 칸을 빈 줄 수만큼 다시 재요.
+    //  기본 무기·합체·종결 모두. 움직이는 적 계열은 빼요 (거기서 빈 줄은 오류가 아니라 진짜 결과: 예) 시작 직후 360 레이저)
+    //  속도는 overnight_speed (밤새 측정과 같게). 다시 잰 줄은 "다시" 로 표시돼요
+    System.Collections.IEnumerator MeasureMissing()
+    {
+#if UNITY_EDITOR
+        string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Tuning", "dps_measure.txt"));
+        if(!System.IO.File.Exists(path)) { ui.Toast("[개발] 측정 기록(dps_measure.txt)이 없어요", Color.white); yield break; }
+        var empty = new Dictionary<string, int>();
+        var order = new List<string>();
+        var rx = new System.Text.RegularExpressions.Regex(@"\| \[([^\]]+)\] ([^|]+?) \| 적");
+        var dps = new System.Text.RegularExpressions.Regex(@"\| ([^|]+?) DPS ");
+        foreach(var line in System.IO.File.ReadAllLines(path)) {
+            var m = rx.Match(line);
+            if(!m.Success || m.Groups[1].Value.StartsWith("속도 비교")) continue;
+            bool hit = false;
+            foreach(System.Text.RegularExpressions.Match d in dps.Matches(line)) if(d.Groups[1].Value.Trim() != "기본총") { hit = true; break; }
+            if(hit) continue;
+            string key = m.Groups[1].Value + "|" + m.Groups[2].Value.Trim();
+            if(!empty.ContainsKey(key)) { empty[key] = 0; order.Add(key); }
+            empty[key]++;
+        }
+        var jobs = new List<(int mode, int aug, int fusion, int fstage, SideWeapon w, int need)>();
+        int total = 0;
+        foreach(var key in order) {
+            int bar = key.LastIndexOf('|');
+            string scene = key.Substring(0, bar), weapon = key.Substring(bar + 1);
+            string baseScene = scene, suffix = "";
+            int plus = scene.LastIndexOf(" +");
+            if(plus >= 0) { baseScene = scene.Substring(0, plus); suffix = scene.Substring(plus + 2); }
+            int mode = baseScene.StartsWith("움직이는") ? 0 : baseScene.StartsWith("빠른") ? 11 : baseScene.StartsWith("시작") ? 13
+                     : baseScene.StartsWith("보스 + 졸개") ? 12 : baseScene.StartsWith("멈춘") ? 1 : baseScene.StartsWith("보스") ? 2
+                     : baseScene.StartsWith("단단한") ? 3 : baseScene.StartsWith("흩어진") ? 4 : 5;
+            if(IsMovingMode(mode)) continue;
+            int fstage = System.Array.IndexOf(MeasureFusionNames, suffix);
+            if(fstage >= 0) {
+                int f = -1;
+                for(int i = 0; i < AugmentDefs.Fusions.Length; i++) if(AugmentDefs.Fusions[i].name == weapon) f = i;
+                if(f < 0) continue;
+                jobs.Add((mode, 0, f, fstage, SideWeapon.None, empty[key]));
+            } else {
+                int aug = suffix == "" ? 0 : System.Array.IndexOf(MeasureAugNames, suffix);
+                if(aug < 0) continue;
+                SideWeapon sw = SideWeapon.None;
+                foreach(var w in AllSideWeapons()) if(AugmentDefs.WeaponName(w) == weapon) sw = w;
+                if(sw == SideWeapon.None) continue;
+                jobs.Add((mode, aug, -1, -1, sw, empty[key]));
+            }
+            total += empty[key];
+        }
+        if(jobs.Count == 0) { ui.Toast("[개발] 빈 칸이 없어요", Color.white); yield break; }
+        ui.Toast($"[개발] 빈 칸 다시 측정: {total}번", Color.white);
+        measureSpeedOverride = Tuning.Get("overnight_speed", 1.5f);
+        int done = 0;
+        foreach(var job in jobs) {
+            MeasureAugStage = job.aug;
+            MeasureFusionStage = job.fstage;
+            for(int k = 0; k < job.need; k++) {
+                string scene = null;
+                if(!MeasureTry(() => scene = MeasureSetupScene(job.mode), $"상황 차리기 {job.mode}")) continue;
+                yield return null;
+                done++;
+                if(job.fusion >= 0)
+                    yield return MeasureFusionOne(job.mode, job.fusion, scene + " +" + MeasureFusionNames[job.fstage], "다시", MeasureSpeed, $"{done}/{total}");
+                else
+                    yield return MeasureWeapon(job.mode, job.w, scene, "다시", MeasureSpeed, $"{done}/{total}");
+            }
+        }
+        MeasureFusionStage = -1;
+#else
+        yield break;
 #endif
     }
 
@@ -753,7 +1259,7 @@ public static class SatArt
     }
 }
 
-// 레이저 빔 꾸미기 (굵은 광선, 넓은 빔, 2중 회전, 프리즘 빔).
+// 레이저 빔 꾸미기 (굵은 광선, 넓은 빔, 2중 회전).
 // 본체 빔(LaserBim)과 판정(본체 BoxCollider2D)의 폭을 바꾸고, 추가 갈래는 본체 아래 자식으로 복제해요.
 // 자식 판정은 본체 Rigidbody2D 에 붙어서 충돌이 본체 레이저 스크립트로 전달돼요.
 public class BeamRig
@@ -779,16 +1285,14 @@ public class BeamRig
         }
     }
 
-    // beams: 전체 갈래 수 (1 = 본체만), widthMul: 폭 배율, rainbow: 프리즘 빔 색
-    public void Apply(bool shooting, int beams, float widthMul, bool rainbow)
+    // beams: 전체 갈래 수 (1 = 본체만), widthMul: 폭 배율
+    public void Apply(bool shooting, int beams, float widthMul)
     {
         if(box != null) box.size = new Vector2(boxSize0.x * widthMul, boxSize0.y);
         if(mainBeam != null) mainBeam.localScale = new Vector3(beamScale0.x * widthMul, beamScale0.y, beamScale0.z);
         int need = Mathf.Max(0, beams - 1);
         while(extras.Count < need && mainBeam != null) extras.Add(MakeExtra());
-        float t = Time.time * 0.6f;
-        if(mainSprite != null) mainSprite.color = rainbow ? Rainbow(t) : color0;
-        if(mainSprite != null) mainSprite.enabled = !rainbow;   // 프리즘 빔은 아래 PrismBeams 가 그려요
+        if(mainSprite != null) { mainSprite.color = color0; mainSprite.enabled = true; }
         for(int i = 0; i < extras.Count; i++) {
             var go = extras[i];
             bool on = shooting && i < need;
@@ -801,83 +1305,14 @@ public class BeamRig
                 var b = go.transform.GetChild(0);
                 b.localScale = mainBeam.localScale;
                 var sr = b.GetComponent<SpriteRenderer>();
-                if(sr != null) { sr.enabled = !rainbow; sr.color = rainbow ? Rainbow(t + (i + 1f) / beams) : color0; }
+                if(sr != null) { sr.enabled = true; sr.color = color0; }
             }
         }
-        PrismBeams(shooting && rainbow, beams, widthMul, t);
     }
 
     public void Hide()
     {
         foreach(var go in extras) if(go != null && go.activeSelf) go.SetActive(false);
-        PrismBeams(false, 0, 1f, 0f);
-    }
-
-    // ---- 프리즘 빔 연출 (2026-11-21 사용자 요청: "빔처럼 나오는 임팩트")
-    // 쏘기 시작하면 우주선에서 번쩍 + 무지개 고리, 빔이 0.18초 동안 화면 끝까지 쭉 뻗어 나가요.
-    // 빔 = 넓은 무지개 빛무리 + 하얀 심, 살짝 일렁이고, 끝에서 무지개 불꽃이 튀어요. 판정(충돌 상자)은 그대로예요
-    static Material prismMat;
-    readonly List<LineRenderer> prismLines = new List<LineRenderer>();   // [빛무리, 심] 짝
-    bool prismOn;
-    float prismStart, prismSparkAt;
-
-    void PrismBeams(bool on, int beams, float widthMul, float t)
-    {
-        if(!on) {
-            if(prismOn) foreach(var lr in prismLines) if(lr != null) lr.enabled = false;
-            prismOn = false;
-            return;
-        }
-        if(!prismOn) {   // 막 쏘기 시작
-            prismOn = true;
-            prismStart = Time.time;
-            Vector3 c = root.position;
-            RemasterFx.Burst(c, Tuning.Get("prism_flash", 0.7f), Color.white);
-            RemasterFx.Ring(c, Tuning.Get("prism_flash", 0.7f) * 1.8f, Rainbow(t), 0.3f);
-        }
-        while(prismLines.Count < beams * 2) prismLines.Add(MakePrismLine(prismLines.Count % 2 == 1));
-        float grow = Mathf.Clamp01((Time.time - prismStart) / Mathf.Max(0.01f, Tuning.Get("prism_shoot_time", 0.18f)));
-        grow = 1f - (1f - grow) * (1f - grow);
-        float from = 0.3f, to = box != null ? box.offset.y + box.size.y / 2f : 12.7f;
-        float flick = 1f + 0.12f * Mathf.Sin(Time.time * 40f);
-        float glowW = Tuning.Get("prism_glow_width", 0.5f) * widthMul * flick, coreW = Tuning.Get("prism_core_width", 0.14f) * widthMul * flick;
-        bool spark = Time.time >= prismSparkAt;
-        if(spark) prismSparkAt = Time.time + 0.1f;
-        for(int i = 0; i < prismLines.Count / 2; i++) {
-            var glow = prismLines[i * 2];
-            var core = prismLines[i * 2 + 1];
-            bool use = i < beams;
-            glow.enabled = core.enabled = use;
-            if(!use) continue;
-            Vector3 dir = root.rotation * Quaternion.Euler(0f, 0f, 360f * i / beams) * Vector3.up;
-            Vector3 a = root.position + dir * from, b = root.position + dir * Mathf.Lerp(from, to, grow);
-            a.z = b.z = 0f;
-            var col = Rainbow(t + (float)i / beams);
-            glow.SetPosition(0, a); glow.SetPosition(1, b);
-            core.SetPosition(0, a); core.SetPosition(1, b);
-            glow.startWidth = glowW * 0.6f; glow.endWidth = glowW;
-            core.startWidth = coreW * 0.7f; core.endWidth = coreW;
-            glow.startColor = new Color(col.r, col.g, col.b, 0.75f);
-            glow.endColor = new Color(col.r, col.g, col.b, 0.35f);
-            if(spark && grow >= 1f) RemasterFx.Burst(b, 0.22f * widthMul, col);   // 빔 끝 불꽃 (화면 밖이면 안 보여요)
-        }
-    }
-
-    LineRenderer MakePrismLine(bool core)
-    {
-        var go = new GameObject(core ? "PrismCore" : "PrismGlow");
-        go.transform.SetParent(root, false);
-        var lr = go.AddComponent<LineRenderer>();
-        if(prismMat == null) prismMat = new Material(Shader.Find("Sprites/Default"));
-        lr.sharedMaterial = prismMat;
-        lr.useWorldSpace = true;
-        lr.positionCount = 2;
-        lr.numCapVertices = 4;
-        lr.sortingLayerName = RemasterFx.FxLayer;
-        lr.sortingOrder = core ? 481 : 480;
-        if(core) lr.startColor = lr.endColor = new Color(1f, 1f, 1f, 0.95f);
-        lr.enabled = false;
-        return lr;
     }
 
     // 켜진 빔(본체 + 추가 갈래)에 몸이 닿은 적으로 무기의 대상 목록을 채워요
@@ -906,5 +1341,4 @@ public class BeamRig
         return go;
     }
 
-    static Color Rainbow(float t) => Color.HSVToRGB(Mathf.Repeat(t, 1f), 0.55f, 1f);
 }

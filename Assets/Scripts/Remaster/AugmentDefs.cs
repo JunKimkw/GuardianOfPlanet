@@ -157,10 +157,13 @@ public static class AugmentDefs
     public static float HarvestChance(int L) => Lin(L, 0.10f, 0.05f);
     // 무기 전용 (무기마다 3개, 설계서 2-4-1)
     public static float QualityBonus(int L) => 0.15f * (L - 1);              // 효과가 숫자 없는 증강: ★2부터 그 무기 피해 +15%씩
-    public static float DgRapid(int L) => Lin(L, 0.15f, 0.05f);              // 쌍발총 공격속도
+    // 2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만)
+    public static float DgRapid(int L) => Lin(L, Tuning.Get("dg_rapid_base", 0.40f), Tuning.Get("dg_rapid_step", 0.15f));   // 쌍발총 공격속도 (측정 ×1.37 → 15~35% 에서 40~100%, 셋 다 최대 ×5 목표)
+    public static float DgAccelDamage(int L) => Lin(L, Tuning.Get("dg_accel_dmg_base", 0.25f), Tuning.Get("dg_accel_dmg_step", 0.15f));   // 탄 가속 피해 + (측정 ×1.02 라서 추가)
     public static float DgAccel(int L) => Lin(L, 0.30f, 0.10f);              // 쌍발총 탄속
     public static float BmBig(int L) => Lin(L, 0.25f, 0.08f);                // 폭격기 폭발 범위
-    public static float BmSecond(int L) => Lin(L, 0.40f, 0.15f);             // 2차 폭발 피해
+    public static float BmSecond(int L) => Lin(L, Tuning.Get("bm_second_base", 0.40f), Tuning.Get("bm_second_step", 0.05f));   // 2차 폭발 피해 (40~100% → 40~60%)
+    public static float CarpetDamage => Tuning.Get("carpet_damage", 0.4f);   // 연속 투하 추가 폭탄 피해 (100% → 40%, 측정 ×4.25)
     public static int MtRain(int L) => 1 + (L - 1) / 2;                      // 운석 유성우: 운석 +
     public static float MtBig(int L) => Lin(L, 0.25f, 0.08f);                // 운석 범위 +
     public static float MtBurn(int L) => Lin(L, 0.15f, 0.05f);               // 불타는 구덩이: 0.5초마다 운석 피해의 이 비율
@@ -173,29 +176,34 @@ public static class AugmentDefs
     public static float ImEnergy(int L) => Lin(L, 0.8f, 0.4f);               // 대충돌 충돌 에너지 (R ★3): 큰 운석 피해 + 80·120·160% (2026-11-21, 연쇄 충돌 대신)
     public static int TkMulti(int L) => 1 + (L - 1) / 2;                     // 미사일 추가
     public static float TkHoming(int L) => Lin(L, 0.50f, 0.15f);             // 선회 속도
+    public static float TkHomingDamage(int L) => Lin(L, Tuning.Get("tk_homing_dmg_base", 0.15f), Tuning.Get("tk_homing_dmg_step", 0.10f));   // 추적 강화 미사일 피해 + (측정 ×0.96 라서 추가)
     public static float TkWarhead(int L) => Lin(L, 0.30f, 0.10f);            // 명중 폭발 피해
     public static float PsLong(int L) => Lin(L, 2f, 0.5f);                   // 독 지대 지속 (초)
     public static float PsToxic(int L) => Lin(L, 0.50f, 0.15f);              // 독 지대 피해
     public static float ObFast(int L) => Lin(L, 0.30f, 0.10f);               // 드론 공격속도 (속사)
+    // 드론 추가: 드론이 늘수록 한 대 피해가 줄어요 (1/2/3/4대 = 100/75/60/50%, 측정 ×3.97). 드론 수는 그대로
+    public static float ObShare(int L) => L > 0 ? 1f / (1f + Tuning.Get("drone_share", 1f / 3f) * L) : 1f;
     public static float ObShock(int L) => Lin(L, 15f, 5f);                   // (예전 충격탄, 지금은 안 써요)
     public static float LzLong(int L) => Lin(L, 2f, 0.5f);                   // 360 레이저 지속 (초)
     // 레이저 폭 (2026-11-20: +30~70% 는 빔이 원래 가늘어서 눈에 안 띄었어요 → 배율 3 = ★1 +90%, ★5 +210%. tuning.txt beam_width_mul)
     public static float BeamWidth(int L) => Lin(L, 0.30f, 0.10f) * Tuning.Get("beam_width_mul", 3f);
     // 블랙홀 (2026-11-20, 예전 직선 레이저 자리)
+    public static float BhBigDamage(int L) => Lin(L, Tuning.Get("bh_big_dmg_base", 0.50f), Tuning.Get("bh_big_dmg_step", 0.25f));   // 거대 중력 빨아들이는 피해 + (측정 ×1.11 라서 추가)
     public static float BhBig(int L) => Lin(L, 0.10f, 0.05f);                // 반경 + (2026-11-21 사용자: 만렙이 너무 커서 20~60% → 10~30%)
     public static float BhLong(int L) => Lin(L, 0.5f, 0.25f);                // 열려 있는 시간 + (초)
-    public static float BhCollapse(int L) => Lin(L, 0.5f, 0.25f);            // 붕괴 폭발 피해 +
+    public static float BhCollapse(int L) => Lin(L, Tuning.Get("bh_collapse_base", 1.0f), Tuning.Get("bh_collapse_step", 0.6f));   // (50~150% → 100~340%)            // 붕괴 폭발 피해 +
     // 블랙홀 합체 (2026-11-20)
     public static float SgCharge(int L) => Lin(L, 0.4f, 0.4f);               // 특이점 저격: 블랙홀 간격 - (초). ★5 = 2초 (2026-11-20: 3초는 너무 많다고 해서)
     public static float SgMark(int L) => Lin(L, 0.05f, 0.025f);              // 특이점 저격: 모인 적 1마리당 피해 + (추가)
     public static float SgEcho(int L) => Lin(L, 0.2f, 0.1f);                 // 특이점 저격: 저격 뒤 작은 블랙홀이 다시 열릴 확률
     public static float GvBig(int L) => Lin(L, 0.25f, 0.1f);                 // 중력 폭탄: 폭발 범위 +
-    public static int GvChain(int L) => 2 + (L - 1) / 2;                     // 중력 폭탄: 둘레 작은 폭발 수
+    public static int GvMore(int L) => 1 + (L - 1) / 2;                      // 중력 폭탄 블랙홀탄 추가: 한 번에 쏘는 블랙홀탄 + (1·1·2·2·3, 2026-11-22 고리 폭발 대신)
     public static float GvMass(int L) => Lin(L, 0.04f, 0.02f);               // 중력 폭탄: 모인 적 1마리당 피해 + (추가)
     public static float SnFast(int L) => Lin(L, 0.20f, 0.05f);               // 저격총 장전 감소
     public static float SnHead(int L) => Lin(L, 1.0f, 0.3f);                 // 저격총 치명 피해
     public static float BnAccel(int L) => Lin(L, 0.20f, 0.05f);              // 튈 때마다 탄속
-    public static float BounceGrowDamage(int L) => Lin(L, 0.20f, 0.05f);     // 튈 때마다 피해
+    public static float BnAccelDamage(int L) => Lin(L, Tuning.Get("bn_accel_dmg_base", 0.05f), Tuning.Get("bn_accel_dmg_step", 0.025f));   // 탄성 가속: 튈 때마다 피해 + (처음 피해 기준, 측정 ×1.03 라서 추가)
+    public static float BounceGrowDamage(int L) => Lin(L, 0.20f, 0.05f);     // 튈 때마다 피해 (v3: 곱하지 않고 처음 피해 기준으로 더해요)
     public static int BounceExtra(int L) => 1 + L;                           // 튕김 강화
     public static float CmTail(int L) => Lin(L, 0.25f, 0.125f);              // 혜성탄 긴 꼬리: 꼬리 길이·피해 +
     public static int CmBounce(int L) => 1 + L / 2;                          // 혜성탄 궤도 연장: 튕김 + (1·2·2·3·3)
@@ -225,9 +233,10 @@ public static class AugmentDefs
     public static float TsTrail(int L) => Lin(L, 0.50f, 0.15f);
     public static int TsMore(int L) => 1 + (L - 1) / 2;
     public static float TsRing(int L) => Lin(L, 2.5f, 0.5f);
-    public static int PrMore(int L) => 2 + (L - 1) / 2;
-    public static float PrSpin(int L) => Lin(L, 0.30f, 0.10f);
-    public static float PrStormEvery(int L) => Lin(L, 20f, -4f);
+    // 별빛 섬광 (2026-11-21, 360 레이저 + 운석. 예전 프리즘 빔 자리)
+    public static int SlMore(int L) => 1 + (L - 1) / 2;                      // 별무리: 한 번에 떨어지는 별 + (1·1·2·2·3)
+    public static float SlLong(int L) => Lin(L, 0.25f, 0.10f);               // 긴 빛살: 빛살 길이 +
+    public static float SlEight(int L) => Lin(L, 0.5f, 0.25f);               // 여덟 갈래 (R ★3): 대각선 빛살 길이 (가로·세로 빛살의 비율)
 
     static string P(float v) => $"{v * 100:0.#}%";
 
@@ -336,35 +345,35 @@ public static class AugmentDefs
 
         // ---- 무기 전용 (무기마다 3개. 원정 준비에서 고른 무기 것만 나와요. 3개를 다 모으면 합체 카드)
         A("dg_rapid", "쌍둥이 연사", AugTag.Weapon, S, L => $"[쌍발총] 공격속도 +{P(DgRapid(L))}", 0, SideWeapon.DoubleGun),
-        A("dg_accel", "탄 가속", AugTag.Weapon, S, L => $"[쌍발총] 탄속 +{P(DgAccel(L))}", 0, SideWeapon.DoubleGun),
+        A("dg_accel", "탄 가속", AugTag.Weapon, S, L => $"[쌍발총] 탄속 +{P(DgAccel(L))}\n피해 +{P(DgAccelDamage(L))}", 0, SideWeapon.DoubleGun),
         A("dg_cross", "교차 사격", AugTag.Weapon, G, L => $"[쌍발총] 두 총구가 서로 다른 적을 조준{Q(L)}", 3, SideWeapon.DoubleGun),
         A("bm_big", "대형 폭탄", AugTag.Weapon, S, L => $"[폭격기] 폭발 범위 +{P(BmBig(L))}", 0, SideWeapon.Bomber),
         A("bm_second", "2차 폭발", AugTag.Weapon, S, L => $"[폭격기] 0.5초 뒤 한 번 더 터져요\n(피해 {P(BmSecond(L))})", 0, SideWeapon.Bomber),
-        A("carpet", "연속 투하", AugTag.Weapon, G, L => $"[폭격기] 폭탄을 쏠 때 {CarpetBombs(L)}발을 일렬로 추가 투하", 4, SideWeapon.Bomber),
+        A("carpet", "연속 투하", AugTag.Weapon, G, L => $"[폭격기] 폭탄을 쏠 때 {CarpetBombs(L)}발을 일렬로 추가 투하\n(추가 폭탄 피해 {P(CarpetDamage)})", 4, SideWeapon.Bomber),
         A("tk_multi", "다탄두", AugTag.Weapon, S, L => $"[유도탄] 록온하는 적 +{TkMulti(L)} (미사일 +{TkMulti(L)}발)", 0, SideWeapon.TrackingGun),
-        A("tk_homing", "추적 강화", AugTag.Weapon, S, L => $"[유도탄] 선회 속도 +{P(TkHoming(L))}", 0, SideWeapon.TrackingGun),
+        A("tk_homing", "추적 강화", AugTag.Weapon, S, L => $"[유도탄] 선회 속도 +{P(TkHoming(L))}\n미사일 피해 +{P(TkHomingDamage(L))}", 0, SideWeapon.TrackingGun),
         A("tk_warhead", "폭발 탄두", AugTag.Weapon, G, L => $"[유도탄] 명중하면 작은 폭발\n(미사일 피해의 {P(TkWarhead(L))})", 0, SideWeapon.TrackingGun),
         A("ps_spread", "살포 확장", AugTag.Weapon, S, L => $"[독 비행기] 독 발사 방향 +{L}", 3, SideWeapon.Poison),
         A("ps_long", "오래가는 독", AugTag.Weapon, S, L => $"[독 비행기] 독 지대 지속 +{PsLong(L):0.#}초", 0, SideWeapon.Poison),
         A("ps_toxic", "맹독 지대", AugTag.Weapon, G, L => $"[독 비행기] 독 지대 피해 +{P(PsToxic(L))}", 0, SideWeapon.Poison),
-        A("ob_extra", "드론 추가", AugTag.Weapon, S, L => $"[드론] 드론 +{L}대", 3, SideWeapon.Orbital),
+        A("ob_extra", "드론 추가", AugTag.Weapon, S, L => $"[드론] 드론 +{L}대\n(드론 한 대 피해 {P(ObShare(L))})", 3, SideWeapon.Orbital),
         A("ob_fast", "속사", AugTag.Weapon, S, L => $"[드론] 공격속도 +{P(ObFast(L))}", 0, SideWeapon.Orbital),
-        A("ob_multi", "추가 발사", AugTag.Weapon, G, L => $"[드론] 쏠 때 탄 +{L}발이 부채꼴로 더 나가요\n(추가 탄 피해 70%)", 3, SideWeapon.Orbital),
+        A("ob_multi", "추가 발사", AugTag.Weapon, G, L => $"[드론] 쏠 때 탄 +{L}발이 부채꼴로 더 나가요\n(추가 탄 피해 {P(Tuning.Get("drone_extra_damage", 0.35f))})", 3, SideWeapon.Orbital),
         A("lz_long", "지속 연장", AugTag.Weapon, S, L => $"[360 레이저] 쏘는 시간 +{LzLong(L):0.#}초", 0, SideWeapon.Lazer),
         A("lz_thick", "굵은 광선", AugTag.Weapon, S, L => $"[360 레이저] 광선 폭 +{P(BeamWidth(L))}", 0, SideWeapon.Lazer),
         A("lz_twin", "2중 회전", AugTag.Weapon, G, L => $"[360 레이저] 반대 방향 광선 추가{Q(L)}", 3, SideWeapon.Lazer),
-        A("bh_big", "거대 중력", AugTag.Weapon, S, L => $"[블랙홀] 빨아들이는 반경 +{P(BhBig(L))}", 0, SideWeapon.StrLaser),
+        A("bh_big", "거대 중력", AugTag.Weapon, S, L => $"[블랙홀] 빨아들이는 반경 +{P(BhBig(L))}\n빨아들이는 피해 +{P(BhBigDamage(L))}", 0, SideWeapon.StrLaser),
         A("bh_long", "중력 유지", AugTag.Weapon, S, L => $"[블랙홀] 열려 있는 시간 +{BhLong(L):0.##}초", 0, SideWeapon.StrLaser),
         A("bh_collapse", "초신성 붕괴", AugTag.Weapon, G, L => $"[블랙홀] 닫힐 때 폭발 피해 +{P(BhCollapse(L))}, 범위 +25%", 0, SideWeapon.StrLaser),
         A("sn_fast", "속사 장전", AugTag.Weapon, S, L => $"[저격총] 장전 시간 -{P(SnFast(L))}", 0, SideWeapon.Sniper),
         A("sn_ap", "철갑탄", AugTag.Weapon, S, L => $"[저격총] 관통 +{L}", 3, SideWeapon.Sniper),
         A("sn_head", "헤드샷", AugTag.Weapon, G, L => $"[저격총] 치명 피해 +{P(SnHead(L))}", 0, SideWeapon.Sniper),
         A("bn_more", "튕김 강화", AugTag.Weapon, S, L => $"[튕김총] 튕김 +{BounceExtra(L)}회", 0, SideWeapon.BounceGun),
-        A("bn_accel", "탄성 가속", AugTag.Weapon, S, L => $"[튕김총] 튈 때마다 탄속 +{P(BnAccel(L))}", 0, SideWeapon.BounceGun),
+        A("bn_accel", "탄성 가속", AugTag.Weapon, S, L => $"[튕김총] 튈 때마다 탄속 +{P(BnAccel(L))}\n튈 때마다 피해 +{P(BnAccelDamage(L))}", 0, SideWeapon.BounceGun),
         A("mt_rain", "유성우", AugTag.Weapon, S, L => $"[운석] 한 번에 떨어지는 운석 +{MtRain(L)}", 0, SideWeapon.Meteor),
         A("mt_big", "거대 운석", AugTag.Weapon, S, L => $"[운석] 떨어지는 범위 +{P(MtBig(L))}", 0, SideWeapon.Meteor),
         A("mt_burn", "불타는 구덩이", AugTag.Weapon, G, L => $"[운석] 떨어진 자리가 2초 동안 불타요\n(0.5초마다 운석 피해의 {P(MtBurn(L))})", 0, SideWeapon.Meteor),
-        A("bouncegrow", "증식 튕김", AugTag.Weapon, G, L => $"[튕김총] 튈 때마다 피해 +{P(BounceGrowDamage(L))}\n(튈수록 약해지지 않아요)", 0, SideWeapon.BounceGun),
+        A("bouncegrow", "증식 튕김", AugTag.Weapon, G, L => $"[튕김총] 튈 때마다 처음 피해의 +{P(BounceGrowDamage(L))}\n(튈수록 약해지지 않아요)", 0, SideWeapon.BounceGun),
 
         // ---- 합체 카드 (프리즘). 합체 무기 전용 증강은 아래 FusionAugs 에서 만들어요
     };
@@ -380,16 +389,17 @@ public static class AugmentDefs
         new FusionDef(SideWeapon.DoubleGun, SideWeapon.BounceGun, "분열 쌍발", "fz_splitdbl", "탄이 적을 맞히면 주변 적 2마리에게 갈라져요 (1발당 피해 70%)", "sd_more", "sd_accel", "sd_endless"),
         new FusionDef(SideWeapon.TrackingGun, SideWeapon.DoubleGun, "마이크로 미사일", "fz_micro", "록온한 적마다 작고 빠른 미사일이 5발씩 연달아 날아가 꽂혀요", "lk_more", "mc_pod", "lk_blast"),   // 2026-11-21 사용자 결정: 사냥개 탄 → (록온은 기본 유도탄으로) → 유도탄 + 쌍발총 마이크로 미사일
         new FusionDef(SideWeapon.Orbital, SideWeapon.Poison, "독안개 드론", "fz_toxsat", "드론 탄에 맞은 적이 30% 느려지고 독에 걸리며, 주변 적에게 독이 퍼져요", "ts_trail", "ts_more", "ts_ring"),
-        new FusionDef(SideWeapon.Lazer, SideWeapon.None, "프리즘 빔", "fz_prism", "360 레이저가 3갈래 무지개 빔이 돼요", "pr_more", "pr_spin", "pr_storm"),
+        // 2026-11-21 사용자 결정: 360 레이저 + 운석 "별빛 섬광" (예전 "프리즘 빔" 자리. 무지개·회전 빔 대신). 동작은 Lazer.cs + StarFlash.cs
+        new FusionDef(SideWeapon.Lazer, SideWeapon.Meteor, "별빛 섬광", "fz_starlight", "화면의 적 3마리 위로 하얀 별이 떨어지고, 닿는 순간 가로·세로로 긴 빛살이 뻗어 그 줄 위의 적을 모두 맞혀요", "sl_more", "sl_long", "sl_eight"),
         new FusionDef(SideWeapon.StrLaser, SideWeapon.Sniper, "특이점 저격", "fz_singularity", "블랙홀이 닫히는 순간 저격총이 한가운데를 꿰뚫어요. 모인 적은 모두 치명타, 모인 적이 많을수록 세져요", "sg_charge", "sg_mark", "sg_echo"),
-        new FusionDef(SideWeapon.StrLaser, SideWeapon.Bomber, "중력 폭탄", "fz_gravbomb", "블랙홀이 닫히는 순간 그 자리에 거대 폭탄이 떨어져요. 모인 적이 많을수록 크게 터져요", "gv_big", "gv_chain", "gv_mass"),
+        new FusionDef(SideWeapon.StrLaser, SideWeapon.Bomber, "중력 폭탄", "fz_gravbomb", "적이 가장 많이 몰린 곳으로 블랙홀탄을 쏴요. 맞은 자리에 블랙홀이 열려 적을 모으고, 닫히는 순간 거대 폭탄이 터져요. 모인 적이 많을수록 크게 터져요", "gv_big", "gv_more", "gv_mass"),
         // 2026-11-20 사용자 결정: 튕김총 진화 "혜성탄" (내부 이름은 constellation, 종결 "운명의 별자리"). 동작은 CometShot.cs
         new FusionDef(SideWeapon.BounceGun, SideWeapon.None, "혜성탄", "fz_constellation", "혜성 1발이 갈라지지 않고 적 사이를 6번 튕겨요. 뒤따르는 꼬리에 닿은 적도 피해를 받고, 튕길수록 꼬리가 길어져요", "cm_tail", "cm_bounce", "cm_impact"),
         // 2026-11-21 사용자 결정: 운석 합체 2개. 동작은 MeteorGun.cs
         new FusionDef(SideWeapon.Meteor, SideWeapon.Sniper, "별의 낙인", "fz_brand", "저격총이 강한 적 3마리에 낙인을 찍고, 낙인 적마다 운석 3개가 따라 떨어져요. 피할 수 없고 폭발은 모두 치명타, 보스는 추가 피해", "bd_more", "bd_aim", "bd_chain"),
         new FusionDef(SideWeapon.Meteor, SideWeapon.StrLaser, "대충돌", "fz_impact", "운석은 계속 떨어지고, 5초마다 블랙홀이 적이 몰린 곳을 끌어모은 뒤 그 자리에 큰 운석이 떨어져요", "im_well", "im_more", "im_energy"),
     };
-    public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzMicro = 5, FzToxSat = 6, FzPrism = 7, FzSingularity = 8, FzGravBomb = 9,
+    public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzMicro = 5, FzToxSat = 6, FzStarlight = 7, FzSingularity = 8, FzGravBomb = 9,
                      FzConstellation = 10, FzBrand = 11, FzImpact = 12;
 
     static AugmentDef F(int fusion, string id, string name, AugGrade grade, System.Func<int, string> d)
@@ -433,15 +443,15 @@ public static class AugmentDefs
         list.Add(F(FzToxSat, "ts_trail", "독안개 확대", G, L => $"독이 퍼지는 범위 +{P(TsTrail(L))}"));
         list.Add(F(FzToxSat, "ts_more", "드론 증원", G, L => $"드론 +{TsMore(L)}대"));
         list.Add(F(FzToxSat, "ts_ring", "역병의 고리", R, L => $"독이 반경 {TsRing(L):0.#}칸까지 3중첩으로 퍼져요"));
-        list.Add(F(FzPrism, "pr_more", "갈래 추가", G, L => $"빔 +{PrMore(L)}갈래"));
-        list.Add(F(FzPrism, "pr_spin", "회전 가속", G, L => $"회전 속도 +{P(PrSpin(L))}"));
+        list.Add(F(FzStarlight, "sl_more", "별무리", G, L => $"한 번에 떨어지는 별 +{SlMore(L)}"));
+        list.Add(F(FzStarlight, "sl_long", "긴 빛살", G, L => $"빛살 길이 +{P(SlLong(L))}"));
         list.Add(F(FzSingularity, "sg_charge", "가속 특이점", G, L => $"블랙홀이 {SgCharge(L):0.#}초 더 자주 열려요"));
         list.Add(F(FzSingularity, "sg_mark", "약점 표시", G, L => $"모인 적 1마리당 저격 피해 +{P(SgMark(L))} 더"));
         list.Add(F(FzSingularity, "sg_echo", "여진", R, L => $"저격 뒤 {P(SgEcho(L))} 확률로 작은 블랙홀이 다시 열려요"));
         list.Add(F(FzGravBomb, "gv_big", "거대 폭탄", G, L => $"폭발 범위 +{P(GvBig(L))}"));
-        list.Add(F(FzGravBomb, "gv_chain", "고리 폭발", G, L => $"폭발 뒤 둘레에 작은 폭발 {GvChain(L)}개"));
+        list.Add(F(FzGravBomb, "gv_more", "블랙홀탄 추가", G, L => $"한 번에 쏘는 블랙홀탄 +{GvMore(L)}"));
         list.Add(F(FzGravBomb, "gv_mass", "임계 질량", R, L => $"모인 적 1마리당 폭발 피해 +{P(GvMass(L))} 더"));
-        list.Add(F(FzPrism, "pr_storm", "무지개 폭풍", R, L => $"{PrStormEvery(L):0}초마다 3초 동안 빔 12갈래"));
+        list.Add(F(FzStarlight, "sl_eight", "여덟 갈래", R, L => $"대각선으로도 빛살이 뻗어 8갈래가 돼요\n(대각선 빛살 길이 {P(SlEight(L))})"));
         list.Add(F(FzConstellation, "cm_tail", "긴 꼬리", G, L => $"꼬리 길이·꼬리 피해 +{P(CmTail(L))}"));
         list.Add(F(FzConstellation, "cm_bounce", "궤도 연장", G, L => $"튕김 +{CmBounce(L)}번"));
         list.Add(F(FzConstellation, "cm_impact", "혜성 충돌", R, L => $"마지막 튕김 뒤 혜성이 떨어져 크게 터져요\n(1발 피해의 {P(CmImpact(L))}, 튕긴 적 1마리당 +10%)"));
@@ -463,8 +473,8 @@ public static class AugmentDefs
     }
 
     // 종결 증강 (Fusions 순서와 같아요)
-    public static readonly string[] UltIds = { "ult_guided", "ult_satlaser", "ult_railgun", "ult_plague", "ult_splitdbl", "ult_micro", "ult_toxsat", "ult_prism", "ult_singularity", "ult_gravbomb", "ult_constellation", "ult_brand", "ult_impact" };
-    public static readonly string[] UltNames = { "유도탄 세례", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "전탄 발사", "독의 그물", "무지개 심판", "사건의 지평선", "중력 대폭격", "운명의 별자리", "천벌", "소행성 충돌" };
+    public static readonly string[] UltIds = { "ult_guided", "ult_satlaser", "ult_railgun", "ult_plague", "ult_splitdbl", "ult_micro", "ult_toxsat", "ult_polaris", "ult_singularity", "ult_gravbomb", "ult_constellation", "ult_brand", "ult_impact" };
+    public static readonly string[] UltNames = { "유도탄 세례", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "전탄 발사", "독의 그물", "북극성", "사건의 지평선", "중력 대폭격", "운명의 별자리", "천벌", "소행성 충돌" };
     static readonly string[] UltDescs = {
         "유도탄 수십 발이 사방으로 퍼졌다가 휘어져\n화면의 적 하나하나에게 꽂혀요",
         "위성 6대가 화면 끝까지 닿는 레이저로 화면을 쓸고\n한 점에 모아 하얗게 대폭발",
@@ -473,7 +483,7 @@ public static class AugmentDefs
         "유성 12개가 쏟아지며 터질 때마다 조각으로 갈라지고\n마지막 거대 유성이 사방으로 터져요",
         "화면의 모든 적에게 록온 표식이 찍히고\n미사일 수십 발이 한꺼번에 퍼졌다가 휘어 꽂혀요",
         "독 줄기가 적에서 적으로 번지며 화면을 그물처럼 잇고\n그물이 두 번 맥동하며 모두에게 피해",
-        "빛이 모였다가 7색 빔으로 갈라져 화면을 한 바퀴 쓸고\n하얀 충격파로 마무리해요",
+        "배경이 밤하늘로 바뀌고 북극성이 세 번 반짝여요\n반짝일 때마다 모든 적 위에서 별빛이 터지고, 마지막은 8갈래로 크게",
         "화면 한가운데 거대 블랙홀이 모든 적을 빨아들이고\n초거대 저격이 꿰뚫어요 (모두 치명타)",
         "화면의 모든 적을 한가운데로 끌어모은 뒤\n거대 폭탄이 연달아 터져요",
         "혜성 12개가 날아가며 황도 12궁을 그리고\n화면 전체가 한 번에 펑 터져요",
@@ -634,7 +644,7 @@ public static class AugmentDefs
         return -1;
     }
 
-    // 합체 재료 표시: 짝 무기가 없으면 "저격총 진화" (레일건·프리즘 빔, 2026-11-20)
+    // 합체 재료 표시: 짝 무기가 없으면 "저격총 진화" (레일건·혜성탄, 2026-11-20)
     public static string FusionPair(FusionDef f) => f.b == SideWeapon.None ? WeaponName(f.a) + " 진화" : WeaponName(f.a) + " + " + WeaponName(f.b);
 
     // 합체 카드 설명: 지금 어느 무기로 합체하는지에 따라 달라요 (양쪽 합체, 2026-11-20)

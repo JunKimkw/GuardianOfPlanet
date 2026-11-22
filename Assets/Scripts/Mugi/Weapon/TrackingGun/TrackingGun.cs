@@ -15,12 +15,12 @@ public class TrackingGun : GunWeapon
 
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.TrackingMissile;
     public override SideWeapon Side => SideWeapon.TrackingGun;
-    public override int BaseDamage => Balanced("track", 31.7f);   // 무기 밸런스 (WeaponBase.LevelCurve)
+    public override int BaseDamage => Balanced("track", 25f);   // 무기 밸런스 (WeaponBase.LevelCurve)
 
     void Awake() => instance = this;
 
     public override void SetDamage() =>
-        Damage = Balanced("track", 31.7f);
+        Damage = Balanced("track", 25f);
 
     // (Lv.500 패시브 "공격 속도"는 예전엔 장전 계산에 안 들어가서 효과가 없었어요. 이제 GunWeapon 에서 반영돼요)
     // 2026-11-21 사용자 결정: 기본 유도탄 = 록온 일제 사격 (처음 합체 "록온 미사일"로 만든 것을 기본으로 옮겼어요)
@@ -59,7 +59,7 @@ public class TrackingGun : GunWeapon
         }
         yield return new WaitForSeconds(Tuning.Get("lockon_fire_delay", 0.12f));
         float spread = Tuning.Get("lockon_spread", 140f);
-        long dmg = HitDamage;
+        long dmg = MissileDamage;
         int per = 1;
         float size = 1f, speed = 1f, microGap = 0f;
         if(micro) {
@@ -106,7 +106,15 @@ public class TrackingGun : GunWeapon
         var b = TakeBullet<TrackingBullet>(PoolObjectTypeBullet.Tracking, ShootingPoint.position, transform.rotation * Quaternion.Euler(0f, 0f, angle));
         b.lockTarget = null;
         // 치명타 피해: 예전엔 패시브 값만 넘겨서 플레이어 치명타 피해가 빠져 있었어요
-        b.setBulletStats(HitDamage, missileSpeedScale, Player.instance.FinalCriticalDamage + ExtraCritDamage);
+        b.setBulletStats(MissileDamage, missileSpeedScale, Player.instance.FinalCriticalDamage + ExtraCritDamage);
         b.gameObject.SetActive(true);
+    }
+
+    // 미사일 1발 피해: 추적 강화 피해 + (2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만))
+    long MissileDamage {
+        get {
+            int hl = AugmentManager.WL("tk_homing");
+            return hl > 0 ? ClampDamage(HitDamage * (1.0 + AugmentDefs.TkHomingDamage(hl))) : HitDamage;
+        }
     }
 }
