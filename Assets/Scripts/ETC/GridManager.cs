@@ -76,7 +76,7 @@ public class GridManager : MonoBehaviour
         LabGrid.SetActive(false);
         MineGrid.SetActive(true);
         ActiveGrid(-1);
-        Time.timeScale = 1;
+        Time.timeScale = GameManager.SpeedBase;   // 바탕 속도 (표시 x1)
     }
 
     public void ToPlanet(int index)
@@ -115,7 +115,7 @@ public class GridManager : MonoBehaviour
         LabGrid.SetActive(true);
         MineGrid.SetActive(false);
         ActiveGrid(-1);
-        Time.timeScale = 1;
+        Time.timeScale = GameManager.SpeedBase;   // 바탕 속도 (표시 x1)
     }
 
     public void MineGUI(bool a)

@@ -227,11 +227,12 @@ public static class DevTools
     // ---- 게임 속도 (F7 과 같아요)
     public static float CycleSpeed()
     {
+        // 표시 배속 (실제는 × 바탕 1.5, 2026-11-25)
         float[] speeds = { 1f, 2f, 5f, 10f, 20f };
-        int i = System.Array.FindIndex(speeds, v => Mathf.Approximately(v, Time.timeScale));
+        int i = System.Array.FindIndex(speeds, v => Mathf.Abs(v - GameManager.DisplaySpeed) < 0.01f);
         float next = speeds[(i + 1) % speeds.Length];
-        GameManager.instance.setTimeScale(next);
-        GameManager.instance.saveGameSpeedandAuto(next, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
+        GameManager.SetDisplaySpeed(next);
+        GameManager.instance.saveGameSpeedandAuto(Time.timeScale, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
         return next;
     }
 #else

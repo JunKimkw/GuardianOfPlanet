@@ -136,6 +136,12 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
     }
 
     // 증강 시스템용: 보조 무기 종류 → 무기
+    public WeaponShopBase ShopOf(WeaponBase w)
+    {
+        int i = w != null ? Weapons.IndexOf(w) : -1;
+        return i >= 0 && i < Shops.Count ? Shops[i] : null;
+    }
+
     public WeaponBase GetSideWeapon(SideWeapon type)
     {
         switch(type) {
@@ -193,6 +199,6 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
     public void SaveData(GameData data)
     {
         foreach(var w in Weapons)
-            data.UpgradeLevel_Weapon[w.id] = w.UpgradeLevel;
+            data.UpgradeLevel_Weapon[w.id] = AugmentManager.SavedWeaponLevel(w);   // 행성에서 빌린 Lv.1 은 0 으로 (2026-11-25)
     }
 }

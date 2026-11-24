@@ -37,7 +37,11 @@ public abstract class WeaponShopBase : MonoBehaviour
     // 개발용: 테스트 창의 "무기 전부 열기" (저장되지 않아요)
     public static bool DebugUnlockAll;
 
+    // 그 무기의 행성을 클리어해야 상점에서 사고, 원정에서도 써요 (2026-11-25 사용자: 행성마다 정해진 무기가 있으니까).
+    //  행성에서는 그 행성의 무기를 미리 써 봐요 (안 샀으면 Lv.1)
     public bool IsUnlocked => DebugUnlockAll || UnlockPlanetIndex < 0 || StageManager.instance.planets[UnlockPlanetIndex].PlanetCleared;
+    public bool ExpeditionUnlocked => IsUnlocked;
+    public int PlanetIndex => UnlockPlanetIndex;
 
     Image buyButtonImage;
 
@@ -56,9 +60,9 @@ public abstract class WeaponShopBase : MonoBehaviour
         var w = Weapon;
         if(w == null) return;
 
-        WeaponStat.text = w.UpgradeLevel > 0
+        WeaponStat.text = (w.UpgradeLevel > 0
             ? $"{StatLabel} {w.DamageMultiplier * 100:F0}%로 공격\n{DamageLabel}: {BigNumber.Format(w.HitDamage * CurrentNumberScale)}"
-            : Intro;
+            : Intro);
         LevelText.text = "Lv." + w.UpgradeLevel;
         TotalPrice = getTotalMoney(w.UpgradeLevel, purchaseSize);
         priceText.text = GameManager.MoneyString(TotalPrice);

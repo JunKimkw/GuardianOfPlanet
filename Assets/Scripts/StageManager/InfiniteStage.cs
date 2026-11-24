@@ -141,20 +141,38 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
 
     IEnumerator spawnEnemy(Enemy e)
     {
+        // (2026-11-25 사용자: "1스테이지에서 한 마리씩 나와서 보이기도 전에 죽고 느려")
+        //  예전엔 시작하고 간격(약 3.6초)을 다 기다린 뒤 1마리씩 → 이제 spawn_first_delay(0.3초) 뒤 바로, 무리(2~4마리)로 나와요
+        //  두 종류가 같은 순간에 겹치지 않게 두 번째 종류는 반 간격 늦게 시작해요
+        bool first = true;
         while(SpawningEnemy) {
             // 처치가 늘수록 조금씩 빨라지지만 최소 30% 간격은 지켜요 (예전엔 0초·음수가 되어 막판에 한꺼번에 쏟아졌어요)
             float speedUp = 0.1f * (KilledEnemy / Mathf.Max(1f, setEnemyNumber() / 8f));
-            yield return new WaitForSeconds(SpawnSpeed * Mathf.Max(0.3f, 1f - speedUp) / AugmentManager.DebugSpawnMul);
+            float interval = SpawnSpeed * RemasterBalance.SpawnIntervalMul(CurrentStage) * Mathf.Max(0.3f, 1f - speedUp) / AugmentManager.DebugSpawnMul;
+            if(first) {
+                first = false;
+                int order = CurrentEnemyIndex.Count > 1 && enemyPrefab[CurrentEnemyIndex[1]] == e && CurrentEnemyIndex[0] != CurrentEnemyIndex[1] ? 1 : 0;
+                yield return new WaitForSeconds(Tuning.Get("spawn_first_delay", 0.3f) + order * interval * 0.5f);
+            } else {
+                yield return new WaitForSeconds(interval);
+            }
             // 테스트 모드: 끝없이 나와요 (화면에 너무 많으면 잠깐 쉬어요)
             if(AugmentManager.DebugTestMode && EnemyManager.Instance.enemyData.Count >= AugmentManager.DebugMaxEnemies) continue;
             if(AugmentManager.DebugArena) continue;   // 개발용 연습장: 새 적은 안 나와요
-            SpawnedEnemy++;
-            EnemyManager.Instance.createInfiniteEnemy(e, EnemyScale);
-            if(AugmentManager.DebugMortal) AugmentManager.DebugMortalSetup(EnemyManager.Instance.enemyData[EnemyManager.Instance.enemyData.Count - 1]);   // 측정: 죽는 적
-            if(SpawnedEnemy >= setEnemyNumber() && !AugmentManager.DebugTestMode) {
-                SpawningEnemy = false;
-                StopAllCoroutines();
+            int group = UnityEngine.Random.Range(RemasterBalance.SpawnGroupMin, RemasterBalance.SpawnGroupMax + 1);
+            if(group > 1) EnemyManager.Instance.BeginSpawnGroup();
+            for(int g = 0; g < group && SpawningEnemy; g++) {
+                SpawnedEnemy++;
+                EnemyManager.Instance.createInfiniteEnemy(e, EnemyScale);
+                if(AugmentManager.DebugMortal) AugmentManager.DebugMortalSetup(EnemyManager.Instance.enemyData[EnemyManager.Instance.enemyData.Count - 1]);   // 측정: 죽는 적
+                if(SpawnedEnemy >= setEnemyNumber() && !AugmentManager.DebugTestMode) {
+                    EnemyManager.Instance.EndSpawnGroup();
+                    SpawningEnemy = false;
+                    StopAllCoroutines();
+                    yield break;
+                }
             }
+            EnemyManager.Instance.EndSpawnGroup();
         }
     }
 
@@ -273,8 +291,10 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         ApplyZoneVisuals();
         RemainedMonsterText.text = (setEnemyNumber() - KilledEnemy).ToString();
         AnnounceZone();
-        timeSlider_Cleared.maxValue = 1.5f;
-        timeSlider_Cleared.value = 1.5f;
+        // 스테이지 사이 쉬는 시간 (2026-11-25 사용자: 느려요): 결과창 stage_result_time(0.8초) + 대기 stage_wait_time(0.7초). 예전 1.5 + 1.5초
+        float resultTime = Mathf.Max(0.1f, Tuning.Get("stage_result_time", 0.8f));
+        timeSlider_Cleared.maxValue = resultTime;
+        timeSlider_Cleared.value = resultTime;
 
         while(timeSlider_Cleared.value > 0) {
             timeSlider_Cleared.value -= Time.unscaledDeltaTime;
@@ -282,7 +302,7 @@ public class InfiniteStage : MonoBehaviour, IDataPersistence
         }
         ResultTab_Cleared.SetActive(false);
 
-        yield return new WaitForSecondsRealtime(1.5f);
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, Tuning.Get("stage_wait_time", 0.7f)));
         StartSpawningEnemy();
     }
 

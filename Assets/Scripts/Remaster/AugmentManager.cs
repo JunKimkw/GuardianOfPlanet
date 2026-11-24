@@ -67,8 +67,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     // ---- 뽑기 진행
     int pendingPulls;
     bool pullShowing;
-    AugmentDef shownAug;
-    AugGrade shownGrade;
+    readonly List<AugmentDef> shownAugs = new List<AugmentDef>();   // 고를 수 있는 카드 (2026-11-25: 3장 중 하나)
+    readonly List<bool> shownRerolled = new List<bool>();          // 카드 자리마다 리롤은 한 번만 (2026-11-25 사용자)
 
 
     // ---- 화면 일시정지 (UI용)
@@ -157,9 +157,10 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
 
     public bool EffectsActive {
         get {
-            if(!loaded || InfiniteStage.Instance == null || !InfiniteStage.Instance.IsRunning)
-                return false;
+            if(!loaded) return false;
             if(StageManager.instance != null && StageManager.instance.isInStage)
+                return planetSnap != null;   // 행성: 한 판(PlanetRun.cs) 중에만 증강이 켜져요 (2026-11-25)
+            if(InfiniteStage.Instance == null || !InfiniteStage.Instance.IsRunning)
                 return false;
             return true;
         }
@@ -216,21 +217,66 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         return list;
     }
 
-    // 빈 칸은 가진 무기로 자동으로 채워요(새로 산 무기가 바로 보이게).
+    // 출격 칸 정리: 안 가진 무기·같은 무기는 빼요.
+    //  (2026-11-25 사용자: 기본총 하나로 출발 → 정한 스테이지에 무기) 예전엔 빈 칸을 가진 무기로 자동으로 채웠는데,
+    //  이제 빈 칸은 TryWeaponSlotPick 에서 스테이지가 되면 카드로 골라요
     void EnsureLoadout()
     {
-        if(!Owned(loadoutLeft)) loadoutLeft = SideWeapon.None;
-        if(!Owned(loadoutRight)) loadoutRight = SideWeapon.None;
+        if(planetSnap != null) return;   // 행성 한 판: 행성 무기는 원정에서 못 쓰는 무기여도 그대로 (2026-11-25 버그: 쌍발총이 바로 빠졌어요)
+        if(!ExpeditionUsable(loadoutLeft)) loadoutLeft = SideWeapon.None;     // 행성을 안 깬 무기는 원정에서 빼요 (2026-11-25)
+        if(!ExpeditionUsable(loadoutRight)) loadoutRight = SideWeapon.None;
         if(loadoutLeft == loadoutRight) loadoutRight = SideWeapon.None;
-        if(loadoutLeft != SideWeapon.None && loadoutRight != SideWeapon.None)
-            return;
-        foreach(var w in OwnedWeapons()) {
-            if(w == loadoutLeft || w == loadoutRight || w == extraWeapon) continue;
-            if(loadoutLeft == SideWeapon.None) loadoutLeft = w;
-            else if(loadoutRight == SideWeapon.None) loadoutRight = w;
-            if(loadoutLeft != SideWeapon.None && loadoutRight != SideWeapon.None) break;
-        }
         loadoutSet = true;
+    }
+
+    // 행성 능력치 카드 (WeaponBase.HitDamage · RollCrit)
+    public static float PlanetCardDamage { get { var m = Instance; return m == null || m.planetSnap == null ? 1f : 1f + AugmentDefs.PlPower(m.Level("pl_power")); } }
+    public static float PlanetCardCrit { get { var m = Instance; return m == null || m.planetSnap == null ? 0f : AugmentDefs.PlCrit(m.Level("pl_crit")); } }
+
+    // ---- 무기 칸 열기 (2026-11-25 사용자 결정)
+    //  기본총 하나로 출발 → weapon_slot1_stage(10)·weapon_slot2_stage(25)스테이지가 되면 가진 무기 중 무작위 weapon_choice_count(3)장에서 하나를 골라요.
+    //  환생 출발 가속으로 그 뒤 스테이지에서 출발하면 출발하자마자 칸 수만큼 차례로 골라요
+    public static int WeaponSlotStage(int i) => i == 0 ? Tuning.GetInt("weapon_slot1_stage", 10) : Tuning.GetInt("weapon_slot2_stage", 25);
+    public int OpenWeaponSlots => (CurrentStage >= WeaponSlotStage(0) ? 1 : 0) + (CurrentStage >= WeaponSlotStage(1) ? 1 : 0);
+    bool weaponPickShowing;
+    string weaponPickWhy;   // 칸이 열렸는데 못 띄운 까닭 (바뀔 때만 콘솔에 남겨요, 2026-11-25 "10스테이지에서 무기 카드가 안 떠요" 추적용)
+    void WeaponPickSkip(string why)
+    {
+        if(why == weaponPickWhy) return;
+        weaponPickWhy = why;
+        if(why != null) Debug.Log($"[무기 칸] {CurrentStage}스테이지: 무기 카드를 못 띄웠어요 — {why} (왼쪽 {loadoutLeft}, 오른쪽 {loadoutRight}, 추가 {extraWeapon})");
+    }
+    void TryWeaponSlotPick()
+    {
+        // (2026-11-25) 룰렛은 뜨는데 무기 카드는 안 떠서, 룰렛에 없는 조건(시작 화면·개발용 무기 고르기·전부 출격)을 뺐어요.
+        //  이 함수는 LateUpdate 에서 EffectsActive(원정 전투 중, 스테이지 모드 아님)일 때만 불려요
+        if(weaponPickShowing || ui.Busy) return;
+        if(DebugArena || MeasureScene != null) return;   // 연습장·측정 중엔 안 물어봐요
+        int filled = (loadoutLeft != SideWeapon.None ? 1 : 0) + (loadoutRight != SideWeapon.None ? 1 : 0);
+        int open = OpenWeaponSlots;
+        if(filled >= open) {
+            // 10스테이지에 들어왔는데 이미 칸이 다 차 있으면 (예전 규칙으로 시작한 원정) 한 번 남겨요
+            if(CurrentStage == WeaponSlotStage(0) && filled > 0) WeaponPickSkip("10스테이지 전에 이미 무기가 장착돼 있어요 (End 로 새 원정을 시작했나요?)");
+            return;
+        }
+        var pool = FreeWeaponsForExtra();   // 가진 무기 중 출격·합체 재료가 아닌 것
+        if(pool.Count == 0) { WeaponPickSkip($"고를 무기가 없어요 (산 무기 {OwnedWeapons().Count}개, 그중 행성을 깬 무기만 원정에서 써요)"); return; }
+        WeaponPickSkip(null);
+        for(int i = pool.Count - 1; i > 0; i--) { int j = UnityEngine.Random.Range(0, i + 1); (pool[i], pool[j]) = (pool[j], pool[i]); }
+        int n = Mathf.Max(1, Tuning.GetInt("weapon_choice_count", 3));
+        if(pool.Count > n) pool.RemoveRange(n, pool.Count - n);
+        weaponPickShowing = true;
+        PauseForUI();
+        ui.ShowWeaponChoice($"새 무기! ({WeaponSlotStage(filled)}스테이지)", pool, w => {
+            if(w != SideWeapon.None) {
+                if(loadoutLeft == SideWeapon.None) loadoutLeft = w;
+                else if(loadoutRight == SideWeapon.None) loadoutRight = w;
+            }
+            loadoutSet = true;
+            weaponPickShowing = false;
+            ResumeFromUI();
+            ui.RefreshHUD();
+        });
     }
 
     public void SetLoadout(SideWeapon left, SideWeapon right)
@@ -240,16 +286,33 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         loadoutSet = true;
     }
 
+    // 화면 줌 (2026-11-25 사용자: "줌 아웃, 적이 이동하는 거리가 짧아 보여서"): 씬의 카메라 크기 7 → camera_size.
+    //  적이 나오는 자리·화면 밖 판정은 모두 카메라 크기를 따라가서 같이 넓어져요
+    void ApplyCameraSize()
+    {
+        var gm = GameManager.instance;
+        var cam = gm != null ? gm.mainCamera : null;
+        if(cam == null || !cam.orthographic) return;
+        float want = Mathf.Clamp(Tuning.Get("camera_size", 9.5f), 4f, 20f);
+        if(!Mathf.Approximately(cam.orthographicSize, want)) cam.orthographicSize = want;
+    }
+
     float loadoutCheckTimer;
     void LateUpdate()
     {
+        ApplyCameraSize();
         if(!loaded || WeaponManager.instance == null)
             return;
         loadoutCheckTimer -= Time.unscaledDeltaTime;
         if(loadoutCheckTimer <= 0f) {
             loadoutCheckTimer = 0.5f;
             EnsureLoadout();
-            if(EffectsActive && pauseCount == 0 && !pullShowing) ResumeEmptyFusionSlot();   // 흡수된 B 칸이 비어 있으면 다시 고르게
+            if(EffectsActive && pauseCount == 0 && !pullShowing && planetSnap != null) TryPlanetLevelUp();   // 행성 한 판 (PlanetRun.cs)
+            else if(EffectsActive && pauseCount == 0 && !pullShowing) {
+                ResumeEmptyFusionSlot();   // 흡수된 B 칸이 비어 있으면 다시 고르게
+                TryWeaponSlotPick();       // 무기 칸이 열렸으면 고르게 (증강 뽑기보다 먼저 나오면 새 무기 증강도 그 뽑기에 나와요)
+                TryShowRoulette();         // 기본총 룰렛
+            }
         }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         DebugArenaTick();   // 연습장: 죽은 적 다시 채우기
@@ -287,7 +350,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     public void PauseForUI()
     {
         if(pauseCount == 0) {
-            pausedScale = Time.timeScale > 0.01f ? Time.timeScale : 1f;
+            pausedScale = Time.timeScale > 0.01f ? Time.timeScale : GameManager.SpeedBase;
             Time.timeScale = 0.0000001f;
         }
         pauseCount++;
@@ -321,8 +384,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     void ShowNextPull()
     {
         if(pendingPulls <= 0) return;
-        var def = Roll(out AugGrade grade, -1);
-        if(def == null) {
+        var choices = RollChoices(null);
+        if(choices.Count == 0) {
             // 모든 증강이 최대 레벨이면 별의 먼지로 대신 지급
             pendingPulls = 0;
             stardust += 5;
@@ -331,16 +394,48 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         }
         pendingPulls--;
         pullShowing = true;
-        shownAug = def;
-        shownGrade = grade;
+        shownAugs.Clear();
+        shownAugs.AddRange(choices);
+        shownRerolled.Clear();
+        foreach(var _ in choices) shownRerolled.Add(false);
         PauseForUI();
-        ui.ShowPull(def, Level(def.id) + 1, RerollLabel(), AcceptShown, RequestReroll);
+        ShowChoices();
     }
 
-    void AcceptShown()
+    void ShowChoices()
     {
-        var def = shownAug;
-        shownAug = null;
+        var lv = new List<int>();
+        foreach(var d in shownAugs) lv.Add(Level(d.id) + 1);
+        ui.ShowPull(new List<AugmentDef>(shownAugs), lv, new List<bool>(shownRerolled), RerollLabelShort(), AcceptShown, RequestReroll);
+    }
+
+    // 서로 다른 증강 aug_choices(3)장. 등급은 장마다 따로 굴려요. 금 보장(pity)은 한 번 뽑기에 한 번만 세요
+    List<AugmentDef> RollChoices(List<string> exclude)
+    {
+        var list = new List<AugmentDef>();
+        rollExcludes.Clear();
+        if(exclude != null) foreach(var id in exclude) rollExcludes.Add(id);
+        int pityBefore = pity;
+        bool goldOrBetter = false;
+        int n = Mathf.Max(1, Tuning.GetInt("aug_choices", 3));
+        for(int i = 0; i < n; i++) {
+            pity = pityBefore;
+            var d = Roll(out AugGrade g, -1);
+            if(d == null) break;
+            list.Add(d);
+            rollExcludes.Add(d.id);
+            if(g >= AugGrade.Gold) goldOrBetter = true;
+        }
+        pity = list.Count == 0 ? pityBefore : goldOrBetter ? 0 : pityBefore + 1;
+        rollExcludes.Clear();
+        if(list.Count == 0 && exclude != null && exclude.Count > 0) return RollChoices(null);   // 뺄 게 다라서 하나도 없으면 빼지 않고
+        return list;
+    }
+
+    void AcceptShown(int index)
+    {
+        var def = index >= 0 && index < shownAugs.Count ? shownAugs[index] : null;
+        shownAugs.Clear();
         pullShowing = false;
         ResumeFromUI();
         if(def != null) {
@@ -372,10 +467,17 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         }
 
         bool treasure = UnityEngine.Random.value < TreasureShare;
+        if(planetSnap != null) {   // 행성: 추가 무기 카드(두 번째 칸이 비었을 때 25%) → 무기 증강 60% · 능력치 카드 40%
+            treasure = false;
+            planetWantExtra = loadoutRight == SideWeapon.None && UnityEngine.Random.value < Tuning.Get("planet_extra_weapon_chance", 0.25f);
+            planetWantWeapon = UnityEngine.Random.value < Tuning.Get("planet_weapon_card_chance", 0.6f);
+        }
         var def = Pick(treasure, grade);
         if(def == null) def = Pick(treasure, null);
         if(def == null) def = Pick(!treasure, grade);
         if(def == null) def = Pick(!treasure, null);
+        if(def == null && planetSnap != null && planetWantExtra) { planetWantExtra = false; def = Pick(false, grade) ?? Pick(false, null); }   // 추가 무기를 줄 게 없으면 보통 카드
+        if(def == null && planetSnap != null) { planetWantWeapon = !planetWantWeapon; def = Pick(false, grade) ?? Pick(false, null); }   // 한쪽이 다 떨어졌으면 다른 쪽
         if(def != null) grade = def.grade;
         return def;
     }
@@ -389,6 +491,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             if((d.tag == AugTag.Treasure) != treasure) continue;
             if(grade.HasValue && d.grade != grade.Value) continue;
             if(Level(d.id) >= d.maxLevel) continue;
+            if(rollExcludes.Contains(d.id)) continue;   // 같은 뽑기의 다른 카드 · 리롤 전에 본 카드는 빼요 (2026-11-25 사용자)
+            if(planetSnap == null ? d.planetOnly : !PlanetCardFits(d)) continue;   // 행성: 무기 증강 또는 능력치 카드만 (PlanetRun.cs)
+            if(!AugPrereqMet(d)) continue;   // 키울 효과가 아직 없으면 안 나와요 (예: 번개가 없는데 '과부하')
             if(d.requiredWeapon != SideWeapon.None && !d.fusionCard && !IsEquipped(d.requiredWeapon)) continue;   // 합체 카드는 B 로도 나와요 (FusionCardAvailable)
             if(!WeaponAugAllowed(d)) continue;   // 무기 합체 조건 (WeaponAugments.cs)
             if(d.id == "extraarms" && FreeWeaponsForExtra().Count == 0) continue;
@@ -405,11 +510,63 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         return cands[cands.Count - 1];
     }
 
+    // 원정에서 쓸 수 있는 무기: 산 무기 + 그 무기의 행성을 클리어 (2026-11-25 사용자 결정)
+    public bool ExpeditionUsable(SideWeapon w)
+    {
+        if(!Owned(w)) return false;
+        var wm = WeaponManager.instance;
+        var shop = wm != null ? wm.ShopOf(SideWeaponOf(w)) : null;
+        return shop == null || shop.ExpeditionUnlocked;
+    }
+
+    // ---- 앞선 증강 (2026-11-25 사용자: "번개가 있지도 않은데 '과부하'(번개 피해 +30%)가 떠요")
+    //  효과를 키우기만 하는 증강은 그 효과를 만드는 증강(또는 무기)이 있어야 나와요.
+    //  번개: 정전기탄·뇌운 / 폭발: 점화탄·폭발 탄두류 / 독: 감염탄·독 비행기 / 둔화·빙결: 서리탄·눈송이 → 빙결 / 블랙홀: 중력 우물 / 파편: 분열 / 레이저: 레이저 무기
+    bool HasLightning => Level("static") > 0 || Level("storm") > 0 || Synergy(AugTag.Thunder, 8);
+    bool HasExplosion => Level("ignite") > 0 || Synergy(AugTag.Chain, 6) || Level("tk_warhead") > 0 || Level("rg_blast") > 0 || Level("lk_blast") > 0;
+    bool HasPoison => Level("infect") > 0 || IsEquipped(SideWeapon.Poison) || Fused(AugmentDefs.FzPlague) || Fused(AugmentDefs.FzToxSat);
+    bool HasSlow => Level("frostshot") > 0 || Level("snowflake") > 0;
+    bool HasFreeze => Level("freeze") > 0 || Level("northwind") > 0;
+    bool HasLaser => IsEquipped(SideWeapon.Lazer) || IsEquipped(SideWeapon.Orbital) || IsEquipped(SideWeapon.StrLaser);
+    // 탄 크기가 폭발 범위로 이어지는 무기 (폭격기 폭탄·운석). 다른 무기는 탄 크기가 거의 의미 없어요 (자동 조준이라 원래 다 맞아요)
+    bool HasBlastWeapon => IsEquipped(SideWeapon.Bomber) || IsEquipped(SideWeapon.Meteor)
+        || Fused(AugmentDefs.FzGuided) || Fused(AugmentDefs.FzGravBomb) || Fused(AugmentDefs.FzBrand) || Fused(AugmentDefs.FzImpact);
+
+    bool AugPrereqMet(AugmentDef d)
+    {
+        switch(d.id) {
+            // 번개
+            case "conduct": case "overload": case "rod": case "chainlight": case "capacitor": return HasLightning;
+            case "judgment": return Level("storm") > 0 || Level("capacitor") > 0;   // 낙뢰가 있어야
+            // 폭발
+            case "gunpowder": return HasExplosion || IsEquipped(SideWeapon.Bomber);   // 폭격기 폭탄 범위에도 들어가요
+            case "embers": case "chain": case "furnace": case "shrapnel": case "heatwave": return HasExplosion;
+            case "hammer": return Level("chain") > 0;
+            // 독
+            case "venom": case "corrode": case "contagion": case "toxburst": case "nemesis": return HasPoison;
+            case "cloud": return IsEquipped(SideWeapon.Poison) || Fused(AugmentDefs.FzPlague);   // 독 지대는 독 비행기에서만
+            case "mutate": return Level("contagion") > 0;   // 독이 옮아야 쌓여요
+            // 냉기
+            case "chill": case "freeze": return HasSlow;
+            case "shatter": case "permafrost": case "glacier": return HasFreeze;
+            // 중력
+            case "collapse": return Level("horizon") > 0;
+            // 증식
+            case "starswarm": return Level("split") > 0;
+            case "refract": return HasLaser;
+            case "bigshot": case "stardustshot": return HasBlastWeapon;   // (2026-11-25 사용자: 탄 크기가 큰 의미가 있나 → 폭격기·운석이 있을 때만)
+            // 저주: 다른 저주 증강이 있어야
+            case "abyss": return TagCount(AugTag.Curse) > 0;
+        }
+        return true;
+    }
+
     List<SideWeapon> FreeWeaponsForExtra()
     {
         var list = new List<SideWeapon>();
+        if(planetSnap != null) return list;   // 행성 한 판: 무기는 행성 무기 + 두 번째 칸 카드로만 (2026-11-25)
         foreach(var w in OwnedWeapons())
-            if(!IsEquipped(w) && !RawEquipped(w) && !fusionSlots.ContainsKey(w)) list.Add(w);   // 합체 재료로 들어간 무기(교체·흡수)는 빼요
+            if(ExpeditionUsable(w) && !IsEquipped(w) && !RawEquipped(w) && !fusionSlots.ContainsKey(w)) list.Add(w);   // 합체 재료로 들어간 무기(교체·흡수)는 빼요
         return list;
     }
 
@@ -424,6 +581,11 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         OnAugmentsChanged();
 
         if(def.fusionCard) DoFuse(def, announce);
+        if(def.grantWeapon != SideWeapon.None && planetSnap != null && loadoutRight == SideWeapon.None) {   // 행성 추가 무기 카드
+            BorrowWeapon(def.grantWeapon);
+            loadoutRight = def.grantWeapon;
+            if(announce) ui.Toast($"두 번째 무기: {AugmentDefs.WeaponName(def.grantWeapon)}!", new Color(1f, 0.85f, 0.35f), true);
+        }
 
         switch(def.id) {
             case "armor":
@@ -483,6 +645,16 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         }
     }
 
+    public string RerollLabelShort()
+    {
+        RefreshRerollDay();
+        int free = FreeRerollsPerDay - freeRerollsUsed;
+        if(free > 0) return $"리롤 무료 {free}번";
+        if(rerollBag > 0) return $"리롤 주머니 {rerollBag}번";
+        if(adRerollsUsed < AdRerollsPerDay) return $"리롤 광고 {AdRerollsPerDay - adRerollsUsed}번";
+        return $"리롤 다이아 {DiamondRerollCost}개";
+    }
+
     public string RerollLabel()
     {
         RefreshRerollDay();
@@ -493,36 +665,43 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         return $"다시 뽑기 (다이아 {DiamondRerollCost})";
     }
 
-    void RequestReroll()
+    // 카드 한 장 다시 뽑기 (2026-11-25 사용자: "A 리롤, B 리롤, C 리롤처럼 카드마다 오른쪽 버튼")
+    void RequestReroll(int index)
     {
+        if(index < 0 || index >= shownRerolled.Count || shownRerolled[index]) return;   // 이 자리는 이미 리롤했어요
         RefreshRerollDay();
         if(FreeRerollsPerDay - freeRerollsUsed > 0) {
             freeRerollsUsed++;
-            DoReroll();
+            DoReroll(index);
         } else if(rerollBag > 0) {
             rerollBag--;
-            DoReroll();
+            DoReroll(index);
         } else if(adRerollsUsed < AdRerollsPerDay && AdmobManager.Instance != null) {
             AdmobManager.Instance.ShowRewardedAdGeneric(() => {
                 adRerollsUsed++;
-                DoReroll();
+                DoReroll(index);
             });
         } else if(GameManager.GetDiamond() >= DiamondRerollCost) {
             GameManager.SetDiamond(-DiamondRerollCost);
-            DoReroll();
+            DoReroll(index);
         } else {
             ui.Toast("다이아가 부족해요", Color.white);
         }
     }
 
-    void DoReroll()
+    readonly HashSet<string> rollExcludes = new HashSet<string>();
+    // 그 카드만 새로 (화면의 다른 카드·방금 그 카드와 겹치지 않게, 2026-11-25 사용자: 같은 증강이 연달아 안 나오게)
+    void DoReroll(int index)
     {
-        if(shownAug == null) return;
-        var def = Roll(out AugGrade grade, -1);
-        if(def == null) return;
-        shownAug = def;
-        shownGrade = grade;
-        ui.ShowPull(def, Level(def.id) + 1, RerollLabel(), AcceptShown, RequestReroll);
+        if(index < 0 || index >= shownAugs.Count) return;
+        rollExcludes.Clear();
+        foreach(var d in shownAugs) rollExcludes.Add(d.id);
+        var def = Roll(out AugGrade _, -1);
+        rollExcludes.Clear();
+        if(def == null) { ui.Toast("다른 증강이 더 없어요", Color.white); ShowChoices(); return; }
+        shownAugs[index] = def;
+        shownRerolled[index] = true;
+        ShowChoices();
     }
     #endregion
 
@@ -590,6 +769,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         pity = 0;
         extraWeapon = SideWeapon.None;
         fusionSlots.Clear();
+        loadoutLeft = loadoutRight = SideWeapon.None;   // 기본총 하나로 출발 (2026-11-25), 무기는 정한 스테이지에 골라요
+        ResetRoulette();
         ResetEffectState();
         OnAugmentsChanged();
     }
@@ -651,6 +832,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
                 var def = Roll(out _, tree[2] - 1);
                 if(def != null) { Apply(def, false); got.Add(def.name); }
             }
+            GrantSkippedRoulettes(rebirthStartStage, got);   // 건너뛴 기본총 룰렛
             int skippedPulls = RemasterBalance.AugmentStagesBefore(rebirthStartStage);
             for(int i = 0; i < skippedPulls; i++) {
                 var def = Roll(out _, -1);
@@ -702,32 +884,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             data.expeditionVersion = 1;
         data.clearedGates = new List<int>(clearedGates);
         } else {
-            levels.Clear();
-            order.Clear();
-            if(data.augIds != null && data.augLevels != null) {
-                for(int i = 0; i < data.augIds.Count && i < data.augLevels.Count; i++) {
-                    if(AugmentDefs.Get(data.augIds[i]) == null) continue;
-                    levels[data.augIds[i]] = data.augLevels[i];
-                    order.Add(data.augIds[i]);
-                }
-            }
-            expKills = data.expKills;
-            expBossKills = data.expBossKills;
-            soulStack = data.expSoulStack;
-            slaughterStack = data.expSlaughterStack;
-            wraithStack = data.expWraithStack;
-            LoadStacks(data);
-            OnAugmentsChanged();
-            stardustSizeStack = Level("stardustshot") > 0 ? Mathf.Min(2f, (expKills / 100) * AugmentDefs.StardustShotPer100(Level("stardustshot"))) : 0f;
-            blessing = data.expBlessing;
-            rerollBag = data.expRerollBag;
-            pity = data.expPity;
-            extraWeapon = (SideWeapon)data.expExtraWeapon;
-            LoadFusionSlots(data.expFusionSlots);
-            loadoutSet = data.expLoadoutSet;
-            loadoutLeft = (SideWeapon)data.expLoadoutLeft;
-            loadoutRight = (SideWeapon)data.expLoadoutRight;
-            pendingSetup = data.expPendingSetup;
+            LoadExpeditionFields(data);
             freeRerollDate = data.freeRerollDate ?? "";
             freeRerollsUsed = data.freeRerollsUsed;
             adRerollsUsed = data.adRerollsUsed;
@@ -737,11 +894,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
                 for(int i = 0; i < tree.Length && i < data.rebirthTree.Count; i++) tree[i] = Mathf.Clamp(data.rebirthTree[i], 0, TreeMax[i]);
             bestStage = Mathf.Max(1, data.bestExpeditionStage);
             rebirthCount = data.rebirthCount;
-            // 환생 직후 출발 전에 저장된 경우: 원정 준비 화면과 출발 보너스를 다시 이어서 진행
-            pendingRebirthStart = data.expPendingStartStage > 0;
-            rebirthStartStage = Mathf.Max(1, data.expPendingStartStage);
-            if(pendingRebirthStart) pendingSetup = true;
         }
+        LoadPlanetRuns(data);   // 행성마다 모은 증강 (PlanetRun.cs)
         clearedGates.Clear();
         if(data.clearedGates != null) foreach(var g in data.clearedGates) clearedGates.Add(g);
         else MigrateGatesFromPlanets();
@@ -754,6 +908,21 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     {
         if(!loaded) return;
         data.expeditionVersion = 1;
+        if(planetSnap != null) CopyExpeditionFields(planetSnap, data);   // 행성 한 판 중: 원정 상태는 들어갈 때 보관한 그대로 (PlanetRun.cs)
+        else SaveExpeditionFields(data);
+        data.freeRerollDate = freeRerollDate;
+        data.freeRerollsUsed = freeRerollsUsed;
+        data.adRerollsUsed = adRerollsUsed;
+        data.stardust = stardust;
+        data.rebirthTree = new List<int>(tree);
+        data.bestExpeditionStage = bestStage;
+        data.rebirthCount = rebirthCount;
+        SavePlanetRuns(data);   // 행성마다 모은 증강 (PlanetRun.cs)
+    }
+
+    // ---- 원정 상태 (증강·누적·무기 칸·룰렛·환생 출발 대기). 행성 한 판은 이걸 보관했다가 나올 때 되돌려요 (2026-11-25)
+    void SaveExpeditionFields(GameData data)
+    {
         data.augIds = new List<string>(order);
         data.augLevels = new List<int>();
         foreach(var id in order) data.augLevels.Add(Level(id));
@@ -768,18 +937,71 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         data.expPity = pity;
         data.expExtraWeapon = (int)extraWeapon;
         data.expFusionSlots = SaveFusionSlots();
+        data.expRoulette = SaveRoulette();
         data.expLoadoutSet = loadoutSet;
         data.expLoadoutLeft = (int)loadoutLeft;
         data.expLoadoutRight = (int)loadoutRight;
         data.expPendingSetup = pendingSetup || migrationGift > 0;
-        data.freeRerollDate = freeRerollDate;
-        data.freeRerollsUsed = freeRerollsUsed;
-        data.adRerollsUsed = adRerollsUsed;
-        data.stardust = stardust;
-        data.rebirthTree = new List<int>(tree);
-        data.bestExpeditionStage = bestStage;
-        data.rebirthCount = rebirthCount;
         data.expPendingStartStage = pendingRebirthStart ? rebirthStartStage : 0;
+    }
+
+    static void CopyExpeditionFields(GameData from, GameData to)
+    {
+        to.augIds = from.augIds != null ? new List<string>(from.augIds) : new List<string>();
+        to.augLevels = from.augLevels != null ? new List<int>(from.augLevels) : new List<int>();
+        to.expKills = from.expKills;
+        to.expBossKills = from.expBossKills;
+        to.expSoulStack = from.expSoulStack;
+        to.expSlaughterStack = from.expSlaughterStack;
+        to.expWraithStack = from.expWraithStack;
+        to.expStackKeys = from.expStackKeys != null ? new List<string>(from.expStackKeys) : new List<string>();
+        to.expStackVals = from.expStackVals != null ? new List<float>(from.expStackVals) : new List<float>();
+        to.expBlessing = from.expBlessing;
+        to.expRerollBag = from.expRerollBag;
+        to.expPity = from.expPity;
+        to.expExtraWeapon = from.expExtraWeapon;
+        to.expFusionSlots = from.expFusionSlots;
+        to.expRoulette = from.expRoulette;
+        to.expLoadoutSet = from.expLoadoutSet;
+        to.expLoadoutLeft = from.expLoadoutLeft;
+        to.expLoadoutRight = from.expLoadoutRight;
+        to.expPendingSetup = from.expPendingSetup;
+        to.expPendingStartStage = from.expPendingStartStage;
+    }
+
+    void LoadExpeditionFields(GameData data)
+    {
+        levels.Clear();
+        order.Clear();
+        if(data.augIds != null && data.augLevels != null) {
+            for(int i = 0; i < data.augIds.Count && i < data.augLevels.Count; i++) {
+                if(AugmentDefs.Get(data.augIds[i]) == null) continue;
+                levels[data.augIds[i]] = data.augLevels[i];
+                order.Add(data.augIds[i]);
+            }
+        }
+        expKills = data.expKills;
+        expBossKills = data.expBossKills;
+        soulStack = data.expSoulStack;
+        slaughterStack = data.expSlaughterStack;
+        wraithStack = data.expWraithStack;
+        LoadStacks(data);
+        OnAugmentsChanged();
+        stardustSizeStack = Level("stardustshot") > 0 ? Mathf.Min(2f, (expKills / 100) * AugmentDefs.StardustShotPer100(Level("stardustshot"))) : 0f;
+        blessing = data.expBlessing;
+        rerollBag = data.expRerollBag;
+        pity = data.expPity;
+        extraWeapon = (SideWeapon)data.expExtraWeapon;
+        LoadFusionSlots(data.expFusionSlots);
+        LoadRoulette(data.expRoulette);
+        loadoutSet = data.expLoadoutSet;
+        loadoutLeft = (SideWeapon)data.expLoadoutLeft;
+        loadoutRight = (SideWeapon)data.expLoadoutRight;
+        pendingSetup = data.expPendingSetup;
+        // 환생 직후 출발 전에 저장된 경우: 원정 준비 화면과 출발 보너스를 다시 이어서 진행
+        pendingRebirthStart = data.expPendingStartStage > 0;
+        rebirthStartStage = Mathf.Max(1, data.expPendingStartStage);
+        if(pendingRebirthStart) pendingSetup = true;
     }
     #endregion
 
@@ -826,6 +1048,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         }
         // ` 키(숫자 1 왼쪽): 증강 테스트 창. F10은 녹화 프로그램 단축키와 겹쳐서 바꿨어요. 화면의 [테스트] 버튼도 같아요
         if(Input.GetKeyDown(KeyCode.BackQuote)) ui.ShowDebugAugments();
+        // End: 실제 한 판 (테스트 설정을 다 끄고 1스테이지부터 원정 준비 화면)
+        if(Input.GetKeyDown(KeyCode.End)) DebugRealRun();
 #endif
     }
 
@@ -861,6 +1085,33 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         bool ok = InfiniteStage.Instance != null && InfiniteStage.Instance.DebugSpawnBoss();
         ui.Toast(ok ? "[개발] 보스 소환" : "[개발] 원정 전투 중에만 부를 수 있어요", Color.white);
+#endif
+    }
+
+    // 실제 한 판 (2026-11-25 사용자: "이 설정들을 한번에"): 에디터 테스트 설정을 다 끄고, 원정을 1스테이지부터 새로 (원정 준비 화면부터)
+    //  테스트 모드·적 3배·연습장·적 무적·무기 고르기·전부 출격·게임 속도를 끄고, 증강을 비워요. 환생 횟수·별의 먼지·환생 트리는 그대로
+    public void DebugRealRun()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if(InfiniteStage.Instance == null || !InfiniteStage.Instance.IsRunning) { ui.Toast("[개발] 원정 전투 중에만 쓸 수 있어요", Color.white); return; }
+        if(DebugArena) DebugArenaStop();
+        DebugTestMode = false;
+        DebugManyEnemies = false;
+        DebugMortal = false;
+        DebugArenaInvincible = false;
+        debugEquipAll = false;
+        DebugPickClear(true);
+        GameManager.SetDisplaySpeed(1f);   // 표시 x1 (실제 바탕 1.5)
+        int shieldDiff = ShieldBonus;
+        ResetExpeditionState();
+        shieldDiff -= ShieldBonus;
+        if(shieldDiff != 0) InfiniteStage.Instance.AddShieldNow(-shieldDiff);   // 증강 실드 보너스만큼 빼요 (모두 지우기와 같아요)
+        if(EnemyManager.Instance != null) EnemyManager.Instance.removeAllEnemies();
+        InfiniteStage.Instance.JumpToStage(1);
+        pendingSetup = true;
+        TryShowSetup();
+        ui.Toast("[개발] 실제 한 판: 테스트 설정을 다 끄고 1스테이지부터 (게임 속도 x1)", Color.white);
+        ui.RefreshHUD();
 #endif
     }
 
@@ -912,6 +1163,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         OnAugmentsChanged();
         extraWeapon = SideWeapon.None;
         fusionSlots.Clear();
+        ResetRoulette();   // 기본총 룰렛도 (2026-11-25)
         shieldDiff -= ShieldBonus;
         if(shieldDiff != 0 && InfiniteStage.Instance != null) InfiniteStage.Instance.AddShieldNow(-shieldDiff);
         ui.Toast("[개발] 증강을 모두 지웠어요", Color.white);

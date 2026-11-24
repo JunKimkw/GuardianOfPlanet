@@ -50,9 +50,15 @@ public class GameManager : MonoBehaviour, IDataPersistence
 
     public bool noAdsBought;
 
+    // 게임 속도 바탕 (2026-11-25 사용자: "1배는 너무 느려, 기본을 1.5배로 하고 표시는 1배로")
+    //  실제 Time.timeScale = 표시 배속 × game_speed_base(1.5). 속도 버튼 x1 · x1.5 · x2 는 표시 배속이에요 (실제 1.5 · 2.25 · 3)
+    public static float SpeedBase => Mathf.Max(0.1f, Tuning.Get("game_speed_base", 1.5f));
+    public static float DisplaySpeed => Time.timeScale / SpeedBase;
+    public static void SetDisplaySpeed(float d) => Time.timeScale = d * SpeedBase;
+
     private void Awake()
     {
-        Time.timeScale = 1;
+        Time.timeScale = SpeedBase;
         instance = this;
 
         //스크린 타임 방지
@@ -182,8 +188,8 @@ public class GameManager : MonoBehaviour, IDataPersistence
     }
     public void ResumeGame()
     {
-        if(temp < 1) {
-            temp = 1;
+        if(temp < SpeedBase * 0.99f) {
+            temp = SpeedBase;
         }
         setTimeScale(temp);
     }
@@ -193,24 +199,20 @@ public class GameManager : MonoBehaviour, IDataPersistence
         Time.timeScale = a;
     }
 
+    // a: 실제 Time.timeScale. 저장은 표시 배속으로 (예전 키 lastGameSpeed 는 실제 배속이라 새 키를 써요)
     public void saveGameSpeedandAuto(float a, bool b)
     {
-        if(a >= 1)
-            PlayerPrefs.SetFloat("lastGameSpeed", a);
+        float d = a / SpeedBase;
+        if(d >= 0.99f)
+            PlayerPrefs.SetFloat("lastGameSpeedDisplay", d);
         PlayerPrefs.SetInt("lastAutoAttack", b ? 1 : 0);
     }
 
     public void loadGameSpeedandAuto()
     {
-        if(PlayerPrefs.HasKey("lastGameSpeed")) {
-            if(PlayerPrefs.GetFloat("lastGameSpeed") < 1) {
-                PlayerPrefs.SetFloat("lastGameSpeed", 1);
-            }
-            setTimeScale(PlayerPrefs.GetFloat("lastGameSpeed"));
-        } else {
-            PlayerPrefs.SetFloat("lastGameSpeed", 1);
-            setTimeScale(PlayerPrefs.GetFloat("lastGameSpeed"));
-        }
+        float saved = PlayerPrefs.HasKey("lastGameSpeedDisplay") ? PlayerPrefs.GetFloat("lastGameSpeedDisplay") : 1f;
+        if(saved < 1f || saved > 2.01f) saved = 1f;   // 개발용 x5·x10 은 다시 켤 때 x1 로
+        SetDisplaySpeed(saved);
 
         if(PlayerPrefs.HasKey("lastAutoAttack")) {
             WeaponManager.instance.shootType = PlayerPrefs.GetInt("lastAutoAttack") == 1 ? WeaponManager.ShootType.AutoShoot : WeaponManager.ShootType.NormalShoot;
@@ -321,17 +323,14 @@ public class GameManager : MonoBehaviour, IDataPersistence
 
     public static void SetTimeScale()
     {
-        if(Time.timeScale <= 1)
-            Time.timeScale = 1.5f;
-        else if(Time.timeScale == 1.5f) {
-            if(instance.GameSpeedBought)
-                Time.timeScale = 2f;
-            else
-                Time.timeScale = 1f;
-        } else if (Time.timeScale == 2f){
-            Time.timeScale = 1;
-        } else if(Time.timeScale >= 3.5f)
-            Time.timeScale = 1f;
+        // 표시 배속 기준으로 x1 → x1.5 → x2(구매) → x1 (실제는 × SpeedBase)
+        float d = DisplaySpeed;
+        if(d <= 1.01f)
+            SetDisplaySpeed(1.5f);
+        else if(Mathf.Abs(d - 1.5f) < 0.01f)
+            SetDisplaySpeed(instance.GameSpeedBought ? 2f : 1f);
+        else
+            SetDisplaySpeed(1f);
 
         instance.saveGameSpeedandAuto(Time.timeScale, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
     }

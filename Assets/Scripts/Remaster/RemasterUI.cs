@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 // 리마스터 UI: 씬을 건드리지 않고 코드로 만드는 화면들 (기준 해상도 1080x2048, 가로폭 맞춤 = 기존 UI와 동일)
 // 겉모습은 기존 UI와 같은 Layer Lab GUI Pro-SuperCasual 이미지를 써요 (Resources/RemasterUI 에 복사본).
@@ -53,6 +54,19 @@ public class RemasterUI : MonoBehaviour
         root = cgo.GetComponent<RectTransform>();
 
         hudRoot = Stretch("HUD", root);
+        // 옛날 UI 아래에 그리는 캔버스 (2026-11-25 사용자: 행성 레벨 바는 일시정지·설정 창의 회색 배경 뒤로)
+        //  옛날 UI 캔버스는 화면 위 그리기 순서 1·2, 우리 UI 는 20 → 이건 0
+        var ugo = new GameObject("RemasterUnderCanvas", typeof(RectTransform));
+        ugo.transform.SetParent(transform, false);
+        var under = ugo.AddComponent<Canvas>();
+        under.renderMode = RenderMode.ScreenSpaceOverlay;
+        under.sortingOrder = Mathf.RoundToInt(Tuning.Get("planet_hud_sort", 0f));
+        var uscaler = ugo.AddComponent<CanvasScaler>();
+        uscaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        uscaler.referenceResolution = new Vector2(1080, 2048);
+        uscaler.matchWidthOrHeight = 0f;
+        ugo.AddComponent<GraphicRaycaster>();
+        underRoot = Stretch("UnderHUD", ugo.GetComponent<RectTransform>());
         modalRoot = Stretch("Modals", root);
         toastRoot = Stretch("Toasts", root);
         BuildHud();
@@ -347,6 +361,13 @@ public class RemasterUI : MonoBehaviour
 
     #region HUD
     RectTransform hud;
+    RectTransform planetHud;          // 행성 한 판: 레벨 + 증강 보기 (2026-11-25)
+    TextMeshProUGUI planetHudLevel;
+    RectTransform planetHudFill;
+    Image planetBarBg, planetHudFillImg;
+    int planetHudShownLevel = -1;
+    bool planetBarStyled;
+    RectTransform underRoot;          // 옛날 UI 아래 캔버스 (행성 레벨 바)
     TextMeshProUGUI hudStardust, hudStack;
     readonly TextMeshProUGUI[] hudTag = new TextMeshProUGUI[3];
     readonly Image[] hudTile = new Image[3];
@@ -390,9 +411,192 @@ public class RemasterUI : MonoBehaviour
         // 개발용: 증강 테스트 창 (출시 빌드에는 없어요)
         Btn(hud, "테스트", new Vector2(160, 66), new Vector2(0, -292), BPurple, ShowDebugAugments, 28);
 #endif
+
+        // 행성 한 판 HUD (2026-11-25 사용자: 골드와 남은 적 사이에 레벨 바, 그 밑에 작게 '증강 보기')
+        //  위치는 옛날 UI(골드 글자·남은 적 글자)의 화면 위치를 따라가요 (PlacePlanetHud)
+        //  (2026-11-25 사용자) 증강 버튼은 바 밑이 아니라 바 오른쪽 같은 줄에 (위에서 내려오는 적을 덜 가리게)
+        //  (2026-11-25 사용자) 모양은 원정(무한 스테이지) 왼쪽 위 레벨 바(Player.expbar)의 그림을 그대로 써요 (StylePlanetBar)
+        //  [ Lv.7 ▓▓▓▓▓▓▓░░░░ ][증강]   (2026-11-25 사용자: 레벨이 너무 작아 → 굵은 바 + 큰 외곽선 글자, 레벨업이면 톡 커져요)
+        planetHud = Rect("PlanetHud", underRoot, new Vector2(470, 70), Vector2.zero);
+        planetBarBg = Box(planetHud, new Vector2(340, 50), new Vector2(-55, 0), new Color(0.06f, 0.08f, 0.16f, 0.92f), "LevelBarBg");
+        planetHudFillImg = Box(planetBarBg.transform, new Vector2(330, 40), Vector2.zero, new Color(0.45f, 1f, 0.55f), "LevelBarFill");
+        planetHudFill = planetHudFillImg.rectTransform;
+        planetHudFill.anchorMin = planetHudFill.anchorMax = planetHudFill.pivot = new Vector2(0f, 0.5f);
+        planetHudFill.anchoredPosition = new Vector2(5f, 0f);
+        planetHudLevel = Label(planetBarBg.transform, "Lv.0", new Vector2(200, 48), new Vector2(-55, 1), 36, Color.white, FontStyles.Bold);
+        planetHudLevel.alignment = TextAlignmentOptions.MidlineLeft;
+        planetHudLevel.outlineWidth = 0.28f;
+        planetHudLevel.outlineColor = new Color32(10, 14, 30, 255);
+        // (2026-11-25 사용자: 퍼센트 글자는 어색해요 → 뺐어요, 채움만으로)
+        Btn(planetHud, "증강", new Vector2(100, 56), new Vector2(178, 0), BBlue, ShowAugmentList, 26);
+        planetHud.gameObject.SetActive(false);
     }
 
     float hudTimer;
+
+    // 레벨업하면 바가 톡 커졌다 돌아오고 채움이 잠깐 하얗게 (0.3초)
+    IEnumerator PlanetBarPop()
+    {
+        float t = 0f;
+        Color baseCol = planetHudFillImg.color;
+        while(t < 0.3f && planetHud != null) {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Sin(Mathf.Clamp01(t / 0.3f) * Mathf.PI);
+            planetBarBg.rectTransform.localScale = Vector3.one * (1f + 0.15f * k);
+            planetHudFillImg.color = Color.Lerp(baseCol, Color.white, 0.6f * k);
+            yield return null;
+        }
+        planetBarBg.rectTransform.localScale = Vector3.one;
+        planetHudFillImg.color = baseCol;
+    }
+
+    // 원정 왼쪽 위 레벨 바(Player.expbar)의 바탕·채움 그림과 레벨 동그라미·글꼴을 가져와요 (처음 한 번)
+    void StylePlanetBar()
+    {
+        if(planetBarStyled || Player.instance == null || Player.instance.expbar == null) return;
+        planetBarStyled = true;
+        var sl = Player.instance.expbar;
+        var fillSrc = sl.fillRect != null ? sl.fillRect.GetComponent<Image>() : null;
+        Image bgSrc = null;
+        foreach(var img in sl.GetComponentsInChildren<Image>(true))
+            if(img != fillSrc && (sl.handleRect == null || img.transform != sl.handleRect)) { bgSrc = img; break; }
+        if(bgSrc != null && bgSrc.sprite != null) { planetBarBg.sprite = bgSrc.sprite; planetBarBg.type = Image.Type.Sliced; planetBarBg.color = bgSrc.color; }
+        if(fillSrc != null && fillSrc.sprite != null) { planetHudFillImg.sprite = fillSrc.sprite; planetHudFillImg.type = Image.Type.Sliced; planetHudFillImg.color = fillSrc.color; }
+        var lt = Player.instance.LevelText;
+        if(lt != null) {
+            if(lt.font != null) {   // 글꼴만 (뱃지 그림은 안 써요). 글꼴을 바꾸면 외곽선이 풀려서 다시 걸어요
+                planetHudLevel.font = lt.font;
+                planetHudLevel.outlineWidth = 0.28f;
+                planetHudLevel.outlineColor = new Color32(10, 14, 30, 255);
+            }
+        }
+    }
+
+    // 레벨 바 자리: 보이는 골드 글자와 남은 적 글자의 가운데 (둘 중 하나만 찾으면 그 아래)
+    static readonly Vector3[] uiCorners = new Vector3[4];
+    static bool ScreenCenterOf(RectTransform rt, out Vector2 screen)
+    {
+        screen = default;
+        if(rt == null || !rt.gameObject.activeInHierarchy) return false;
+        rt.GetWorldCorners(uiCorners);
+        var c = rt.GetComponentInParent<Canvas>();
+        var root = c != null ? c.rootCanvas : null;
+        Camera cam = root != null && root.renderMode != RenderMode.ScreenSpaceOverlay ? root.worldCamera : null;
+        screen = RectTransformUtility.WorldToScreenPoint(cam, (uiCorners[0] + uiCorners[2]) * 0.5f);
+        return true;
+    }
+    void PlacePlanetHud()
+    {
+        Vector2 a = default, b = default;
+        bool hasA = false, hasB = false;
+        var um = UIManager.instance;
+        if(um != null && um.gold_Text != null)
+            foreach(var g in um.gold_Text) if(g != null && ScreenCenterOf(g.rectTransform, out a)) { hasA = true; break; }
+        var sm = StageManager.instance;
+        if(sm != null && sm.RemainedMonster_Text != null) hasB = ScreenCenterOf(sm.RemainedMonster_Text.rectTransform, out b);
+        Vector2 screen = hasA && hasB ? (a + b) * 0.5f : hasB ? b + new Vector2(0f, -Screen.height * 0.05f) : hasA ? a + new Vector2(0f, -Screen.height * 0.05f) : new Vector2(Screen.width * 0.5f, Screen.height * 0.85f);
+        if(RectTransformUtility.ScreenPointToLocalPointInRectangle(underRoot, screen, null, out Vector2 local))
+            planetHud.anchoredPosition = local + new Vector2(Tuning.Get("planet_hud_dx", 0f), Tuning.Get("planet_hud_dy", 0f));
+    }
+
+    // 다른 창이 떠 있는지: 화면 가운데를 옛날 UI(우리 캔버스 밖, 화면 위에 그리는 캔버스)가 덮고 있으면 창이 떠 있는 걸로 봐요.
+    //  평소 원정 화면 가운데는 게임 화면(적·우주선)이라 UI가 없어요. 끄려면 tuning hud_hide_on_window = 0
+    static readonly List<RaycastResult> rayHits = new List<RaycastResult>();
+    bool OtherWindowOpen()
+    {
+        if(Tuning.Get("hud_hide_on_window", 1f) <= 0f) return false;
+        var es = EventSystem.current;
+        if(es == null) return false;
+        var ped = new PointerEventData(es) { position = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f) };
+        rayHits.Clear();
+        es.RaycastAll(ped, rayHits);
+        foreach(var h in rayHits) {
+            if(!(h.module is GraphicRaycaster gr)) continue;
+            var c = gr.GetComponent<Canvas>();
+            if(c != null && c.renderMode == RenderMode.WorldSpace) continue;
+            if(h.gameObject == null || h.gameObject.transform.IsChildOf(transform)) continue;   // 우리 UI 는 빼요
+            return true;
+        }
+        return false;
+    }
+
+    // 행성 창(2-1 ~ 2-8 고르는 창)에 '증강' 버튼: 그 행성에서 클리어까지 모은 증강 보기·초기화 (2026-11-25 사용자: 행성 창에서도 보고 싶어요)
+    //  처음엔 옛날 UI 창 안에 붙였는데 배율이 달라 크게 깨졌어요 → 우리 UI(hudRoot)에 만들고, 맵 버튼 묶음의 화면 위치(오른쪽 위)를 따라가요
+    RectTransform planetPopupBtn;
+    TextMeshProUGUI planetPopupLabel;
+    static readonly Vector3[] gridCorners = new Vector3[4];
+    bool UpdatePlanetPopupButton()
+    {
+        var sm = StageManager.instance;
+        var cp = sm != null ? sm.currentPlanet : null;
+        var grid = cp != null && cp.LevelMap_Pfb_Parent != null ? cp.LevelMap_Pfb_Parent as RectTransform : null;
+        bool open = grid != null && grid.gameObject.activeInHierarchy && !sm.isInStage;
+        if(!open) {
+            if(planetPopupBtn != null && planetPopupBtn.gameObject.activeSelf) planetPopupBtn.gameObject.SetActive(false);
+            return false;
+        }
+        if(planetPopupBtn == null) {
+            var btn = Btn(hudRoot, "증강", new Vector2(230, 80), Vector2.zero, BBlue, () => ShowPlanetRunList(), 30);
+            planetPopupBtn = btn.GetComponent<RectTransform>();
+            planetPopupLabel = btn.GetComponentInChildren<TextMeshProUGUI>();
+        }
+        if(!planetPopupBtn.gameObject.activeSelf) planetPopupBtn.gameObject.SetActive(true);
+        // 맵 버튼 묶음 오른쪽 위 → 화면 좌표 → 우리 캔버스 좌표
+        grid.GetWorldCorners(gridCorners);
+        var oldCanvas = grid.GetComponentInParent<Canvas>();
+        var root = oldCanvas != null ? oldCanvas.rootCanvas : null;
+        Camera cam = root != null && root.renderMode != RenderMode.ScreenSpaceOverlay ? root.worldCamera : null;
+        Vector2 screen = RectTransformUtility.WorldToScreenPoint(cam, gridCorners[2]);
+        if(RectTransformUtility.ScreenPointToLocalPointInRectangle(hudRoot, screen, null, out Vector2 local))
+            planetPopupBtn.anchoredPosition = local + new Vector2(-120f, 50f);   // 묶음 오른쪽 끝에 맞추고 조금 위 ('행성 정보' 줄)
+        var run = mgr.PlanetRunOf(sm.planets.IndexOf(cp));
+        if(planetPopupLabel != null) planetPopupLabel.text = run != null ? $"증강 Lv.{run.level}" : "증강 없음";   // 가장 멀리 깬 맵의 저장
+        return true;
+    }
+
+    // 행성에 기억된 증강 보기 (행성 밖에서)
+    void ShowPlanetRunList()
+    {
+        var sm = StageManager.instance;
+        var cp = sm != null ? sm.currentPlanet : null;
+        if(cp == null) return;
+        int pi = sm.planets.IndexOf(cp);
+        var run = mgr.PlanetRunOf(pi);
+        mgr.PauseForUI();
+        var p = OpenModal(new Vector2(900, 1300), out Action close);
+        Title(p, $"{cp.PlanetName} 행성의 증강", 580, 52, 860);
+        if(run == null) {
+            Label(p, "아직 기억된 증강이 없어요.\n맵을 클리어하면 그때까지 고른 증강이 남아요.", new Vector2(820, 200), new Vector2(0, 200), 32, TextDim);
+        } else {
+            string w = AugmentDefs.WeaponName((SideWeapon)run.left) + (run.right >= 0 ? " / " + AugmentDefs.WeaponName((SideWeapon)run.right) : "");
+            Label(p, $"행성 Lv.{run.level}   ·   무기: 기본총 / {w}", new Vector2(840, 50), new Vector2(0, 505), 30, TextDim);
+            var sb = new System.Text.StringBuilder();
+            for(int i = 0; i < run.augIds.Count && i < run.augLevels.Count; i++) {
+                var d = AugmentDefs.Get(run.augIds[i]);
+                if(d == null) continue;
+                sb.Append($"<color=#{ColorUtility.ToHtmlStringRGB(AugmentDefs.GradeColor(d.grade))}>{d.name}</color> <color=#FFD54A>★{run.augLevels[i]}</color>");
+                sb.Append(i % 2 == 0 ? "      " : "\n");
+            }
+            Label(p, sb.Length > 0 ? sb.ToString() : "(증강 없음)", new Vector2(820, 760), new Vector2(0, 60), 30, Color.white);
+        }
+        Btn(p, "닫기", new Vector2(340, 120), new Vector2(run != null ? -190 : 0, -540), BGray, () => { close(); mgr.ResumeFromUI(); }, 42);
+        if(run != null) {
+            bool armed = false;
+            Button reset = null;
+            reset = Btn(p, "증강 초기화", new Vector2(340, 120), new Vector2(190, -540), BRed, () => {
+                if(!armed) {
+                    armed = true;
+                    var t = reset.GetComponentInChildren<TextMeshProUGUI>();
+                    if(t != null) t.text = "정말 초기화?";
+                    return;
+                }
+                mgr.ForgetPlanetRun(pi);
+                close();
+                mgr.ResumeFromUI();
+                Toast($"{cp.PlanetName} 행성의 증강을 초기화했어요", Color.white, true);
+            }, 36);
+        }
+    }
     void Update()
     {
         hudTimer -= Time.unscaledDeltaTime;
@@ -400,10 +604,26 @@ public class RemasterUI : MonoBehaviour
         hudTimer = 0.25f;
         if(mgr == null || !mgr.Loaded) return;
         if(!EnsureBuilt()) return;
+        bool planetPopup = UpdatePlanetPopupButton();
         bool show = InfiniteStage.Instance != null && InfiniteStage.Instance.IsRunning
                     && (StageManager.instance == null || !StageManager.instance.isInStage)
-                    && (StartScreenScript.Instance == null || !StartScreenScript.Instance.gameObject.activeInHierarchy);
+                    && (StartScreenScript.Instance == null || !StartScreenScript.Instance.gameObject.activeInHierarchy)
+                    && !planetPopup && !OtherWindowOpen();   // (2026-11-25 사용자) 행성 창 같은 다른 창이 뜨면 원정·출격 무기 칸을 숨겨요
         if(hud.gameObject.activeSelf != show) hud.gameObject.SetActive(show);
+        // 행성 화면이면 계속 (2026-11-25 사용자: 일시정지·승리·패배 화면에서도 안 없애도 돼요). 옛날 UI 아래 캔버스라 그 창들의 배경 뒤로 가요
+        bool planetShow = mgr.InPlanetRun && StageManager.instance != null && (StageManager.instance.isInStage || StageManager.instance.planetScreen);   // 행성 화면이 뜨는 순간부터 (예전엔 전투 시작 2초 뒤)
+        if(planetHud != null) {
+            if(planetHud.gameObject.activeSelf != planetShow) planetHud.gameObject.SetActive(planetShow);
+            if(planetShow) {
+                StylePlanetBar();
+                float prog = Mathf.Clamp01(mgr.PlanetLevelProgress);
+                planetHudLevel.text = $"Lv.{mgr.PlanetLevel}";
+                planetHudFill.sizeDelta = new Vector2(330f * prog, 40f);
+                if(planetHudShownLevel >= 0 && mgr.PlanetLevel > planetHudShownLevel) StartCoroutine(PlanetBarPop());   // 레벨업: 톡
+                planetHudShownLevel = mgr.PlanetLevel;
+                PlacePlanetHud();
+            }
+        }
         if(show) RefreshHUD();
         else if(weaponHudShown) RefreshWeaponHud(false);
     }
@@ -534,83 +754,136 @@ public class RemasterUI : MonoBehaviour
     Action pullClose;
     Coroutine pullRoutine;
 
-    public void ShowPull(AugmentDef def, int newLevel, string rerollLabel, Action onAccept, Action onReroll)
+    // 증강 고르기 (2026-11-25 사용자: "3개의 선택지 중에서 고르게. 고민도 하고 후회도 하고 '이건 잘 골랐네'도 하게")
+    //  3장(aug_choices) 중 하나를 눌러 고르고 '받기'로 확정. 카드마다 오른쪽 리롤(자리마다 한 번).
+    //  aug_auto_seconds(15초) 동안 안 고르면 고른 카드(없으면 첫 카드)를 받아요 (방치 중에도 진행)
+    //  (2026-11-25 사용자) 고른 카드는 빨간 테두리 + "선택" 표시로, 등급은 테두리가 아니라 카드 자체 바탕으로 구분:
+    //   실버 = 차가운 회청색 / 골드 = 금빛 바탕 + 위쪽 금색 띠 / 프리즘 = 무지개로 흐르는 바탕. 그림은 임시 (P8)
+    static Color GradeCardBg(AugGrade g) => g == AugGrade.Gold ? new Color(0.46f, 0.32f, 0.07f) : g == AugGrade.Prism ? new Color(0.35f, 0.2f, 0.5f) : new Color(0.27f, 0.31f, 0.4f);
+    static Color GradeNameColor(AugGrade g) => g == AugGrade.Gold ? new Color(1f, 0.86f, 0.4f) : Color.white;
+    static readonly Color PickRed = new Color(1f, 0.2f, 0.22f);
+    static readonly Color WeaponCardBg = new Color(0.03f, 0.33f, 0.42f);       // 추가 무기 카드 바탕 (청록)
+    static readonly Color WeaponCardRibbon = new Color(1f, 0.45f, 0.12f);      // 추가 무기 카드 리본 (주황)
+
+    public void ShowPull(List<AugmentDef> defs, List<int> newLevels, List<bool> rerolled, string rerollLabel, Action<int> onAccept, Action<int> onReroll)
     {
-        if(!EnsureBuilt()) { onAccept?.Invoke(); return; }
-        if(pullPanel == null) pullPanel = OpenModal(new Vector2(880, 1300), out pullClose);
+        if(!EnsureBuilt() || defs.Count == 0) { onAccept?.Invoke(0); return; }
+        if(pullPanel == null) pullPanel = OpenModal(new Vector2(900, 1500), out pullClose);
         for(int i = pullPanel.childCount - 1; i >= 0; i--) Destroy(pullPanel.GetChild(i).gameObject);
         if(pullRoutine != null) StopCoroutine(pullRoutine);
 
         bool done = false;
-        Action accept = () => {
+        int picked = -1;
+        Action<int> accept = idx => {
             if(done) return;
             done = true;
             if(pullRoutine != null) StopCoroutine(pullRoutine);
             pullClose?.Invoke();
             pullPanel = null;
-            onAccept?.Invoke();
+            onAccept?.Invoke(Mathf.Clamp(idx, 0, defs.Count - 1));
         };
 
-        Title(pullPanel, "증강 획득", 570, 58);
-        Label(pullPanel, "스테이지를 넘으면 증강을 얻어요 (갈수록 드물게)", new Vector2(760, 46), new Vector2(0, 505), 30, TextDim);
+        Title(pullPanel, mgr.InPlanetRun ? $"레벨 업! Lv.{mgr.PlanetLevel}" : "증강 선택", 690, 58);
+        Label(pullPanel, "하나를 골라요", new Vector2(780, 46), new Vector2(0, 625), 32, TextDim);
 
-        // 카드: 등급 색 테두리 + 남색 안쪽
-        var frame = ColorCard(pullPanel, new Vector2(620, 820), new Vector2(0, 40), AugmentDefs.GradeColor(AugGrade.Silver), "CardFrame");
-        var inner = Row(frame.transform, new Vector2(580, 780), new Vector2(0, 4), "CardInner");
-        var skip = frame.gameObject.AddComponent<Button>();
-        var gradeLabel = Label(inner.transform, AugmentDefs.GradeName(AugGrade.Silver), new Vector2(520, 60), new Vector2(0, 336), 44, AugmentDefs.GradeColor(AugGrade.Silver), FontStyles.Bold);
+        int n = defs.Count;
+        var cards = new RectTransform[n];
+        var rings = new GameObject[n];
+        var groups = new CanvasGroup[n];
+        var bgs = new Image[n];
+        var ribbons = new Image[n];   // 추가 무기 카드 리본 (반짝여요)
+        var grades = new AugGrade[n];
+        Action refresh = null;
+        for(int i = 0; i < n; i++) {
+            var def = defs[i];
+            int lv = i < newLevels.Count ? newLevels[i] : 1;
+            int idx = i;
+            grades[i] = def.grade;
+            float y = 395f - i * 330f;
 
-        var content = Rect("Content", inner.transform, new Vector2(580, 700), new Vector2(0, -30));
-        var cg = content.gameObject.AddComponent<CanvasGroup>();
-        cg.alpha = 0;
-        var tagChip = ColorCard(content, new Vector2(360, 64), new Vector2(0, 262), AugmentDefs.TagColor(def.tag), "TagChip");
-        string chip = def.tag == AugTag.Weapon ? $"무기 전용 · {AugmentDefs.WeaponName(def.requiredWeapon)}" : $"{AugmentDefs.TagName(def.tag)} · {AugmentDefs.GodName(def.tag)}";
-        Label(tagChip.transform, chip, new Vector2(320, 48), new Vector2(0, 2), 30, Color.white, FontStyles.Bold);
-        IconTile(content, def.icon, 250, new Vector2(0, 80), AugmentDefs.GradeColor(def.grade));
-        Label(content, def.name, new Vector2(540, 76), new Vector2(0, -100), 56, Color.white, FontStyles.Bold);
-        Label(content, newLevel <= 1 ? "NEW" : $"★{newLevel}  (최대 ★{def.maxLevel})", new Vector2(520, 48), new Vector2(0, -160), 34, newLevel <= 1 ? new Color(0.5f, 1f, 0.6f) : TextGold, FontStyles.Bold);
-        Label(content, def.describe(newLevel), new Vector2(520, 160), new Vector2(0, -270), 36, TextDim);
+            // 고른 표시: 카드 뒤 빨간 테두리 + 왼쪽 위 "선택" 딱지 (처음엔 숨김)
+            var ring = Box(pullPanel, new Vector2(716, 336), new Vector2(-80, y), PickRed, "PickRing");
+            rings[i] = ring.gameObject;
 
-        var countdown = Label(pullPanel, "", new Vector2(760, 44), new Vector2(0, -585), 28, TextDim);
-        Btn(pullPanel, rerollLabel, new Vector2(400, 130), new Vector2(-200, -480), BPurple, () => { if(!done) onReroll?.Invoke(); }, 34);
-        Btn(pullPanel, "받기", new Vector2(320, 130), new Vector2(210, -480), BGreen, accept, 48);
+            // 카드: 어두운 테두리 + 등급별 바탕 (2026-11-25 사용자: 테두리 말고 카드 자체로 등급 구분)
+            var card = Rect("ChoiceCard", pullPanel, new Vector2(690, 310), new Vector2(-80, y));
+            cards[i] = card;
+            groups[i] = card.gameObject.AddComponent<CanvasGroup>();
+            ColorCard(card, new Vector2(690, 310), Vector2.zero, new Color(0.16f, 0.15f, 0.22f), "ChoiceFrame");
+            bool weaponCard = def.grantWeapon != SideWeapon.None;   // 행성 '추가 무기' 카드는 따로 꾸며요 (2026-11-25 사용자)
+            var bg = Box(card, new Vector2(660, 280), Vector2.zero, weaponCard ? WeaponCardBg : GradeCardBg(def.grade), "GradeBg");
+            bgs[i] = bg;
+            if(weaponCard) {
+                // 청록 바탕 + 주황 리본 "★ 추가 무기 ★" + 왼쪽 큰 원에 무기 이름
+                var ribbon = Box(card, new Vector2(660, 52), new Vector2(0, 114), WeaponCardRibbon, "WeaponRibbon");
+                ribbons[i] = ribbon;
+                Label(ribbon.transform, "★  추가 무기  ★", new Vector2(620, 46), Vector2.zero, 32, Color.white, FontStyles.Bold);
+                var orb = Box(card, new Vector2(176, 176), new Vector2(-230, -14), WeaponCardRibbon, "WeaponOrb");
+                Box(orb.transform, new Vector2(150, 150), Vector2.zero, new Color(0.04f, 0.2f, 0.28f), "WeaponOrbIn");
+                Label(orb.transform, AugmentDefs.WeaponName(def.grantWeapon), new Vector2(150, 120), Vector2.zero, 34, Color.white, FontStyles.Bold);
+                Label(card, AugmentDefs.WeaponName(def.grantWeapon), new Vector2(440, 60), new Vector2(95, 50), 50, new Color(0.55f, 1f, 1f), FontStyles.Bold);
+                Label(card, "두 번째 무기로 바로 같이 쏴요", new Vector2(440, 40), new Vector2(95, -4), 28, TextGold, FontStyles.Bold);
+                Label(card, "이 행성에서만 · 고르면 더는 안 나와요", new Vector2(440, 70), new Vector2(95, -70), 24, new Color(0.8f, 0.92f, 1f));
+            } else {
+            if(def.grade == AugGrade.Gold) Box(card, new Vector2(660, 46), new Vector2(0, 117), new Color(1f, 0.8f, 0.3f, 0.85f), "GoldBand");
+            if(def.grade == AugGrade.Prism) Box(card, new Vector2(660, 46), new Vector2(0, 117), new Color(1f, 1f, 1f, 0.25f), "PrismBand");
 
-        bool skipped = false;
-        skip.onClick.AddListener(() => skipped = true);
-        pullRoutine = StartCoroutine(PullReveal(def.grade, frame, gradeLabel, cg, countdown, () => skipped, accept));
+            IconTile(card, def.icon, 170, new Vector2(-230, -6), AugmentDefs.GradeColor(def.grade));
+            string chip = def.planetOnly ? "능력치 (행성)" : def.fusion >= 0 ? $"합체 · {AugmentDefs.Fusions[def.fusion].name}" : def.tag == AugTag.Weapon ? $"무기 · {AugmentDefs.WeaponName(def.requiredWeapon)}" : $"{AugmentDefs.TagName(def.tag)} · {AugmentDefs.GodName(def.tag)}";
+            Color headCol = def.grade == AugGrade.Gold ? new Color(0.28f, 0.18f, 0.02f) : Color.white;   // 금색 띠 위는 진한 글자
+            Label(card, $"{AugmentDefs.GradeName(def.grade)}  ·  {chip}", new Vector2(620, 40), new Vector2(0, 117), 26, headCol, FontStyles.Bold);
+            Label(card, def.name, new Vector2(440, 56), new Vector2(95, 58), 42, GradeNameColor(def.grade), FontStyles.Bold);
+            Label(card, lv <= 1 ? "NEW" : $"★{lv}  (최대 ★{def.maxLevel})", new Vector2(440, 34), new Vector2(95, 16), 26, lv <= 1 ? new Color(0.5f, 1f, 0.6f) : TextGold, FontStyles.Bold);
+            Label(card, def.describe(lv), new Vector2(440, 110), new Vector2(95, -68), 26, new Color(0.88f, 0.9f, 1f));
+            }
+            var tag = Box(card, new Vector2(120, 44), new Vector2(-280, 128), PickRed, "PickTag");
+            Label(tag.transform, "선택", new Vector2(116, 40), Vector2.zero, 26, Color.white, FontStyles.Bold);
+            tag.gameObject.name = "PickTag";
+
+            var b = card.gameObject.AddComponent<Button>();
+            b.targetGraphic = bg;
+            b.onClick.AddListener(() => { if(done) return; picked = idx; refresh(); });
+
+            bool used = i < rerolled.Count && rerolled[i];   // 자리마다 한 번만 (2026-11-25 사용자)
+            var rb = Btn(pullPanel, used ? "리롤\n완료" : "리롤", new Vector2(150, 200), new Vector2(355, y), used ? BGray : BPurple, () => { if(!done && !used) onReroll?.Invoke(idx); }, used ? 28 : 34);
+            rb.interactable = !used;
+        }
+        Button take = null;
+        refresh = () => {
+            for(int i = 0; i < n; i++) {
+                bool on = i == picked;
+                rings[i].SetActive(on);
+                var t = cards[i].Find("PickTag");
+                if(t != null) t.gameObject.SetActive(on);
+                cards[i].localScale = on ? Vector3.one * 1.03f : Vector3.one;
+                rings[i].transform.localScale = cards[i].localScale;
+                groups[i].alpha = picked < 0 || on ? 1f : 0.55f;   // 고르면 나머지는 흐리게
+            }
+            if(take != null) take.interactable = picked >= 0;
+        };
+
+        var countdown = Label(pullPanel, "", new Vector2(780, 44), new Vector2(0, -700), 28, TextDim);
+        Label(pullPanel, rerollLabel, new Vector2(780, 40), new Vector2(0, -505), 28, TextDim);   // 남은 리롤 (카드 옆 버튼이 같이 써요)
+        take = Btn(pullPanel, "받기", new Vector2(420, 130), new Vector2(0, -600), BGreen, () => { if(picked >= 0) accept(picked); }, 48);
+        refresh();
+        pullRoutine = StartCoroutine(PullCountdown(bgs, grades, ribbons, countdown, () => picked, accept));
     }
 
-    IEnumerator PullReveal(AugGrade grade, Image frame, TextMeshProUGUI gradeLabel, CanvasGroup content, TextMeshProUGUI countdown, Func<bool> skipped, Action accept)
+    IEnumerator PullCountdown(Image[] bgs, AugGrade[] grades, Image[] ribbons, TextMeshProUGUI countdown, Func<int> picked, Action<int> accept)
     {
-        // 실버 → (골드) → (프리즘) 승급 연출
-        float wait = 0.35f;
-        for(int g = 1; g <= (int)grade; g++) {
-            float t = 0;
-            while(t < wait && !skipped()) { t += Time.unscaledDeltaTime; yield return null; }
-            var col = AugmentDefs.GradeColor((AugGrade)g);
-            frame.color = Color.white;
-            gradeLabel.text = AugmentDefs.GradeName((AugGrade)g) + (g == 2 ? "!!" : "!");
-            gradeLabel.color = col;
-            float f = 0;
-            while(f < 0.15f) { f += Time.unscaledDeltaTime; frame.color = Color.Lerp(Color.white, col, f / 0.15f); yield return null; }
-            frame.color = col;
-            frame.rectTransform.localScale = Vector3.one * 1.04f;
-            yield return null;
-            frame.rectTransform.localScale = Vector3.one;
-        }
-        float a = 0;
-        while(a < 1f) { a += Time.unscaledDeltaTime * 5f; content.alpha = a; yield return null; }
-        content.alpha = 1;
-
-        // 자동으로 받기 (방치 중에도 진행되도록)
-        float left = 8f;
+        float left = Mathf.Max(3f, Tuning.Get("aug_auto_seconds", 15f));
         while(left > 0) {
-            if(grade == AugGrade.Prism) frame.color = Color.HSVToRGB(Mathf.Repeat(Time.unscaledTime * 0.35f, 1f), 0.45f, 1f);
-            countdown.text = $"{Mathf.CeilToInt(left)}초 뒤 자동으로 받아요";
+            for(int i = 0; i < bgs.Length; i++)   // 프리즘: 바탕이 무지개로 흘러요
+                if(ribbons[i] != null) {   // 추가 무기 카드: 리본이 반짝이고 바탕이 숨 쉬듯 밝아졌다 어두워져요
+                    float w = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f + i);
+                    ribbons[i].color = Color.Lerp(WeaponCardRibbon, new Color(1f, 0.85f, 0.3f), w);
+                    if(bgs[i] != null) bgs[i].color = Color.Lerp(WeaponCardBg, new Color(0.08f, 0.5f, 0.6f), w * 0.6f);
+                } else if(grades[i] == AugGrade.Prism && bgs[i] != null) bgs[i].color = Color.HSVToRGB(Mathf.Repeat(Time.unscaledTime * 0.25f + i * 0.2f, 1f), 0.55f, 0.55f);
+            countdown.text = picked() >= 0 ? $"{Mathf.CeilToInt(left)}초 뒤 고른 증강을 받아요" : $"{Mathf.CeilToInt(left)}초 뒤 첫 번째 증강을 받아요";
             left -= Time.unscaledDeltaTime;
             yield return null;
         }
-        accept();
+        accept(Mathf.Max(0, picked()));
     }
     #endregion
 
@@ -641,6 +914,184 @@ public class RemasterUI : MonoBehaviour
             b.onClick.AddListener(() => { close(); onPick?.Invoke(w); });
         }
     }
+
+    // 기본총 룰렛 = 슬롯머신 (2026-11-25 사용자: 슬롯머신 이미지처럼, 기계는 하나)
+    //  '돌리기!'를 누르면 릴 3개가 위에서 아래로 돌다가 왼쪽부터 차례로 멈춰요. 보통 칸은 세 릴이 같은 그림, 대박은 7 7 7, 꽝은 그림이 안 맞아요.
+    //  그림: GUI Pro 아이콘 (Resources/RemasterUI 로 복사), 몸통·전구는 코드로 그린 임시 그림 (다듬기는 P8)
+    static readonly Color SlotBody = new Color(0.22f, 0.12f, 0.38f);
+    static readonly Color SlotArch = new Color(0.34f, 0.15f, 0.52f);
+    static readonly Color SlotNeon = new Color(1f, 0.4f, 0.88f);
+    static readonly Color SlotBulbOn = new Color(1f, 0.86f, 0.35f);
+    static readonly Color SlotBulbOff = new Color(0.45f, 0.3f, 0.2f);
+    const float SlotH = 165f;          // 릴 그림 한 칸 높이
+    const float SlotWinH = 330f;       // 릴 창 높이
+
+    static string SlotIcon(string id)
+    {
+        switch(id) {
+            case "dmg": return "Icon_Sword01";
+            case "speed": return "ItemIcon_Energy_Blue";
+            case "shot": return "ItemIcon_Battle";
+            case "pierce": return "Icon_Arrow_Next2";
+            case "crit": return "ItemIcon_Damage";
+            case "size": return "ItemIcon_Gem_Circle";
+            case "dud": return "ItemIcon_Skull";
+        }
+        return null;
+    }
+    static string SlotShort(string id)
+    {
+        switch(id) {
+            case "dmg": return "공격력";
+            case "speed": return "연사";
+            case "shot": return "탄 +1";
+            case "pierce": return "관통";
+            case "crit": return "치명타";
+            case "size": return "탄 크기";
+            case "jackpot": return "대박";
+            case "dud": return "꽝";
+        }
+        return id;
+    }
+
+    void SlotSymbol(Transform parent, string id, Vector2 pos)
+    {
+        var cell = Rect("Sym", parent, new Vector2(190, SlotH), pos);
+        if(id == "jackpot") {
+            Label(cell, "7", new Vector2(170, 130), new Vector2(0, 16), 120, new Color(1f, 0.18f, 0.25f), FontStyles.Bold);
+        } else {
+            var img = Rect("Icon", cell, new Vector2(100, 100), new Vector2(0, 20)).gameObject.AddComponent<Image>();
+            img.sprite = Skin(SlotIcon(id));
+            img.preserveAspect = true;
+            if(img.sprite == null) img.color = Color.clear;
+            else if(id == "pierce") img.color = new Color(1f, 0.55f, 0.15f);   // 흰 화살표라 주황으로
+        }
+        Label(cell, SlotShort(id), new Vector2(190, 38), new Vector2(0, -56), 28, new Color(0.28f, 0.18f, 0.4f), FontStyles.Bold);
+    }
+
+    public void ShowRoulette(string[] ids, string result, Action onDone)
+    {
+        if(!EnsureBuilt()) { onDone?.Invoke(); return; }
+        var p = OpenModal(new Vector2(900, 1280), out Action close);
+
+        // 몸통 + 위쪽 간판(아치)
+        ColorCard(p, new Vector2(820, 900), new Vector2(0, -60), SlotBody, "SlotBody");
+        var arch = ColorCard(p, new Vector2(700, 230), new Vector2(0, 470), SlotArch, "SlotArch");
+        Label(arch.transform, "기본총 룰렛", new Vector2(640, 90), new Vector2(0, 22), 64, SlotNeon, FontStyles.Bold);
+        Label(arch.transform, "JACKPOT 777", new Vector2(640, 50), new Vector2(0, -56), 32, TextGold, FontStyles.Bold);
+
+        // 전구: 간판 둘레 + 몸통 양옆
+        var bulbs = new List<Image>();
+        for(int i = 0; i < 13; i++) {
+            float a = Mathf.Lerp(168f, 12f, i / 12f) * Mathf.Deg2Rad;
+            bulbs.Add(Box(p, new Vector2(30, 30), new Vector2(Mathf.Cos(a) * 375f, 445f + Mathf.Sin(a) * 150f), SlotBulbOn, "Bulb"));
+        }
+        for(int i = 0; i < 7; i++)
+            for(int side = -1; side <= 1; side += 2)
+                bulbs.Add(Box(p, new Vector2(26, 26), new Vector2(side * 388f, 340f - i * 125f), SlotBulbOn, "Bulb"));
+
+        // 릴 3개 (창 안에서 그림 띠가 위아래로 움직여요)
+        var frame = Box(p, new Vector2(710, 390), new Vector2(0, 150), new Color(0.1f, 0.05f, 0.18f), "ReelFrame");
+        var strips = new RectTransform[3];
+        int n = ids.Length;
+        for(int r = 0; r < 3; r++) {
+            var win = Box(frame.transform, new Vector2(210, SlotWinH), new Vector2((r - 1) * 225f, 0f), new Color(0.97f, 0.95f, 1f), "Reel").rectTransform;
+            win.gameObject.AddComponent<RectMask2D>();
+            float stripH = SlotH * n * 3;
+            var strip = Rect("Strip", win, new Vector2(200, stripH), Vector2.zero);
+            strip.anchorMin = strip.anchorMax = strip.pivot = new Vector2(0.5f, 1f);
+            for(int j = 0; j < n * 3; j++) SlotSymbol(strip, ids[j % n], new Vector2(0, stripH / 2f - SlotH * (j + 0.5f)));
+            strips[r] = strip;
+            SetSlotStrip(strip, 0f, n);
+        }
+        Box(frame.transform, new Vector2(700, 6), Vector2.zero, new Color(1f, 0.2f, 0.3f, 0.55f), "PayLine");   // 가운데 당첨 줄
+
+        var resultText = Label(p, "", new Vector2(780, 70), new Vector2(0, -130), 42, TextGold, FontStyles.Bold);
+        Label(p, "기본총 능력치 뽑기", new Vector2(780, 40), new Vector2(0, -200), 26, TextDim);
+        Button spin = null;
+        Action go = () => {
+            if(spin == null) return;
+            Destroy(spin.gameObject);
+            spin = null;
+            StartCoroutine(SpinSlots(ids, result, strips, bulbs, resultText, p, close, onDone));
+        };
+        spin = Btn(p, "돌리기!", new Vector2(440, 140), new Vector2(0, -360), BRed, go, 58);
+        StartCoroutine(SlotAutoSpin(spin, go));
+    }
+
+    // 안 누르면 rl_auto_seconds(5초) 뒤 저절로 돌아요 (2026-11-25 사용자). 버튼에 남은 초를 보여 줘요
+    System.Collections.IEnumerator SlotAutoSpin(Button spin, Action go)
+    {
+        float left = Mathf.Max(1f, Tuning.Get("rl_auto_seconds", 5f));
+        var label = spin != null ? spin.GetComponentInChildren<TextMeshProUGUI>() : null;
+        while(left > 0f) {
+            if(spin == null) yield break;   // 이미 눌렀어요
+            if(label != null) label.text = $"돌리기! ({Mathf.CeilToInt(left)})";
+            left -= Time.unscaledDeltaTime;
+            yield return null;
+        }
+        if(spin != null) go();
+    }
+
+    // 띠 위치: pos 가 늘수록 그림이 아래로 내려가요. 창 가운데 칸 = 2n - (pos mod n) (가운데 묶음이라 위아래 이웃 칸도 늘 있어요)
+    static void SetSlotStrip(RectTransform strip, float pos, int n)
+    {
+        float c = 2 * n - Mathf.Repeat(pos, n);
+        strip.anchoredPosition = new Vector2(0f, SlotH * (c + 0.5f) - SlotWinH / 2f);
+    }
+
+    System.Collections.IEnumerator SpinSlots(string[] ids, string result, RectTransform[] strips, List<Image> bulbs, TextMeshProUGUI resultText, RectTransform p, Action close, Action onDone)
+    {
+        int n = ids.Length;
+        // 릴마다 멈출 그림: 보통은 셋 다 결과, 꽝은 [다른 그림, 해골, 또 다른 그림]
+        var stops = new string[] { result, result, result };
+        if(result == "dud") {
+            var pool = new List<string>();
+            foreach(var id in ids) if(id != "dud" && id != "jackpot") pool.Add(id);
+            int a = UnityEngine.Random.Range(0, pool.Count), b = (a + UnityEngine.Random.Range(1, pool.Count)) % pool.Count;
+            stops[0] = pool[a]; stops[1] = "dud"; stops[2] = pool[b];
+        }
+        float total = Mathf.Max(0.8f, Tuning.Get("rl_spin_seconds", 2.2f));
+        var dur = new float[] { total * 0.6f, total * 0.8f, total };
+        var end = new float[3];
+        for(int r = 0; r < 3; r++) {
+            int k = Mathf.Max(0, Array.IndexOf(ids, stops[r]));
+            end[r] = (3 + r) * n + (n - k) % n;   // 몇 바퀴 돌고 결과 칸에서 멈춰요
+        }
+        float t = 0f, blink = 0f;
+        bool phase = false;
+        while(t < total) {
+            if(p == null) yield break;
+            t += Time.unscaledDeltaTime;
+            for(int r = 0; r < 3; r++) {
+                float u = Mathf.Clamp01(t / dur[r]);
+                float e = 1f - Mathf.Pow(1f - u, 3f);   // 끝으로 갈수록 느려져요
+                SetSlotStrip(strips[r], end[r] * e, n);
+            }
+            blink += Time.unscaledDeltaTime;
+            if(blink >= 0.1f) {
+                blink = 0f;
+                phase = !phase;
+                for(int i = 0; i < bulbs.Count; i++) bulbs[i].color = (i % 2 == 0) == phase ? SlotBulbOn : SlotBulbOff;
+            }
+            yield return null;
+        }
+        if(p == null) yield break;
+        for(int r = 0; r < 3; r++) SetSlotStrip(strips[r], end[r], n);
+
+        // 당첨 연출: 전구가 다 같이 깜빡여요 (대박은 더 많이)
+        int flashes = result == "jackpot" ? 8 : result == "dud" ? 0 : 3;
+        for(int f = 0; f < flashes * 2; f++) {
+            if(p == null) yield break;
+            foreach(var b in bulbs) b.color = f % 2 == 0 ? SlotBulbOn : SlotBulbOff;
+            yield return new WaitForSecondsRealtime(0.09f);
+        }
+        if(p == null) yield break;
+        foreach(var b in bulbs) b.color = SlotBulbOn;
+        resultText.text = AugmentManager.RouletteName(result).Replace("\n", " ");
+        resultText.color = result == "dud" ? TextDim : TextGold;
+        Btn(p, "확인", new Vector2(440, 140), new Vector2(0, -360), BGreen, () => { close(); onDone?.Invoke(); }, 56);
+    }
     #endregion
 
     #region 원정 준비 (출격 무기 + 축복)
@@ -653,35 +1104,24 @@ public class RemasterUI : MonoBehaviour
         if(blessing >= 0 && !mgr.BlessingUnlocked((AugTag)blessing)) blessing = -1;
 
         Title(p, "원정 준비", 680, 62, 940);
-        Label(p, "출격 무기와 축복을 고르고 출발하세요", new Vector2(860, 48), new Vector2(0, 610), 32, TextDim);
+        Label(p, "축복을 고르고 출발하세요", new Vector2(860, 48), new Vector2(0, 610), 32, TextDim);
 
-        // ---- 출격 무기
+        // ---- 출격 무기 (2026-11-25 사용자 결정: 기본총 하나로 출발 → 정한 스테이지에 무기 카드 3장 중 하나)
+        //  예전엔 여기서 왼쪽·오른쪽 무기를 골랐어요. 이제 칸은 안내만 (이미 고른 무기가 있으면 보여 줘요)
         var weaponBox = Row(p, new Vector2(900, 420), new Vector2(0, 370), "WeaponBox");
         Label(weaponBox.transform, "출격 무기", new Vector2(840, 56), new Vector2(0, 160), 40, Color.white, FontStyles.Bold);
         var owned = mgr.OwnedWeapons();
-        Image leftCard = null, rightCard = null;
-        TextMeshProUGUI leftText = null, rightText = null;
-        Action refreshSlots = null;
-        Func<SideWeapon, SideWeapon, SideWeapon> next = (cur, other) => {
-            var opts = new List<SideWeapon> { SideWeapon.None };
-            foreach(var w in owned) if(w != other) opts.Add(w);
-            int idx = opts.IndexOf(cur);
-            return opts[(idx + 1) % opts.Count];
-        };
-        leftCard = ColorCard(weaponBox.transform, new Vector2(260, 210), new Vector2(-280, 20), LockedTint, "Left");
-        leftText = Label(leftCard.transform, "", new Vector2(220, 170), new Vector2(0, 2), 34, Color.white, FontStyles.Bold);
-        leftCard.gameObject.AddComponent<Button>().onClick.AddListener(() => { left = next(left, right); refreshSlots(); });
+        var leftCard = ColorCard(weaponBox.transform, new Vector2(260, 210), new Vector2(-280, 20), LockedTint, "Left");
+        var leftText = Label(leftCard.transform, "", new Vector2(220, 170), new Vector2(0, 2), 34, Color.white, FontStyles.Bold);
         var center = ColorCard(weaponBox.transform, new Vector2(240, 210), new Vector2(0, 20), new Color(0.55f, 0.6f, 0.75f), "MainGun");
         Label(center.transform, "기본총\n(고정)", new Vector2(200, 170), new Vector2(0, 2), 36, Color.white, FontStyles.Bold);
-        rightCard = ColorCard(weaponBox.transform, new Vector2(260, 210), new Vector2(280, 20), LockedTint, "Right");
-        rightText = Label(rightCard.transform, "", new Vector2(220, 170), new Vector2(0, 2), 34, Color.white, FontStyles.Bold);
-        rightCard.gameObject.AddComponent<Button>().onClick.AddListener(() => { right = next(right, left); refreshSlots(); });
-        Label(weaponBox.transform, owned.Count == 0 ? "무기 상점에서 무기를 사면 여기에 장착할 수 있어요" : "칸을 누를 때마다 다른 무기로 바뀌어요", new Vector2(840, 44), new Vector2(0, -150), 28, TextDim);
-        refreshSlots = () => {
-            SetSlot(leftCard, leftText, "왼쪽", left);
-            SetSlot(rightCard, rightText, "오른쪽", right);
-        };
-        refreshSlots();
+        var rightCard = ColorCard(weaponBox.transform, new Vector2(260, 210), new Vector2(280, 20), LockedTint, "Right");
+        var rightText = Label(rightCard.transform, "", new Vector2(220, 170), new Vector2(0, 2), 34, Color.white, FontStyles.Bold);
+        Label(weaponBox.transform, owned.Count == 0 ? "무기 상점에서 무기를 사면 원정 중에 고를 수 있어요" : "정한 스테이지가 되면 가진 무기 카드 3장 중 하나를 골라요", new Vector2(840, 44), new Vector2(0, -150), 28, TextDim);
+        if(left != SideWeapon.None) SetSlot(leftCard, leftText, "왼쪽", left);
+        else leftText.text = $"왼쪽\n<size=80%>{AugmentManager.WeaponSlotStage(0)}스테이지에\n열려요</size>";
+        if(right != SideWeapon.None) SetSlot(rightCard, rightText, "오른쪽", right);
+        else rightText.text = $"오른쪽\n<size=80%>{AugmentManager.WeaponSlotStage(1)}스테이지에\n열려요</size>";
 
         // ---- 축복
         var blessBox = Row(p, new Vector2(900, 620), new Vector2(0, -170), "BlessBox");
@@ -722,7 +1162,6 @@ public class RemasterUI : MonoBehaviour
         refreshCards();
 
         Btn(p, "출발!", new Vector2(440, 142), new Vector2(0, -620), BGreen, () => {
-            mgr.SetLoadout(left, right);
             mgr.SetBlessing(blessing);
             close();
             onDone?.Invoke();
@@ -840,9 +1279,11 @@ public class RemasterUI : MonoBehaviour
         // 적 무적 (2026-11-21 사용자 요청): 켜면 적이 안 죽고 체력이 다시 차요 (위성 레이저처럼 오래 맞혀야 보이는 효과 확인용)
         Btn(p, AugmentManager.DebugArenaInvincible ? "적 무적\n켜짐" : "적 무적\n꺼짐", small, new Vector2(-370, 485), AugmentManager.DebugArenaInvincible ? BGreen : BGray,
             () => { AugmentManager.DebugArenaInvincible = !AugmentManager.DebugArenaInvincible; refresh(); }, 26);
-        Btn(p, $"속도\nx{Time.timeScale:0.#}", small, new Vector2(-185, 485), BYellow, () => { DevTools.CycleSpeed(); refresh(); }, 26);
+        Btn(p, $"속도\nx{GameManager.DisplaySpeed:0.#}", small, new Vector2(-185, 485), BYellow, () => { DevTools.CycleSpeed(); refresh(); }, 26);
         Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(0, 485), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); refresh(); }, 26);
         Btn(p, "무기 전부\n열기", small, new Vector2(185, 485), BYellow, () => { mgr.DebugUnlockAllWeapons(); refresh(); }, 26);
+        // 보스만 (2026-11-25 사용자: 튕김총 보스 되튕김 확인용, 작은 적 없이 멈춘 보스 1마리)
+        Btn(p, "보스만", small, new Vector2(370, 485), BRed, () => { mgr.DebugArenaBossOnly(); refresh(); }, 26);
 
         // 무기 (누르면 그 무기 하나만)
         var solo = mgr.DebugSoloWeapon();
@@ -1087,15 +1528,17 @@ public class RemasterUI : MonoBehaviour
         }, 32);
         Btn(p, "모두 지우기", new Vector2(290, 120), new Vector2(0, -640), BRed, () => { mgr.DebugClearAugments(); BuildDebugAugments(p, close); }, 32);
         Btn(p, "닫기", new Vector2(290, 120), new Vector2(310, -640), BGray, () => close(), 36);
-        Btn(p, "무기 전부 열기", new Vector2(290, 96), new Vector2(-310, -750), BYellow, () => { mgr.DebugUnlockAllWeapons(); BuildDebugAugments(p, close); }, 28);
-        Btn(p, "무기 고르기\n(합체 포함)", new Vector2(290, 96), new Vector2(0, -750), BPurple, () => ShowDebugWeapons(() => BuildDebugAugments(p, close)), 26);
-        Btn(p, "연습장\n(P 키)", new Vector2(290, 96), new Vector2(310, -750), BGreen, () => { close(); ShowDebugArena(); }, 28);
+        // (2026-11-25) 4칸으로: 마지막에 "실제 한 판" (테스트 설정을 다 끄고 1스테이지부터, End 키)
+        Btn(p, "무기 전부\n열기", new Vector2(215, 96), new Vector2(-345, -750), BYellow, () => { mgr.DebugUnlockAllWeapons(); BuildDebugAugments(p, close); }, 26);
+        Btn(p, "무기 고르기\n(합체 포함)", new Vector2(215, 96), new Vector2(-115, -750), BPurple, () => ShowDebugWeapons(() => BuildDebugAugments(p, close)), 24);
+        Btn(p, "연습장\n(P 키)", new Vector2(215, 96), new Vector2(115, -750), BGreen, () => { close(); ShowDebugArena(); }, 26);
+        Btn(p, "실제 한 판\n(End 키)", new Vector2(215, 96), new Vector2(345, -750), BRed, () => { close(); mgr.DebugRealRun(); }, 24);
         // 아래 줄: 작은 버튼 5개 (글자는 버튼에 맞게 자동으로 줄어요)
         var small = new Vector2(176, 76);
         Btn(p, AugmentManager.DebugTestMode ? "테스트\n켜짐" : "테스트\n꺼짐", small, new Vector2(-370, -840), AugmentManager.DebugTestMode ? BGreen : BGray, () => { mgr.DebugToggleTestMode(); BuildDebugAugments(p, close); }, 26);
         Btn(p, AugmentManager.DebugManyEnemies ? "적 3배\n켜짐" : "적 3배\n꺼짐", small, new Vector2(-185, -840), AugmentManager.DebugManyEnemies ? BGreen : BGray, () => { AugmentManager.DebugManyEnemies = !AugmentManager.DebugManyEnemies; BuildDebugAugments(p, close); }, 26);
         Btn(p, "보스\n소환", small, new Vector2(0, -840), BRed, () => mgr.DebugSpawnBoss(), 26);
-        Btn(p, $"속도\nx{Time.timeScale:0.#}", small, new Vector2(185, -840), BYellow, () => { DevTools.CycleSpeed(); BuildDebugAugments(p, close); }, 26);
+        Btn(p, $"속도\nx{GameManager.DisplaySpeed:0.#}", small, new Vector2(185, -840), BYellow, () => { DevTools.CycleSpeed(); BuildDebugAugments(p, close); }, 26);
         Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(370, -840), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); BuildDebugAugments(p, close); }, 26);
         Label(p, "F7 게임 속도 · F12 스크린샷 · F2 +20스테이지 · Home 1스테이지 · F9 골드 +10억 · F5 원정 준비", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
     }
@@ -1107,12 +1550,13 @@ public class RemasterUI : MonoBehaviour
         if(!EnsureBuilt() || mgr == null || !mgr.Loaded) return;
         mgr.PauseForUI();
         var p = OpenModal(new Vector2(980, 1680), out Action close);
-        Title(p, "이번 원정의 증강", 760, 54, 940);
+        bool planet = mgr.InPlanetRun;
+        Title(p, planet ? "이 행성의 증강" : "이번 원정의 증강", 760, 54, 940);
 
-        string bless = mgr.Blessing >= 0 ? AugmentDefs.GodName((AugTag)mgr.Blessing) : "없음";
+        string bless = planet ? $"행성 Lv.{mgr.PlanetLevel}" : mgr.Blessing >= 0 ? AugmentDefs.GodName((AugTag)mgr.Blessing) : "없음";
         string weapons = $"{AugmentDefs.WeaponName(mgr.ShownWeapon(mgr.LoadoutLeft))} / 기본총 / {AugmentDefs.WeaponName(mgr.ShownWeapon(mgr.LoadoutRight))}";
         if(mgr.ExtraWeapon != SideWeapon.None) weapons += $" + {AugmentDefs.WeaponName(mgr.ShownWeapon(mgr.ExtraWeapon))}";
-        Label(p, $"축복: {bless}\n무기: {weapons}", new Vector2(880, 96), new Vector2(0, 670), 30, TextDim);
+        Label(p, planet ? $"{bless}\n무기: {weapons}" : $"축복: {bless}\n무기: {weapons}", new Vector2(880, 96), new Vector2(0, 670), 30, TextDim);
 
         // 스크롤 영역: 세트 → 조합 계열 → 가진 증강 (설명 칸 위까지)
         var ids = mgr.OwnedOrder;
@@ -1200,6 +1644,11 @@ public class RemasterUI : MonoBehaviour
         string stack = $"처치 {mgr.ExpeditionKills:N0}";
         if(mgr.CurseStackTotal > 0) stack += $"   ·   누적 피해 +{mgr.CurseStackTotal * 100:0.#}%";
         Label(p, stack, new Vector2(860, 48), new Vector2(0, -665), 30, AugmentDefs.TagColor(AugTag.Curse), FontStyles.Bold);
+        if(!planet) {
+            Btn(p, "닫기", new Vector2(340, 120), new Vector2(0, -750), BGray, () => { close(); mgr.ResumeFromUI(); }, 42);
+            return;
+        }
+        // 행성 게임 중: 보기만 (2026-11-25 사용자: 증강 초기화는 게임 중엔 말고, 게임 시작 전 행성 창의 '증강'에서)
         Btn(p, "닫기", new Vector2(340, 120), new Vector2(0, -750), BGray, () => { close(); mgr.ResumeFromUI(); }, 42);
     }
     #endregion

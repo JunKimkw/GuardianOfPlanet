@@ -6,6 +6,7 @@ public class MainBullet : Bullet
 
     public long Bullet_Damage;
     public float Bullet_CritDamage;
+    [HideInInspector] public int pierceLeft;   // 기본총 룰렛 "관통" (2026-11-25): 더 뚫을 수 있는 적 수
 
     protected override PoolObjectTypeBullet PoolType => PoolObjectTypeBullet.Main;
     protected override TraitsData.WeaponType TraitType => TraitsData.WeaponType.MainWeapon;
@@ -36,7 +37,9 @@ public class MainBullet : Bullet
     {
         if(MainWeapon.instance.diamondPerHit && collision.gameObject.TryGetComponent(out Enemy enemy))
             getDiamondRandomNumber(enemy.transform);
-        if(Hit(collision.gameObject, Bullet_Damage, Bullet_CritDamage))
+        if(Hit(collision.gameObject, Bullet_Damage, Bullet_CritDamage)) {
+            if(pierceLeft > 0) { pierceLeft--; return; }
             DestroyBullet();
+        }
     }
 }

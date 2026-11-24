@@ -92,7 +92,7 @@ public class OfflineProgress : MonoBehaviour
         Stamp();
         if(away < MinAwaySeconds || dpsEstimate <= 0) return;
 
-        var result = Simulate(InfiniteStage.Instance.CurrentStage, Math.Min(away, RemasterBalance.OfflineCapHours * 3600.0), dpsEstimate, InfiniteStage.Instance.playerHealth);
+        var result = Simulate(InfiniteStage.Instance.CurrentStage, Math.Min(away, RemasterBalance.OfflineCapHours * 3600.0) * GameManager.SpeedBase, dpsEstimate, InfiniteStage.Instance.playerHealth);
         if(result.cleared <= 0) {
             AugmentManager.Instance.UI.Toast($"자리를 비운 동안 {StopReason(result)}", new Color(0.8f, 0.85f, 1f));
             return;
@@ -147,8 +147,9 @@ public class OfflineProgress : MonoBehaviour
 
             // 차원 규칙(강철·무리·광란)까지 게임과 똑같이
             int n = Mathf.CeilToInt(RemasterBalance.EnemyCount(s) * ExpeditionZones.CountMul(s));
-            double hp = RemasterBalance.EnemyHp(s) * ExpeditionZones.HpMul(s);
-            double spawn = n * RemasterBalance.SpawnSpeed(s) * ExpeditionZones.SpawnMul(s) / 2.0;   // 적 종류 2개가 번갈아 나와요
+            double unit = RemasterBalance.EnemyUnitMul(s);   // 초반은 적이 많은 만큼 1마리 몫을 나눠요 (2026-11-25, 게임과 같게)
+            double hp = RemasterBalance.EnemyHp(s) * unit * ExpeditionZones.HpMul(s);
+            double spawn = n * RemasterBalance.SpawnSpeed(s) * ExpeditionZones.SpawnMul(s) / 2.0 / RemasterBalance.SpawnRate(s);   // 적 종류 2개가 번갈아 나와요 · 무리로 나오는 만큼 빨라요 (2026-11-25)
             double canKill = dps / hp * (spawn + RemasterBalance.EnemyTravelSeconds);
             if(n - canKill >= leakLimit) { r.stop = Stop.Wall; r.stopStage = s; break; }
 
@@ -163,8 +164,8 @@ public class OfflineProgress : MonoBehaviour
             seconds -= t;
 
             double zoneGold = ExpeditionZones.GoldMul(s);
-            double g = n * (RemasterBalance.EnemyGold(s) * zoneGold + goldFlat) * goldMul + RemasterBalance.StageClearGold(s);
-            double x = n * (RemasterBalance.EnemyExp(s) + expFlat) * expMul;
+            double g = n * (RemasterBalance.EnemyGold(s) * unit * zoneGold + goldFlat) * goldMul + RemasterBalance.StageClearGold(s);
+            double x = n * (RemasterBalance.EnemyExp(s) * unit + expFlat) * expMul;
             if(boss) {
                 g += (RemasterBalance.EnemyGold(s) * 20 * zoneGold + goldFlat) * goldMul;
                 x += (RemasterBalance.EnemyExp(s) * 20 + expFlat) * expMul;

@@ -15,23 +15,58 @@ public static class RemasterBalance
 
     static float Curve(int stage, float pow) => Mathf.Pow(1f + Mathf.Max(1, stage) / CurveScale, pow);
 
-    public static double EnemyHp(int stage) => HpBase * (double)Curve(stage, HpPow);
+    public static double EnemyHp(int stage) => HpBase * (double)Curve(stage, HpPow) * EarlyHpMul(stage);
+    // 초반 쉽게 (2026-11-25 사용자: "1~10스테이지는 그냥 몬스터 잡는 건 쉽게, 12마리도 오래 걸려"):
+    //  1스테이지 체력 × early_hp_mul(0.35) → early_easy_until(10)스테이지 다음에 × 1. 보스·방어력·오프라인도 같이 (모두 EnemyHp 를 써요). 측정 중엔 그대로
+    public static double EarlyHpMul(int stage)
+    {
+        int until = Tuning.GetInt("early_easy_until", 10);
+        if(until <= 0 || stage > until || AugmentManager.MeasureScene != null) return 1.0;
+        return Mathf.Lerp(Mathf.Clamp(Tuning.Get("early_hp_mul", 0.35f), 0.01f, 1f), 1f, (Mathf.Max(1, stage) - 1) / (float)until);
+    }
     public static double EnemyGold(int stage) => GoldBase * (double)Curve(stage, GoldPow);
     public static double EnemyExp(int stage) => ExpBase * (double)Curve(stage, ExpPow);
     public static double BossHp(int stage) => EnemyHp(stage) * (stage % 50 == 0 ? GateMul : BossMul);
 
     // 스테이지당 적 수: 6 + 스테이지/5, 최대 60 (v3: 초반 스테이지는 금방 끝나고, 갈수록 길어져요)
-    public static int EnemyCount(int stage) => Mathf.Min(6 + stage / 5, 60);
+    public static int EnemyCountBase(int stage) => Mathf.Min(6 + stage / 5, 60);
+    // (2026-11-25 사용자: "1스테이지에서 한 마리씩 나와서 보이기도 전에 죽고 느려") 초반은 적을 더 많고 약하게:
+    //  1스테이지 × early_count_mul(2) → early_fade_stage(40)스테이지에서 × 1. 1마리 체력·골드·경험치는 그만큼 나눠서 스테이지 전체 합은 그대로
+    public static float EarlyCountMul(int stage)
+    {
+        if(AugmentManager.MeasureScene != null) return 1f;   // 측정은 예전과 같게
+        float fade = Mathf.Max(2f, Tuning.Get("early_fade_stage", 40f));
+        return Mathf.Lerp(Mathf.Max(1f, Tuning.Get("early_count_mul", 2f)), 1f, (Mathf.Max(1, stage) - 1) / (fade - 1f));
+    }
+    public static int EnemyCount(int stage) => Mathf.Max(EnemyCountBase(stage), Mathf.CeilToInt(EnemyCountBase(stage) * EarlyCountMul(stage)));
+    // 1마리 체력·골드·경험치 배율 (적 수가 늘어난 만큼 나눠요)
+    public static double EnemyUnitMul(int stage) => EnemyCountBase(stage) / (double)EnemyCount(stage);
 
     // 스폰 간격(초, 적 종류 2개가 번갈아 나오므로 실제 간격은 이 값의 약 절반 이하)
     public static float SpawnSpeed(int stage) => Mathf.Max(1.365f, 3.64f - 0.0182f * stage);
 
+    // 무리로 나오기 (2026-11-25 사용자): 한 번에 spawn_group_min~max(2~4)마리가 뭉쳐서, 간격은 × spawn_group_interval_mul(2)
+    //  → 나오는 속도는 평균 무리 수 ÷ 간격 배율 = 3 ÷ 2 = 1.5배. 측정 중엔 예전처럼 1마리씩
+    public static int SpawnGroupMin => AugmentManager.MeasureScene != null ? 1 : Mathf.Max(1, Tuning.GetInt("spawn_group_min", 2));
+    public static int SpawnGroupMax => AugmentManager.MeasureScene != null ? 1 : Mathf.Max(SpawnGroupMin, Tuning.GetInt("spawn_group_max", 4));
+    public static float SpawnGroupIntervalMul => AugmentManager.MeasureScene != null ? 1f : Mathf.Max(0.1f, Tuning.Get("spawn_group_interval_mul", 2f));
+    public static float SpawnRateMul => (SpawnGroupMin + SpawnGroupMax) * 0.5f / SpawnGroupIntervalMul;
+    // 무리 사이 간격 배율: 초반은 적 수가 늘어난 만큼 더 자주 나와요 (안 그러면 적이 2배라 스테이지가 오히려 길어져요)
+    public static float SpawnIntervalMul(int stage) => SpawnGroupIntervalMul / EarlyCountMul(stage);
+    // 오프라인 계산용: 예전 1마리씩보다 몇 배 빨리 나오는지
+    public static float SpawnRate(int stage) => SpawnRateMul * EarlyCountMul(stage);
+
     // 스테이지 클리어 보너스 골드 = 그 스테이지 처치 골드의 25%
-    public static long StageClearGold(int stage) => (long)(EnemyCount(stage) * EnemyGold(stage) * 0.25);
+    public static long StageClearGold(int stage) => (long)(EnemyCountBase(stage) * EnemyGold(stage) * 0.25);
 
     // ---- 저주 누적: 처치 수가 많아질수록 덜 쌓이게 (처치 100 → 100, 1000 → 501, 10000 → 2512)
     public static float EffectiveKills(long kills) => kills <= 0 ? 0f : 100f * Mathf.Pow(kills / 100f, 0.7f);
-    public const float CurseCap = 3f;       // 누적 피해 상한 +300% (시너지·타르타로스 배율은 그 위에)
+    // 저주 누적 상한 (2026-11-25 사용자: "무한 스테이지라 환생만 안 하면 상한까지 가는 게 어렵지 않아, 사기 같아")
+    //  예전: +300%, 저주 세트 8이면 상한 없음 → 이제 늘 상한: curse_cap(+100%), 세트 8이면 curse_cap_set8(+150%).
+    //  세트 6(×1.5)·심연·타르타로스를 곱한 뒤에도 curse_total_cap(+250%)을 넘지 않아요
+    public static float CurseCap => Tuning.Get("curse_cap", 1f);
+    public static float CurseCapSet8 => Tuning.Get("curse_cap_set8", 1.5f);
+    public static float CurseTotalCap => Tuning.Get("curse_total_cap", 2.5f);
 
     // 출발 가속으로 건너뛴 스테이지의 처치 수 (누적 증강이 손해 보지 않게)
     public static long KillsBefore(int stage)
@@ -46,8 +81,9 @@ public static class RemasterBalance
     public static int StarPowerCost(int level) => Mathf.FloorToInt(4f * Mathf.Pow(1.3f, level));
 
     // ---- 증강 뽑는 스테이지: 1~50은 5마다, 51~200은 10마다, 201부터 25마다 (판이 길어져도 넘치지 않게)
+    //  (2026-11-25 사용자: "초반에 몬스터 잡는 거 기다리는 거 말고는 아무것도 없어") 1~aug_every_stage_until(10)은 매 스테이지
     public static bool IsAugmentStage(int stage) =>
-        stage > 0 && (stage <= 50 ? stage % 5 == 0 : stage <= 200 ? stage % 10 == 0 : stage % 25 == 0);
+        stage > 0 && (stage <= Tuning.GetInt("aug_every_stage_until", 0) || (stage <= 50 ? stage % 5 == 0 : stage <= 200 ? stage % 10 == 0 : stage % 25 == 0));
 
     public static int AugmentStagesBefore(int stage)
     {

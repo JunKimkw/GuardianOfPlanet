@@ -110,6 +110,21 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
     static int RandomSide() => Random.Range(1, 5);
     static int RandomBossSide() => Random.Range(1, 3) * 2;   // 위 또는 아래
 
+    // 행성 적·보스 (2026-11-25 사용자 결정: 원정 곡선에 맞추기): 체력·방어력·구간 배율을 원정 같은 공식으로, 행성 난이도 = StageManager.PlanetEquivStage
+    //  예전엔 옛날 게임 숫자(프리팹 체력 × 맵 배율) 그대로라 리마스터 피해에 비해 너무 약했어요 (사용자: 보스가 1초컷). 이동 속도·골드·경험치는 예전 그대로
+    static void PlanetStats(Enemy e, Enemy prefab, bool boss)
+    {
+        var sm = StageManager.instance;
+        if(sm == null || !sm.PlanetBattle) return;
+        int stage = sm.PlanetEquivStage;
+        if(stage <= 0) return;
+        float variety = 0.9f + 0.2f * (((int)prefab.typePool & 0xff) / 255f);   // 적 종류마다 ±10% (원정과 같게)
+        double hp = boss ? RemasterBalance.BossHp(stage) : RemasterBalance.EnemyHp(stage) * variety;
+        e.NumberScale = RemasterBalance.NumberScale(stage);
+        e.EnemyHealth = hp * ExpeditionZones.HpMul(stage) * e.NumberScale * Tuning.Get(boss ? "planet_boss_hp_mul" : "planet_hp_mul", 1f) * sm.PlanetMapHpMul;   // 뒤쪽 맵일수록 단단하게
+        e.Armor = Armor.ForStage(stage, boss);
+    }
+
     // 예전 방식 스케일 (일반 스테이지·던전)
     static void ApplyScale(Enemy e, float scale, bool speed)
     {
@@ -140,6 +155,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
     {
         Enemy e = Spawn(_e, Enemy.typeofEnemy.normal, false, RandomSide());
         ApplyScale(e, scale, true);
+        PlanetStats(e, _e, false);
         AddEnemy(e);
     }
 
@@ -147,21 +163,36 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
     {
         Enemy e = Spawn(_e, Enemy.typeofEnemy.boss, false, RandomBossSide());
         ApplyScale(e, scale, false);
+        PlanetStats(e, _e, true);
         AddBoss(e);
     }
 
+    // 무리로 나오기 (2026-11-25): 무리의 첫 적이 나온 쪽·자리를 기억해서 나머지는 그 둘레 spawn_group_spread 칸 안에 나와요
+    int groupSide;
+    Vector3 groupAnchor;
+    public void BeginSpawnGroup() { groupSide = RandomSide(); groupAnchor = RandomLocation(groupSide); }
+    public void EndSpawnGroup() => groupSide = 0;
+
     public void createInfiniteEnemy(Enemy _e, float scale)
     {
-        Enemy e = Spawn(_e, Enemy.typeofEnemy.InfiniteStage, false, RandomSide());
+        Enemy e = Spawn(_e, Enemy.typeofEnemy.InfiniteStage, false, groupSide != 0 ? groupSide : RandomSide());
+        if(groupSide != 0) {
+            float spread = Tuning.Get("spawn_group_spread", 0.8f);
+            bool sideways = groupSide == 1 || groupSide == 3;   // 왼쪽·오른쪽에서 나오면 세로로, 위·아래면 가로로 흩어져요
+            float off = Random.Range(-spread, spread), back = Random.Range(0f, spread * 0.6f);
+            e.transform.position = groupAnchor + (sideways ? new Vector3(groupSide == 1 ? -back : back, off, 0f) : new Vector3(off, groupSide == 2 ? back : -back, 0f));
+        }
         if(InfiniteStage.Instance != null) {
             // 리마스터 원정: 체력·골드·경험치는 RemasterBalance 곡선 (적 종류마다 ±10% 차이)
+            //  초반은 적이 많은 만큼 1마리 몫을 나눠요 (RemasterBalance.EnemyUnitMul, 2026-11-25)
             int stage = InfiniteStage.Instance.CurrentStage;
             float variety = 0.9f + 0.2f * (((int)_e.typePool & 0xff) / 255f);
+            double unit = RemasterBalance.EnemyUnitMul(stage);
             e.NumberScale = RemasterBalance.NumberScale(stage);
-            e.EnemyHealth = RemasterBalance.EnemyHp(stage) * variety * ExpeditionZones.HpMul(stage) * e.NumberScale;
+            e.EnemyHealth = RemasterBalance.EnemyHp(stage) * unit * variety * ExpeditionZones.HpMul(stage) * e.NumberScale;
             e.Armor = Armor.ForStage(stage, false);   // 방어력 (2026-11-20)
-            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * ExpeditionZones.GoldMul(stage));
-            e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage)));
+            e.enemy_Money = (long)System.Math.Max(1, RemasterBalance.EnemyGold(stage) * unit * ExpeditionZones.GoldMul(stage));
+            e.Enemy_EXP = (int)System.Math.Min(int.MaxValue, System.Math.Max(1, RemasterBalance.EnemyExp(stage) * unit));
         } else {
             ApplyScale(e, scale, false);
         }

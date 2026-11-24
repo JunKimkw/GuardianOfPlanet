@@ -601,6 +601,17 @@ public partial class AugmentManager
 #endif
     }
 
+    // 연습장 보스만 (2026-11-25): 작은 적 없이 멈춘 보스 1마리 (보스가 죽으면 다시 안 나와요, 또 누르면 새 보스)
+    public void DebugArenaBossOnly()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        DebugArenaStart(0);
+        if(!DebugArena) return;
+        DebugArenaBoss();
+        ui.Toast("[개발] 연습장: 보스만 (작은 적 없음)", Color.white);
+#endif
+    }
+
     public void DebugArenaStop()
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -637,7 +648,8 @@ public partial class AugmentManager
     // 측정 "움직이는 적": 테스트 모드(끝없이 나오고 스테이지 안 넘어감)인데도 적이 진짜 죽어요. 넘친 피해는 DPS 에서 빠져요 (실제 게임처럼)
     //  체력 = 플레이어 공격력 × measure_hits (모든 무기 1발이 거의 공격력이라 약 15대) × 증강 단계 배율, 방어력 0
     public static bool DebugMortal;
-    public static bool DebugNoDeath => DebugTestMode && (DebugArena ? DebugArenaInvincible : !DebugMortal);   // 개발용: 적이 안 죽는 상태
+    // (2026-11-25) 행성에서는 테스트 모드가 안 걸려요: 원정 테스트용이라, 행성 적이 안 죽었어요
+    public static bool DebugNoDeath => DebugTestMode && !(StageManager.instance != null && StageManager.instance.isInStage) && (DebugArena ? DebugArenaInvincible : !DebugMortal);   // 개발용: 적이 안 죽는 상태
     static readonly float[] MeasureHpDefaults = { 1f, 1.5f, 2f, 3f, 4f };
     public static float MeasureHpMul => measureSoloAug != null ? Tuning.Get("measure_hp_solo", 3f) : MeasureFusionStage >= 0
         ? Tuning.Get("measure_hp_fusion_" + MeasureFusionStage, MeasureFusionHpDefaults[Mathf.Clamp(MeasureFusionStage, 0, 2)])

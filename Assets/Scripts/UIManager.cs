@@ -57,8 +57,9 @@ public class UIManager : MonoBehaviour
         }
 
         for(int i = 0; i < GameSpeedText.Length; i++) {
-            if(Time.timeScale >= 1) 
-                GameSpeedText[i].text = "x" + Time.timeScale;
+            float d = GameManager.DisplaySpeed;   // 표시 배속 (실제 ÷ 바탕 1.5)
+            if(d >= 0.99f)
+                GameSpeedText[i].text = "x" + d.ToString("0.#");
         }
 
         noLimitAutoFarm.GetComponent<Image>().color = WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot ? new Color(0.2378687f, 0.8490566f, 0) : Color.white;

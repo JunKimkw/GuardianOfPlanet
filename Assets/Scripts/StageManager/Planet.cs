@@ -102,7 +102,7 @@ public class Planet : MonoBehaviour, IDataPersistence
     public void MapSelected(int index)
     {
         StageInfoTitle.text = PlanetName + " " + StagesOfThisPlanet[index].StageName;
-        TotalEnemy.text = "출현 몬스터: " + StagesOfThisPlanet[index].EnemiesToKill + "마리";
+        TotalEnemy.text = "출현 몬스터: " + StageManager.EnemyTargetOf(StagesOfThisPlanet[index]) + "마리";
         for(int i = 0; i < monsterCardData.Count; i++)
             monsterCardData[i].gameObject.SetActive(false);
 

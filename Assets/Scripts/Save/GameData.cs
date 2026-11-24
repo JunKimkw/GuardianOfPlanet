@@ -4,6 +4,22 @@ using UnityEngine;
 using System;
 
 
+// 행성 한 판 상태 (행성마다 따로 기억, 2026-11-25 사용자: 마을에 다녀와도 이어 가게)
+[Serializable]
+public class PlanetRunSave
+{
+    public int planet;
+    public int map = -1;      // 이 맵을 깼을 때 상태 (다음 맵의 출발점)
+    public int level;
+    public long kills;
+    public List<string> augIds = new List<string>();
+    public List<int> augLevels = new List<int>();
+    public List<string> stackKeys = new List<string>();
+    public List<float> stackVals = new List<float>();
+    public int left = -1, right = -1;
+    public string fusionSlots;
+}
+
 [Serializable]
 public class GameData
 {
@@ -205,6 +221,7 @@ public class GameData
     public int expRerollBag;
     public int expPity;
     public int expExtraWeapon;       // -1 없음
+    public string expRoulette;       // 기본총 룰렛 결과 (2026-11-25, 칸 id 를 , 로)
     public string expFusionSlots;    // 합체로 흡수된 B → 그 칸의 새 무기 ("B:새무기;…", 숫자는 SideWeapon). 비면 없음
     public bool expLoadoutSet;
     public int expLoadoutLeft;
@@ -219,6 +236,7 @@ public class GameData
     public int rebirthCount;
     public long pendingMigrationStardust;
     public int expPendingStartStage;   // 환생 후 출발 대기 중이면 출발 스테이지 (0 = 없음)
+    public List<PlanetRunSave> planetRuns;   // 행성마다 모은 증강·무기·레벨 (2026-11-25, PlanetRun.cs)
     public List<int> clearedGates;      // 처음 이긴 신의 관문 번호 (스테이지/50). null = 아직 기록 없음(예전 세이브)
 
     //Default values

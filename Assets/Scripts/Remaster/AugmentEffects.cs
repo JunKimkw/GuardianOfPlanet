@@ -120,18 +120,18 @@ public partial class AugmentManager
 
     public float CurseStackTotal {
         get {
-            // 처치 수가 많아질수록 덜 쌓이고(EffectiveKills), 합계는 +300%가 상한 (세트 8이면 상한 없음)
+            // 처치 수가 많아질수록 덜 쌓이고(EffectiveKills), 합계는 늘 상한이 있어요 (RemasterBalance.CurseCap, 세트 8이면 CurseCapSet8)
             float k = RemasterBalance.EffectiveKills(expKills) * CurseGain;
             float s = 0f;
             if(L("soul") > 0) s += AugmentDefs.SoulPerKill(L("soul")) * k;
             if(L("slaughter") > 0) s += AugmentDefs.SlaughterPerKill(L("slaughter")) * k;
             if(L("wraith") > 0) s += AugmentDefs.WraithPerBoss(L("wraith")) * expBossKills * CurseGain;
-            if(!Synergy(AugTag.Curse, 8)) s = Mathf.Min(s, RemasterBalance.CurseCap);
+            s = Mathf.Min(s, Synergy(AugTag.Curse, 8) ? RemasterBalance.CurseCapSet8 : RemasterBalance.CurseCap);
             if(Synergy(AugTag.Curse, 6)) s *= 1.5f;
             if(L("abyss") > 0) s *= 1f + AugmentDefs.AbyssPerCurse(L("abyss")) * TagCount(AugTag.Curse);
             int tl = L("tartarus");
             if(tl > 0 && Shield == 1) s *= AugmentDefs.TartarusMult(tl);
-            return s;
+            return Mathf.Min(s, RemasterBalance.CurseTotalCap);   // 배율을 다 곱해도 이 위로는 안 가요 (2026-11-25)
         }
     }
 
@@ -207,6 +207,8 @@ public partial class AugmentManager
             if(m.L("chains") > 0) f *= m.Synergy(AugTag.Curse, 4) ? 0.975f : 0.95f;
             if(m.L("armor") > 0) f *= 1f - 0.03f * m.L("armor");
             if(m.L("haste") > 0 && m.hasteClock % 10f < AugmentDefs.HasteSeconds(m.L("haste"))) f *= 1.5f;
+            f *= RouletteSpeedAll;   // 기본총 룰렛 연사의 rl_share 만큼 (2026-11-25)
+            if(m.L("pl_rapid") > 0) f *= 1f + AugmentDefs.PlRapid(m.L("pl_rapid"));   // 행성 능력치 카드
             return Mathf.Max(0.3f, f);
         }
     }
@@ -651,6 +653,7 @@ public partial class AugmentManager
 
         if(RemasterBalance.IsAugmentStage(clearedStage))
             QueuePull(1);
+        QueueRouletteIfStage(clearedStage);   // 기본총 룰렛 (1~9스테이지, 2026-11-25)
         ui.RefreshHUD();
     }
     #endregion
@@ -727,7 +730,7 @@ public partial class AugmentManager
         // 블랙홀 (중력 우물, 중력 세트 6)
         float interval = L("horizon") > 0 ? AugmentDefs.HorizonInterval(L("horizon")) : Synergy(AugTag.Gravity, 6) ? 40f : 0f;
         if(interval > 0) {
-            if(Synergy(AugTag.Gravity, 6)) interval *= 0.5f;
+            if(Synergy(AugTag.Gravity, 6)) interval *= Tuning.Get("horizon_set6_mul", 0.75f);   // 중력 세트 6 (예전 ×0.5 → 무기보다 자주 열려서 ×0.75)
             horizonTimer += dt;
             if(horizonTimer >= interval) { horizonTimer = 0; SpawnBlackHole(false); }
         }
@@ -932,7 +935,9 @@ public partial class AugmentManager
             foreach(var o in all) if((o.transform.position - c.transform.position).sqrMagnitude < 4f) n++;
             if(n > bestN) { bestN = n; center = c; }
         }
-        blackHoles.Add(new BlackHole { pos = center.transform.position, radius = big ? 5f : 3.5f, left = 2f, big = big });
+        // 증강 블랙홀 = 작은 블랙홀 (2026-11-25 사용자: 블랙홀 무기가 증강보다 좋아야). 무기: 반경 1.5칸 · 3초 · 2.5칸/초
+        //  예전 증강: 반경 3.5칸(큰 것 5칸) · 2초 · 3칸/초 → 무기보다 넓게 모았어요
+        blackHoles.Add(new BlackHole { pos = center.transform.position, radius = big ? Tuning.Get("horizon_radius_big", 1.8f) : Tuning.Get("horizon_radius", 1.1f), left = Tuning.Get("horizon_duration", 1.5f), big = big });
     }
 
     void TickBlackHoles(float dt)
@@ -949,7 +954,7 @@ public partial class AugmentManager
             long tickDmg = (long)Mathf.Max(1, PlayerAttack * 0.1f);
             foreach(var t in EnemiesInRadius(b.pos, b.radius)) {
                 Vector3 d = b.pos - t.transform.position;
-                float speed = t.IsBoss ? 0.4f * Mathf.Clamp01(Tuning.Get("blackhole_boss_pull", 0f) / 0.3f) : 3f;   // 2026-11-25: 보스는 안 끌려가요 (blackhole_boss_pull 0)
+                float speed = t.IsBoss ? 0.4f * Mathf.Clamp01(Tuning.Get("blackhole_boss_pull", 0f) / 0.3f) : Tuning.Get("horizon_pull", 1.8f);   // 증강 블랙홀은 무기(2.5)보다 느리게   // 2026-11-25: 보스는 안 끌려가요 (blackhole_boss_pull 0)
                 t.transform.position += Vector3.ClampMagnitude(d, speed * dt);
                 if(!t.IsBoss && Synergy(AugTag.Gravity, 8) && d.sqrMagnitude < 0.36f) { t.ForceKill(); continue; }
                 if(tick) HitEffect(t, tickDmg, 99);
