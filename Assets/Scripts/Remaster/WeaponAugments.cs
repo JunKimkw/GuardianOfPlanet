@@ -248,11 +248,11 @@ public partial class AugmentManager
     }
 
     // 무기 증강 폭발 (폭발 탄두, 관통 폭발). 연쇄 폭발·용광로 같은 폭발 증강과 이어져요
-    public static void WeaponBlast(Vector3 pos, long damage, float radius)
+    public static void WeaponBlast(Vector3 pos, long damage, float radius, SideWeapon src = SideWeapon.None)
     {
         var m = Instance;
         if(m == null || !m.Active || damage <= 0) return;
-        m.explosions.Add(new PendingExplosion { pos = pos, depth = 1, damage = damage, radius = radius, time = Time.time });
+        m.explosions.Add(new PendingExplosion { pos = pos, depth = 1, damage = damage, radius = radius, time = Time.time, src = src });
     }
 
     // 무기 코드에서 쓰는 적 찾기 (화면 안, 살아 있는 적)

@@ -13,7 +13,7 @@ public partial class AugmentManager
 
     #region 상태
     // 폭발
-    struct PendingExplosion { public Vector3 pos; public int depth; public long damage; public float radius; public float time; public bool mini; }
+    struct PendingExplosion { public Vector3 pos; public int depth; public long damage; public float radius; public float time; public bool mini; public SideWeapon src; }   // src: 합체 보스 배율을 받는 무기 (2026-11-25)
     readonly List<PendingExplosion> explosions = new List<PendingExplosion>();
     struct FireZone { public Vector3 pos; public float radius; public long damage; public int ticks; public float next; }
     readonly List<FireZone> fires = new List<FireZone>();
@@ -802,7 +802,7 @@ public partial class AugmentManager
         int prev = effectDepth;
         effectDepth = e.depth;
         try {
-            foreach(var t in targets) t.OnHit(dmg, false, false, 0, Armor.EffectPen);
+            foreach(var t in targets) t.OnHit(dmg, false, false, 0, Armor.EffectPen, e.src);
         } finally {
             effectDepth = prev;
         }

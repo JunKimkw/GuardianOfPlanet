@@ -203,7 +203,7 @@ public class TrackingBullet : Bullet
             if(hb > 0) {
                 float r = Tuning.Get("lockon_blast_radius", 0.9f);
                 RemasterFx.Ring(p, r, new Color(1f, 0.75f, 0.4f), 0.2f);
-                AugmentManager.WeaponBlast(p, WeaponBase.ClampDamage(dmg * (double)AugmentDefs.LkBlast(hb)), r);
+                AugmentManager.WeaponBlast(p, WeaponBase.ClampDamage(dmg * (double)AugmentDefs.LkBlast(hb)), r, SideWeapon.TrackingGun);   // 고폭 탄두도 합체 보스 배율을 받아요 (2026-11-25 측정: 보스 216%)
             }
         }
         DestroyBullet();
