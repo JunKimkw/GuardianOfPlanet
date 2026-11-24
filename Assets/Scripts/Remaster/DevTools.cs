@@ -126,12 +126,13 @@ public static class DevTools
     }
 
     // Enemy.OnHit 에서 불러요. damage = 실제로 깎은 피해 (화면 숫자 단위)
-    public static void RecordHit(double damage)
+    public static void RecordHit(double damage, bool boss = false)
     {
         if(!DpsOn || Time.time < ignoreUntil) return;
         string src = Source();
         Add(total, src, damage);
         Add(window, src, damage);
+        if(boss) Add(total, src + " →보스", damage);   // (2026-11-23 사용자: 합체는 거의 종결 무기라 어떤 상황에서도 쓸 만하게 (상황별 차이 줄이기)) 보스 + 졸개 상황에서 보스에게 준 피해만 따로
     }
 
     static void Add(Dictionary<string, Stat> d, string k, double dmg)
@@ -235,7 +236,7 @@ public static class DevTools
     }
 #else
     public static bool DpsOn => false;
-    public static void RecordHit(double damage) { }
+    public static void RecordHit(double damage, bool boss = false) { }
     public static void Tick() { }
     public static void ToggleDps() { }
     public static void MeasureBegin(string label, string note, float warmup) { }

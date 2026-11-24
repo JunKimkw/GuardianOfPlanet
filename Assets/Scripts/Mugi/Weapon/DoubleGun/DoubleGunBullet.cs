@@ -129,6 +129,17 @@ public class DoubleGunBullet : Bullet
         targets.RemoveAll(e => (e.transform.position - at).sqrMagnitude < minDist * minDist);
         float vAngle = Tuning.Get("split_v_angle", 30f);
         Vector3 heading = transform.up;
+        // (2026-11-23 사용자: 합체는 거의 종결 무기라 어떤 상황에서도 쓸 만하게 (상황별 차이 줄이기)) 갈라질 다른 적이 없으면(보스 혼자 등) 빈 파편 수만큼 맞은 적에게 바로 박혀요 (파편 피해 × split_solo_mul)
+        int missing = Mathf.Max(0, 2 - targets.Count);
+        if(missing > 0 && from != null && from._state != Enemy.EnemyState.dead) {
+            float solo = Tuning.Get("split_solo_mul", 0.8f);
+            if(solo > 0f) {
+                for(int i = 0; i < missing; i++)
+                    from.OnHit(WeaponBase.ClampDamage(dmg * (double)solo), false, Random.Range(1, 101) <= Player.instance.FinalCriticalChance, Player.instance.FinalCriticalDamage, 0f, SideWeapon.DoubleGun);
+                RemasterFx.Burst(at, 0.35f, SplitColor);
+                return;
+            }
+        }
         for(int i = 0; i < 2; i++) {
             Vector3 dir = i < targets.Count
                 ? (targets[i].transform.position - at)

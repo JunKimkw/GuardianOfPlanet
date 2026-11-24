@@ -33,6 +33,20 @@ public class SniperBullet : Bullet
         hitEnemies.Clear();
     }
 
+    // 색 바꾸기 (2026-11-24 사용자: 특이점 저격의 작은 저격탄이 기본 저격탄과 구분이 안 돼요). null 이면 원래 색
+    //  풀에서 같이 쓰는 탄이라 저격총은 쏠 때마다 원래 색으로 되돌려요
+    SpriteRenderer[] tintSr;
+    Color[] tintBase;
+    public void Tint(Color? c)
+    {
+        if(tintSr == null) {
+            tintSr = GetComponentsInChildren<SpriteRenderer>(true);
+            tintBase = new Color[tintSr.Length];
+            for(int i = 0; i < tintSr.Length; i++) tintBase[i] = tintSr[i].color;
+        }
+        for(int i = 0; i < tintSr.Length; i++) if(tintSr[i] != null) tintSr[i].color = c ?? tintBase[i];
+    }
+
     // 보스 사냥꾼: 보스에게 피해 + (레일건도 같이 써요)
     public static long BossBonus(Enemy e, long damage) =>
         e != null && e.IsBoss ? WeaponBase.ClampDamage(damage * (1.0 + Tuning.Get("sniper_boss_bonus", 0.5f))) : damage;
@@ -42,7 +56,7 @@ public class SniperBullet : Bullet
         if(collision.gameObject.TryGetComponent(out Enemy e)) {
             if(e._state == Enemy.EnemyState.dead || !hitEnemies.Add(e)) return;
             double hpBefore = e.CurrentHealth;
-            e.OnHit(BossBonus(e, Bullet_Damage), isStunning, isCritical, PlayerCritDamage + critDamage_Bullet, Armor.Pen(TraitType));
+            e.OnHit(BossBonus(e, Bullet_Damage), isStunning, isCritical, PlayerCritDamage + critDamage_Bullet, Armor.Pen(TraitType), SideWeapon.Sniper);
 
             // 남는 피해 이월: 이 적을 죽이고도 남았으면 남은 비율만큼 들고 계속 가요
             double dealt = e.LastHitTotal;

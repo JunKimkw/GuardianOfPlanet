@@ -15,6 +15,13 @@ public partial class AugmentManager
         return m != null && m.Active ? m.Level(id) : 0;
     }
 
+    // 합체 실버 증강 효과 (2026-11-24): 레벨당 +10% (없으면 0). 무기 코드에서 1 + Silver(id) 로 곱하거나 나눠요
+    public static float Silver(string id)
+    {
+        int l = WL(id);
+        return l > 0 ? AugmentDefs.FzSilverPct(l) : 0f;
+    }
+
     // 합체 전용 증강 3개를 모두 ★1 이상 모았는지
     public bool AllFusionAugs(int f)
     {
@@ -182,6 +189,16 @@ public partial class AugmentManager
         }
     }
 
+    static float AugAdjAt(AugmentManager m, string id)
+    {
+        int l = m.Level(id);
+        if(l <= 0) return 1f;
+        float a = AugmentDefs.AugAdj(id);
+        if(Mathf.Approximately(a, 1f)) return 1f;
+        var d = AugmentDefs.Get(id);
+        return Mathf.Lerp(1f, a, Mathf.Clamp01(l / (float)Mathf.Max(1, d != null ? d.maxLevel : 1)));
+    }
+
     // 무기 피해 배율: 합체 위력 + 숫자 없는 증강의 ★2 이상 보너스 (WeaponBase.HitDamage 에서 곱해요)
     public static float WeaponPower(SideWeapon w)
     {
@@ -190,9 +207,21 @@ public partial class AugmentManager
         float p = 1f;
         int f = m.FusionOf(w);
         if(f >= 0) {
-            int got = 0;
-            foreach(var id in AugmentDefs.Fusions[f].augs) if(m.Level(id) > 0) got++;
+            int got = 0, lv = 0, lvMax = 0;
+            foreach(var id in AugmentDefs.Fusions[f].augs) {
+                int l = m.Level(id);
+                if(l > 0) got++;
+                var d = AugmentDefs.Get(id);
+                lv += l; lvMax += d != null ? d.maxLevel : 0;
+            }
             p *= Mathf.Lerp(AugmentDefs.FusionPower, AugmentDefs.FusionPowerFull, got / 3f);
+            // 합체 기본 피해 배율 (2026-11-24 사용자: 합체만일 때 무리 + 보스 합이 비슷하게): 합체 증강 없을 때부터 곱해요
+            p *= AugmentDefs.FusionBaseMul(AugmentDefs.Fusions[f]);
+            // 합체 증강 피해 배율 (2026-11-23 사용자: 합체 증강 최대 250k~400k 로): 모은 레벨만큼 1 → 배율
+            if(lvMax > 0 && lv > 0) p *= Mathf.Lerp(1f, AugmentDefs.FusionAugMul(AugmentDefs.Fusions[f]), Mathf.Clamp01(lv / (float)lvMax));
+            // 증강별 피해 보정 (2026-11-25 사용자: 효과가 거의 없는 증강은 '약함'(골드 ×1.8·실버 ×1.3), 너무 센 증강은 '셈'(골드 ×3·실버 ×1.6) 으로)
+            foreach(var id in AugmentDefs.Fusions[f].augs) p *= AugAdjAt(m, id);
+            foreach(var id in AugmentDefs.FusionSilvers[f]) p *= AugAdjAt(m, id);
         }
         switch(w) {
             case SideWeapon.DoubleGun: p *= 1f + Q(m.Level("dg_cross")); break;
@@ -202,6 +231,21 @@ public partial class AugmentManager
     }
 
     static float Q(int L) => L > 0 ? AugmentDefs.QualityBonus(L) : 0f;
+
+    // 합체 보스 추가 피해 (2026-11-24 사용자: 합체 보스 추가 피해 배율): src 무기가 합체 중이고 맞은 적이 보스면 배율 (Enemy.OnHit 에서)
+    public static double FusionBossMul(SideWeapon src)
+    {
+        var m = Instance;
+        if(src == SideWeapon.None || m == null || !m.Active) return 1.0;
+        int f = m.FusionOf(src);
+        if(f < 0) return 1.0;
+        // (2026-11-25 측정(tools/fusion_balance_measured.js): 사용자 분류 + 증강 최대 예전 목표 × 실버 1.4) 합체 증강 레벨만큼 합체만 배율 → 증강 최대 배율
+        var fd = AugmentDefs.Fusions[f];
+        int lv = 0, lvMax = 0;
+        foreach(var id in fd.augs) { lv += m.Level(id); var d = AugmentDefs.Get(id); lvMax += d != null ? d.maxLevel : 0; }
+        float t = lvMax > 0 ? Mathf.Clamp01(lv / (float)lvMax) : 0f;
+        return Mathf.Lerp(AugmentDefs.FusionBossMul(fd), AugmentDefs.FusionBossMulMax(fd), t);
+    }
 
     // 무기 증강 폭발 (폭발 탄두, 관통 폭발). 연쇄 폭발·용광로 같은 폭발 증강과 이어져요
     public static void WeaponBlast(Vector3 pos, long damage, float radius)
@@ -239,12 +283,12 @@ public partial class AugmentManager
 
     // 무기 효과로 주는 피해 (레이저 종류로 처리: 굴절 등)
     // pen: 방어 관통력. 음수면 증강 효과 기본값(Armor.EffectPen)
-    public static void WeaponHit(Enemy e, long damage, bool crit, float critDamage, HitKind kind = HitKind.Weapon, float pen = -1f)
+    public static void WeaponHit(Enemy e, long damage, bool crit, float critDamage, HitKind kind = HitKind.Weapon, float pen = -1f, SideWeapon src = SideWeapon.None)
     {
         if(e == null || e._state == Enemy.EnemyState.dead || !e.gameObject.activeInHierarchy) return;
         var prev = CurrentHitKind;
         CurrentHitKind = kind;
-        try { e.OnHit(damage, false, crit, critDamage, pen >= 0f ? pen : Armor.EffectPen); }
+        try { e.OnHit(damage, false, crit, critDamage, pen >= 0f ? pen : Armor.EffectPen, src); }
         finally { CurrentHitKind = prev; }
     }
 
@@ -318,6 +362,7 @@ public partial class AugmentManager
         var fd = AugmentDefs.Fusions[f];
         levels.Remove(fd.card); order.Remove(fd.card);
         foreach(var id in fd.augs) { levels.Remove(id); order.Remove(id); }
+        foreach(var id in AugmentDefs.FusionSilvers[f]) { levels.Remove(id); order.Remove(id); }   // 합체 실버 증강
         levels.Remove(AugmentDefs.UltIds[f]); order.Remove(AugmentDefs.UltIds[f]);
         fusionSlots.Remove(fd.b);   // 흡수했던 B 를 되돌려요 (새로 고른 무기는 빠져요)
         OnAugmentsChanged();
@@ -443,7 +488,8 @@ public partial class AugmentManager
 
     // 측정의 미리 돌리기: 새 무기로 바꾼 뒤 measure_isolate 초(앞 무기의 독 장판·블랙홀·종결 효과가 끝날 시간)를 기다렸다가
     //  적을 한 번 더 새로 세우고, 그다음 미리 돌리기(warm)를 해요. 이 동안의 피해는 기록에 안 들어가요
-    static float MeasureIsolateSeconds(int mode) => mode == 13 ? 0f : Mathf.Max(0f, Tuning.Get("measure_isolate", 5f));
+    static float MeasureIsolateSeconds(int mode) => mode == 13 ? 0f : measureIsoOverride >= 0f ? measureIsoOverride : Mathf.Max(0f, Tuning.Get("measure_isolate", 5f));
+    static float measureIsoOverride = -1f, measureWarmOverride = -1f, measureJitterOverride = -1f;   // 합체 확인처럼 짧게 잴 때
     System.Collections.IEnumerator MeasureWarm(int mode, float warm)
     {
         float iso = MeasureIsolateSeconds(mode);
@@ -549,6 +595,8 @@ public partial class AugmentManager
         b.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y + cam.orthographicSize * 0.55f, 0f);
         b.DebugFrozen = DebugArena;
         if(DebugArena) arenaHome[b] = b.transform.position;
+        // (2026-11-24) 관문 스테이지에서 부른 연습장 보스는 졸개 소환·보호막을 꺼요 (보스만 측정에 졸개 3마리가 섞였어요)
+        if(DebugArena && b.TryGetComponent(out GateBossAbilities gate)) gate.enabled = false;
         if(DebugArena) { b.Armor = 0; b.EnemyHealth = b.CurrentHealth = System.Math.Max(1.0, ArenaRefDamage() * b.NumberScale * Tuning.Get("arena_hits", 15f) * Tuning.Get("arena_boss_mul", 10f)); }   // 연습장 보스: 일반 적의 arena_boss_mul 배 (죽으면 다시 안 나와요)
 #endif
     }
@@ -643,6 +691,8 @@ public partial class AugmentManager
         measureArenaArmor = 0;
         measureOnly = null;
         measureSecondsOverride = -1f;
+        measureIsoOverride = measureWarmOverride = measureJitterOverride = -1f;
+        MeasureFusionStage = -1;
         if(GameManager.instance != null) GameManager.instance.setTimeScale(measurePrevSpeed);
     }
 
@@ -661,7 +711,7 @@ public partial class AugmentManager
         DebugClearAugments();
         yield return null;      // 2026-11-22 버그: 플레이어 공격력이 다음 프레임에 다시 계산돼서, 바로 읽으면 증강이 붙은 옛 값이었어요 (방어력이 6배로 나옴)
         yield return null;
-        string title = mode == 16 ? "초반·후반 확인 (증강 없음·최대 × 3상황)" : mode == 15 ? "증강 하나씩 (3상황)" : mode == 10 ? "밤새 측정 (속도 비교 · 기본 무기 · 추가 상황 · 합체 무기 · 종결)" : mode == 7 ? "증강 5단계 × 6상황" : mode == 6 ? "6상황 · " + MeasureAugNames[MeasureAugStage] : mode == 8 ? "빈 칸만 다시" : mode == 9 ? "속도 비교" : "한 상황 · " + MeasureAugNames[MeasureAugStage];
+        string title = mode == 18 ? "합체 확인 (합체만·합체 증강 최대 · 종결 · 증강 하나씩)" : mode == 16 ? "초반·후반 확인 (증강 없음·최대 × 3상황)" : mode == 15 ? "증강 하나씩 (3상황)" : mode == 10 ? "밤새 측정 (속도 비교 · 기본 무기 · 추가 상황 · 합체 무기 · 종결)" : mode == 7 ? "증강 5단계 × 6상황" : mode == 6 ? "6상황 · " + MeasureAugNames[MeasureAugStage] : mode == 8 ? "빈 칸만 다시" : mode == 9 ? "속도 비교" : "한 상황 · " + MeasureAugNames[MeasureAugStage];
         DevTools.MeasureLine($"---- 측정 시작 {System.DateTime.Now:MM-dd HH:mm:ss} · {title} · 회차 {MeasureRepeats} · 미리 {Tuning.Get("measure_warmup", 10f):0.#}초 + 재기 {Tuning.Get("measure_seconds", 20f):0.#}초");
         if(mode == 7) {
             for(int a = 0; a < MeasureAugNames.Length; a++) {
@@ -675,6 +725,7 @@ public partial class AugmentManager
         else if(mode == 10) yield return MeasureOvernight();
         else if(mode == 15) yield return MeasureSoloAugs();
         else if(mode == 16) yield return MeasurePhaseCheck();
+        else if(mode == 18) yield return MeasureFusionCheck();
         else yield return MeasureSceneRun(mode);
         MeasureFinish();
         ui.Toast($"[개발] 측정 끝 · {title} (결과: Tuning/dps_measure.txt)", Color.white);
@@ -716,7 +767,7 @@ public partial class AugmentManager
     // 합체 측정 단계: -1 = 합체 아님, 0 = 합체만, 1 = 합체 증강 최대, 2 = 종결 (합체 증강 최대 + 종결 한 번)
     public static int MeasureFusionStage = -1;
     static readonly string[] MeasureFusionNames = { "합체", "합체 증강 최대", "종결" };
-    static readonly float[] MeasureFusionHpDefaults = { 4f, 8f, 8f };   // 움직이는 적 체력 배율 (합체는 A 의 3~5배라서)
+    static readonly float[] MeasureFusionHpDefaults = { 2f, 4f, 4f };   // 움직이는 적 체력 배율 (합체는 A 의 3~5배라서). 2026-11-24 사용자: 적이 좀 죽어야 현실적 → 절반 (예전 4·8·8)
 
     System.Collections.IEnumerator MeasureOvernight()
     {
@@ -756,6 +807,7 @@ public partial class AugmentManager
     //  phase_check_only_laser = 1 이면 360 레이저만 phase_check_seconds(60)초씩 재요 (2026-11-22 초반·후반 확인 측정 결과: 레이저는 10초 대기 + 5~9초 쏘기 주기라 20초로는 흔들려요)
     static SideWeapon? measureOnly;
     static float measureSecondsOverride = -1f;
+    static float measureUltSecondsOverride = -1f;   // 3분짜리 종결 측정
     System.Collections.IEnumerator MeasurePhaseCheck()
     {
         if(Tuning.Get("phase_check_only_laser", 0f) > 0f) {
@@ -769,6 +821,99 @@ public partial class AugmentManager
             foreach(int m in new[] { 0, 1, 2 }) yield return MeasureSceneRun(m);
         }
         MeasureAugStage = 0;
+    }
+
+    // ---- 합체 확인 (2026-11-23 사용자: 합체 확인 약 20분) — 버튼 mode 18
+    //  합체 13개 × 합체만·합체 증강 최대 × 움직이는 적·멈춘 적 40·보스 1 × fusion_check_repeats(1)회 = 78번.
+    //  짧게: 속도 fusion_check_speed(2), 끊기 3초 + 미리 8~10초 + 재기 15초 (게임 초) → 한 칸 약 14초, 전체 약 19분
+    // 종결 측정 동안 멈춘 무기를 되돌려요 (측정이 끝나거나 멈춰도)
+    static WeaponManager.ShootType? measureShootBefore;
+    static void RestoreMeasureShoot()
+    {
+        if(measureShootBefore.HasValue && WeaponManager.instance != null) WeaponManager.instance.shootType = measureShootBefore.Value;
+        measureShootBefore = null;
+    }
+
+    System.Collections.IEnumerator MeasureFusionCheck()
+    {
+        RestoreMeasureShoot();
+        measureSpeedOverride = Tuning.Get("fusion_check_speed", 2f);
+        measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("fusion_check_repeats", 1));
+        measureSecondsOverride = Tuning.Get("fusion_check_seconds", 15f);
+        measureIsoOverride = Tuning.Get("fusion_check_isolate", 3f);
+        measureWarmOverride = Tuning.Get("fusion_check_warmup", 8f);
+        measureJitterOverride = Tuning.Get("fusion_check_jitter", 2f);
+        MeasureAugStage = 0;
+        // (2026-11-25: 종결 측정에 무기 피해가 섞여서 종결 몫이 흔들려요 → 무기를 멈추고 종결만) fusion_check_ult_only = 1 이면 종결만 (합체 증강·실버 최대, 무기 멈춤) × 4상황 × fusion_check_ult_repeats 회 → 약 25분
+        if(Tuning.Get("fusion_check_ult_only", 0f) > 0f) {
+            measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("fusion_check_ult_repeats", 3));
+            MeasureFusionStage = 2;
+            int bm = Tuning.Get("fusion_check_boss_minions", 0f) > 0f ? 12 : 2;
+            int[] ultScenes = { 0, 1, bm, 5 };
+            // (2026-11-25 사용자: 3분짜리 종결 측정) fusion_check_ult_quick = 1 이면 멈춘 적 40 · 보스 1 × 1회, x3, 미리 2초, 종결 10초 → 약 2분 반
+            if(Tuning.Get("fusion_check_ult_quick", 1f) > 0f) {
+                measureRepeatsOverride = 1;
+                measureSpeedOverride = Tuning.Get("ult_quick_speed", 3f);
+                measureWarmOverride = Tuning.Get("ult_quick_warmup", 2f);
+                measureJitterOverride = 0f;
+                measureUltSecondsOverride = Tuning.Get("ult_quick_seconds", 10f);
+                ultScenes = new[] { 1, bm };
+            }
+            foreach(int m in ultScenes) yield return MeasureFusionSceneRun(m);
+            measureUltSecondsOverride = -1f;
+            RestoreMeasureShoot();
+            MeasureFusionStage = -1;
+            yield break;
+        }
+        // (2026-11-23 사용자: 합체는 거의 종결 무기라 어떤 상황에서도 쓸 만하게 (상황별 차이 줄이기)) 실제 보스전은 졸개가 같이 나와서 "보스 1" 대신 "보스 + 졸개" (보스에게 준 피해는 기록 줄에 "→보스" 로 따로)
+        int bossMode = Tuning.Get("fusion_check_boss_minions", 0f) > 0f ? 12 : 2;
+        for(int st = 0; st <= 1; st++) {
+            MeasureFusionStage = st;
+            // (2026-11-23 사용자: "보스 상대로 얼마나 강한지 보스만") fusion_check_boss_only = 1 이면 보스 1 만, fusion_check_boss_repeats 회
+            // (2026-11-24 밤 사용자: 자는 동안 합체 측정) 우주선 근처(5)도 재요 (fusion_check_near 0 이면 빼요). 가까운 적에게 약한 합체를 찾으려고
+            int[] scenes = Tuning.Get("fusion_check_boss_only", 0f) > 0f ? new[] { 2 }
+                         : Tuning.Get("fusion_check_near", 1f) > 0f ? new[] { 0, 1, bossMode, 5 } : new[] { 0, 1, bossMode };
+            if(scenes.Length == 1) measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("fusion_check_boss_repeats", 2));
+            foreach(int m in scenes) yield return MeasureFusionSceneRun(m);
+        }
+        // (2026-11-24 밤 사용자: 6시간 걸려도 괜찮으니 확인할 거 다) fusion_check_full = 1 이면 이어서 2) 종결 3) 합체 증강·실버 하나씩 (약 3시간 더)
+        if(Tuning.Get("fusion_check_full", 1f) > 0f && Tuning.Get("fusion_check_boss_only", 0f) <= 0f) {
+            int[] all = Tuning.Get("fusion_check_near", 1f) > 0f ? new[] { 0, 1, bossMode, 5 } : new[] { 0, 1, bossMode };
+            // 2) 종결: 미리 돌린 뒤 한 번 쓰고 measure_ult_seconds 동안
+            measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("fusion_check_ult_repeats", 2));
+            MeasureFusionStage = 2;
+            foreach(int m in all) yield return MeasureFusionSceneRun(m);
+            // 3) 합체 증강·실버 하나씩: 합체만 + 그 증강 하나만 최대 (합체만 값과 비교하면 증강 하나의 몫)
+            measureRepeatsOverride = Mathf.Max(1, Tuning.GetInt("fusion_check_aug_repeats", 2));
+            MeasureFusionStage = 0;
+            foreach(int m in all) yield return MeasureFusionAugSolo(m);
+        }
+        measureFusionAug = null;
+        RestoreMeasureShoot();
+        MeasureFusionStage = -1;
+    }
+
+    // 합체 증강 하나씩 (2026-11-24 밤 사용자: 6시간 걸려도 괜찮으니 확인할 거 다): 한 상황에서 회차마다 배치를 새로 섞고, 합체마다 합체 증강 3개 + 실버를 하나씩 최대로
+    static AugmentDef measureFusionAug;
+    System.Collections.IEnumerator MeasureFusionAugSolo(int mode)
+    {
+        int reps = MeasureRepeats, n = AugmentDefs.Fusions.Length;
+        for(int r = 0; r < reps; r++) {
+            string baseScene = null;
+            if(!MeasureTry(() => baseScene = MeasureSetupScene(mode), $"상황 차리기 {mode}")) continue;
+            yield return null;
+            for(int f = 0; f < n; f++) {
+                var ids = new List<string>(AugmentDefs.Fusions[f].augs);
+                ids.AddRange(AugmentDefs.FusionSilvers[f]);
+                foreach(var id in ids) {
+                    var d = AugmentDefs.Get(id);
+                    if(d == null) continue;
+                    measureFusionAug = d;
+                    yield return MeasureFusionOne(mode, f, $"{baseScene} +합체 · {d.name} 최대", $"회차 {r + 1}/{reps}", MeasureSpeed, $"{f + 1}/{n}");
+                }
+            }
+            measureFusionAug = null;
+        }
     }
 
     // 합체 무기 한 상황: 회차마다 배치를 새로 섞고 합체 무기 13개를 차례로
@@ -794,23 +939,33 @@ public partial class AugmentManager
             } else DebugArenaRespawnHome();   // 앞 무기가 옮기거나 상태를 건 적을 같은 자리에 새로
             DebugClearAugments();
             DebugSoloFusion(f);   // A 를 혼자 출격시키고 합체 (합체하면 A 전용 증강은 없어요)
-            if(MeasureFusionStage >= 1)
+            if(measureFusionAug != null) DebugAddAugment(measureFusionAug, true);   // 합체 증강 하나씩
+            else if(MeasureFusionStage >= 1) {
                 foreach(var id in AugmentDefs.Fusions[f].augs) { var d = AugmentDefs.Get(id); if(d != null) DebugAddAugment(d, true); }
+                // (2026-11-24 밤 사용자: 자는 동안 합체 측정) 합체 실버 증강도 최대로 (fusion_check_silver 0 이면 빼요)
+                if(Tuning.Get("fusion_check_silver", 1f) > 0f)
+                    foreach(var id in AugmentDefs.FusionSilvers[f]) { var d = AugmentDefs.Get(id); if(d != null) DebugAddAugment(d, true); }
+            }
             GameManager.instance.setTimeScale(speed);   // 스테이지를 다시 시작하면 저장된 속도로 돌아가서 그 뒤에 맞춰요
         }, $"합체 준비 {scene} {fname}");
         if(!ok) yield break;
-        float warm = Tuning.Get("measure_warmup", 10f) + Random.Range(0f, Tuning.Get("measure_warmup_jitter", 5f));
+        float warm = (measureWarmOverride >= 0f ? measureWarmOverride : Tuning.Get("measure_warmup", 10f))
+                   + Random.Range(0f, measureJitterOverride >= 0f ? measureJitterOverride : Tuning.Get("measure_warmup_jitter", 5f));
         MeasureScene = scene;
         string name = AugmentDefs.Fusions[f].name;
         DevTools.MeasureBegin(name, $"{note} · x{speed:0.#}", MeasureIsolateSeconds(mode) + warm);
         ui.Toast($"[개발] 측정 [{scene}] {note} · {progress}: {name}", Color.white);
         if(MeasureFusionStage == 2) {   // 종결: 미리 돌린 뒤 한 번 쓰고 그때부터 재요
             yield return MeasureWarm(mode, warm);
+            // (2026-11-25: 종결 측정에 무기 피해가 섞여서 종결 몫이 흔들려요 → 무기를 멈추고 종결만) measure_ult_silent = 1 이면 무기를 멈추고 종결만 (기록 줄 피해 = 종결)
+            bool silent = Tuning.Get("measure_ult_silent", 1f) > 0f && WeaponManager.instance != null;
+            if(silent) { measureShootBefore ??= WeaponManager.instance.shootType; WeaponManager.instance.shootType = WeaponManager.ShootType.DontShoot; }
             MeasureTry(() => DebugTriggerUltimate(f), $"종결 발동 {scene} {fname}");
-            yield return new WaitForSeconds(Mathf.Max(3f, Tuning.Get("measure_ult_seconds", 12f)));
+            yield return new WaitForSeconds(Mathf.Max(3f, measureUltSecondsOverride > 0f ? measureUltSecondsOverride : Tuning.Get("measure_ult_seconds", 12f)));
+            if(silent) RestoreMeasureShoot();
         } else {
             yield return MeasureWarm(mode, warm);
-            yield return new WaitForSeconds(Mathf.Max(5f, Tuning.Get("measure_seconds", 20f)));
+            yield return new WaitForSeconds(Mathf.Max(5f, measureSecondsOverride > 0f ? measureSecondsOverride : Tuning.Get("measure_seconds", 20f)));
         }
         DevTools.MeasureEnd();
     }
@@ -1178,15 +1333,30 @@ public class LaserDrone : MonoBehaviour
         // 목표 유지: 살아 있고 화면 안이면 계속 비춰요
         if(target == null || target._state == Enemy.EnemyState.dead || !target.gameObject.activeInHierarchy || !target.IsInRange) {
             Enemy next = focus ? AugmentManager.StrongestInRange() : ClosestTo(transform.position);
-            // 목표가 바뀌면 처음부터 (가늘게, 1배) 다시 쌓아요 (2026-11-20 사용자 결정)
-            if(next != target) heat *= Tuning.Get("satlaser_heat_keep", 0f);
+            // 목표가 바뀌면: 예전엔 처음부터 (2026-11-20). 2026-11-24: 세기를 그대로 들고 다음 적으로 (졸개 무리에서도 과열 방출이 나오게)
+            if(next != target) heat *= Tuning.Get("satlaser_heat_keep", 1f);
             target = next;
         }
         if(target == null) { SetBeam(false); heat = Mathf.Max(0f, heat - Time.deltaTime / Mathf.Max(0.1f, Tuning.Get("satlaser_cool_time", 3f))); return; }   // 적이 없으면 천천히 식어요
 
-        float rampTime = Mathf.Max(0.1f, Tuning.Get("satlaser_ramp_time", 6f));
+        float rampTime = Mathf.Max(0.1f, Tuning.Get("satlaser_ramp_time", 6f) / (1f + AugmentManager.Silver("sat_cool")));   // 실버 "냉각 장치"
         heat = Mathf.Min(1f, heat + Time.deltaTime / rampTime);
         float power = Mathf.Lerp(1f, Tuning.Get("satlaser_ramp_max", 4f), heat);
+        // 과열 방출 (2026-11-24 사용자: 위성 레이저에 무리 상대 상시 공격): 최대 세기가 되면 비추는 자리에서 빛 폭발
+        //  반경 satlaser_burst_radius 안 적 모두에게 360 레이저 1발 × satlaser_burst_mul, 세기는 satlaser_burst_reset 으로 내려가 다시 쌓여요
+        if(heat >= 1f && Tuning.Get("satlaser_burst_mul", 0.5f) > 0f) {
+            Vector3 c = target.transform.position;
+            c.z = 0f;
+            float r = Tuning.Get("satlaser_burst_radius", 1.2f);
+            var cyan = new Color(0.5f, 0.95f, 1f);
+            RemasterFx.Burst(c, r, cyan);
+            RemasterFx.Ring(c, r, Color.white, 0.25f);
+            long bd = WeaponBase.ClampDamage(lz.HitDamage * (double)Tuning.Get("satlaser_burst_mul", 0.5f) * (1.0 + AugmentManager.Silver("sat_power")));
+            foreach(var e in AugmentManager.EnemiesNear(c, r))
+                AugmentManager.WeaponHit(e, bd, Random.Range(1, 101) <= Player.instance.FinalCriticalChance + lz.ExtraCritChance,
+                                         Player.instance.FinalCriticalDamage + lz.ExtraCritDamage, HitKind.Laser, Armor.Pen(TraitsData.WeaponType.CircleLaser), SideWeapon.Lazer);
+            heat = Tuning.Get("satlaser_burst_reset", 0.4f);
+        }
 
         Vector3 to = target.transform.position - transform.position;
         transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(to.y, to.x) * Mathf.Rad2Deg - 90f);   // 비추는 적 쪽을 봐요
@@ -1196,9 +1366,10 @@ public class LaserDrone : MonoBehaviour
         if(tickTimer > 0f) return;
         tickTimer = Mathf.Max(0.05f, Tuning.Get("satlaser_tick", 0.1f));
         // 1틱 피해 = 360 레이저 1발 × satlaser_tick_mul × 세기(1 → ramp_max) (× 궤도 일제 사격)
-        double mul = Tuning.Get("satlaser_tick_mul", 0.0072f) * power * (focus ? AugmentDefs.SatFocus(AugmentManager.WL("sat_focus")) : 1f);
+        double mul = Tuning.Get("satlaser_tick_mul", 0.0072f) * power * (focus ? AugmentDefs.SatFocus(AugmentManager.WL("sat_focus")) : 1f)
+                     * (1.0 + AugmentManager.Silver("sat_power"));   // 실버 "위성 출력"
         AugmentManager.WeaponHit(target, WeaponBase.ClampDamage(lz.HitDamage * mul), Random.Range(1, 101) <= Player.instance.FinalCriticalChance + lz.ExtraCritChance,
-                                 Player.instance.FinalCriticalDamage + lz.ExtraCritDamage, HitKind.Laser, Armor.Pen(TraitsData.WeaponType.CircleLaser));
+                                 Player.instance.FinalCriticalDamage + lz.ExtraCritDamage, HitKind.Laser, Armor.Pen(TraitsData.WeaponType.CircleLaser), SideWeapon.Lazer);   // 합체 보스 배율 (2026-11-24)
         AugmentManager.WeaponHitEvent(SideWeapon.Lazer);
     }
 

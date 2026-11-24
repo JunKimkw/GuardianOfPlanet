@@ -36,7 +36,7 @@ public class CometShot : MonoBehaviour
 
     void Init(BounceGun gun, Vector3 from, Enemy first)
     {
-        hitDamage = gun.HitDamage;
+        hitDamage = WeaponBase.ClampDamage(gun.HitDamage * (1.0 + AugmentManager.Silver("cm_power")));   // 실버 "혜성 가속"
         maxHits = MaxHits(gun);
         PickPlan();
         speed = Tuning.Get("comet_speed", 10f);
@@ -254,7 +254,7 @@ public class CometShot : MonoBehaviour
         if(!Alive(e) || mul <= 0f) return;
         bool crit = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
         AugmentManager.WeaponHit(e, WeaponBase.ClampDamage(hitDamage * (double)mul), crit, Player.instance.FinalCriticalDamage,
-                                 HitKind.Weapon, Armor.Pen(TraitsData.WeaponType.BounceGun));
+                                 HitKind.Weapon, Armor.Pen(TraitsData.WeaponType.BounceGun), SideWeapon.BounceGun);
         AugmentManager.WeaponHitEvent(SideWeapon.BounceGun);   // 종결 "운명의 별자리" 게이지
     }
 

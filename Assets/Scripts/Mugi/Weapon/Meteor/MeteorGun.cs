@@ -50,7 +50,8 @@ public class MeteorGun : GunWeapon
         float t = Tuning.Get("meteor_reload", 1f) * (1 - Trait(TraitsData.TraitsType.AttackSpeed))
                   * (1 - Player.instance.FinalAttack_SpeedPercent) * (1 - ExtraAttackSpeedScale);
         t = Mathf.Max(t, Tuning.Get("meteor_reload_min", 0.4f));
-        return t / AugmentManager.AttackSpeedFactor;
+        float silver = Brand ? AugmentManager.Silver("bd_reload") : Impact ? AugmentManager.Silver("im_reload") : 0f;   // 실버 "유성 장전"
+        return t / AugmentManager.AttackSpeedFactor / (1f + silver);
     }
 
     float holeTimer;   // 대충돌: 다음 블랙홀까지
@@ -68,6 +69,14 @@ public class MeteorGun : GunWeapon
                 if(all.Count > 0) { holeTimer = 0f; StartCoroutine(ImpactVolley(all, 1, HitDamage, Radius)); }
             }
         }
+        // 운석 낙인 (2026-11-24 사용자): 운석은 기본처럼 계속 떨어지고, 그것과 따로 brand_interval 초마다 무리에 낙인 → 큰 운석 + 작은 운석들
+        if(Brand) {
+            holeTimer += Time.deltaTime * AugmentManager.AttackSpeedFactor;
+            if(holeTimer >= Tuning.Get("brand_interval", 4f)) {
+                var all = AugmentManager.NearestInRange(transform.position, 999);
+                if(all.Count > 0) { holeTimer = 0f; StartCoroutine(CrowdBrand(all, HitDamage, Radius)); }
+            }
+        }
         TimerAs += Time.deltaTime;
         if(TimerAs < getAttackSpeed()) return;
         if(AugmentManager.NearestInRange(transform.position, 1).Count == 0) return;   // 화면에 적이 없으면 기다렸다가 나타나면 바로
@@ -81,6 +90,8 @@ public class MeteorGun : GunWeapon
         int n = Mathf.Max(1, Tuning.GetInt("meteor_count", 3)) + (ExtraMeteor ? 1 : 0) + AugmentManager.ExtraShots();
         int rain = MtL("mt_rain");
         if(rain > 0) n += AugmentDefs.MtRain(rain);
+        if(Brand) n += AugmentManager.WL("bd_rain");    // 실버 "유성 추가" (운석 낙인, 2026-11-24 사용자: 피해%만 말고 추가탄 같은 실버도)
+        if(Impact) n += AugmentManager.WL("im_rain");   // 실버 "유성 추가" (대충돌)
         StartCoroutine(Volley(n));
     }
 
@@ -90,13 +101,13 @@ public class MeteorGun : GunWeapon
     IEnumerator Volley(int n)
     {
         var list = AugmentManager.NearestInRange(transform.position, 999);
-        for(int i = list.Count - 1; i > 0; i--) {
+        // 운석 낙인 (2026-11-24 사용자): 기본 운석은 가까운 적 우선 (섞지 않고 가까운 순 그대로)
+        if(!Brand) for(int i = list.Count - 1; i > 0; i--) {
             int j = Random.Range(0, i + 1);
             (list[i], list[j]) = (list[j], list[i]);
         }
         long dmg = HitDamage;
         float r = Radius, gap = Tuning.Get("meteor_gap", 0.12f);
-        if(Brand) { StartCoroutine(BrandVolley(n, dmg, r)); yield break; }
         for(int i = 0; i < n && list.Count > 0; i++) {
             var e = list[i % list.Count];
             if(e == null || e._state == Enemy.EnemyState.dead || !e.gameObject.activeInHierarchy) continue;
@@ -107,34 +118,56 @@ public class MeteorGun : GunWeapon
         }
     }
 
-    // 별의 낙인 (2026-11-21 사용자 결정): 장전마다 적 brand_targets(3)마리를 인식해 낙인을 찍어요 (보스 먼저, 그다음 체력이 많은 순).
-    // 증강 "연속 낙인"으로 인식하는 적이 늘어요. 인식한 적마다 운석 n개(기본 3, 운석 수를 늘리는 효과가 여기에 더해져요)가 차례로 떨어져요.
-    // 운석은 비슷한 하늘 자리에서 출발하되 출발점이 조금씩 흔들려서(brand_sky_jitter) 경로가 살짝씩 달라요 (예전엔 모두 같은 경로라 한 줄로 보였어요).
-    // 운석이 많아진 만큼 1발 피해는 brand_damage_div(3)로 나눠요. 낙인 적이 도중에 죽으면 남은 운석은 아직 안 고른 다음 강한 적에게
-    IEnumerator BrandVolley(int n, long dmg, float r)
+    // 운석 낙인 (2026-11-24 사용자: "별의 낙인"을 "운석 낙인"으로. 운석이 기본 공격, 낙인은 너무 빠르지 않게, 무리에 찍히면 큰 운석 + 작은 운석들)
+    //  운석은 기본 운석처럼 계속 떨어지고 (Volley), 그것과 따로 brand_interval(4)초마다 (Update):
+    //  1) 적이 가장 많이 몰린 곳 brand_crowds(1)곳(+ 연속 낙인)에 낙인 (빨간 조준 원 + 우주선에서 조준선). 서로 겹치지 않게 골라요
+    //  2) 낙인 자리에 큰 운석 1개가 천천히(brand_big_fall 초) 떨어져요 (1발 × brand_big_mul, 반경 × brand_big_radius)
+    //  3) 큰 운석과 함께 둘레(반경 × brand_crowd_radius)에 작은 운석 brand_small(6)개가 brand_small_gap 간격으로 (1발 × brand_small_mul)
+    //  모두 치명타(약점 조준 = 치명 피해 +), 처형 낙인 = 큰 운석에 맞은 적이 죽으면 가까운 적에게 옮겨 가요
+    IEnumerator CrowdBrand(List<Enemy> all, long dmg, float r)
     {
-        int count = Mathf.Max(1, Tuning.GetInt("brand_targets", 3));
+        int count = Mathf.Max(1, Tuning.GetInt("brand_crowds", 1));
         int more = AugmentManager.WL("bd_more");
         if(more > 0) count += AugmentDefs.BdMore(more);
-        dmg = WeaponBase.ClampDamage(dmg / (double)Mathf.Max(1f, Tuning.Get("brand_damage_div", 3f)));
-        float gap = Tuning.Get("brand_gap", 0.15f), jitter = Tuning.Get("brand_sky_jitter", 0.9f);
-        var chosen = new HashSet<Enemy>();
-        var targets = new List<Enemy>();
-        foreach(var e in StrongestList()) { if(targets.Count >= count) break; targets.Add(e); chosen.Add(e); }
-        if(targets.Count == 0) yield break;
-        for(int k = 0; k < n; k++) {
-            for(int i = 0; i < targets.Count; i++) {
-                var e = targets[i];
-                if(!Alive(e)) {   // 죽었으면 아직 안 고른 다음 강한 적
-                    e = null;
-                    foreach(var c in StrongestList()) if(!chosen.Contains(c)) { e = c; break; }
-                    if(e == null) continue;
-                    targets[i] = e;
-                    chosen.Add(e);
-                }
+        float cr = r * Tuning.Get("brand_crowd_radius", 1.6f);
+        // 무리 고르기: 적마다 반경 cr 안 적 수를 세서 많은 순 (같으면 우주선에 가까운 순), 고른 곳끼리 cr × 1.5 이상 떨어지게
+        var scored = new List<(Enemy e, int n, int order)>();
+        for(int i = 0; i < all.Count; i++) {
+            int n = 0;
+            foreach(var o in all) if(((Vector2)(o.pos - all[i].pos)).sqrMagnitude <= cr * cr) n++;
+            scored.Add((all[i], n, i));
+        }
+        scored.Sort((x, y) => x.n != y.n ? y.n.CompareTo(x.n) : x.order.CompareTo(y.order));
+        var centers = new List<Enemy>();
+        foreach(var sc in scored) {
+            if(centers.Count >= count) break;
+            bool apart = true;
+            foreach(var t in centers) if(((Vector2)(t.pos - sc.e.pos)).sqrMagnitude < cr * cr * 2.25f) { apart = false; break; }
+            if(apart) centers.Add(sc.e);
+        }
+        if(centers.Count == 0) yield break;
+        for(int i = 0; centers.Count < count; i++) centers.Add(centers[i % centers.Count]);   // 무리가 모자라면 같은 곳에 또
+
+        float bigFall = Tuning.Get("brand_big_fall", 0.9f);
+        long bigDmg = WeaponBase.ClampDamage(dmg * (double)Tuning.Get("brand_big_mul", 4f));
+        long smallDmg = WeaponBase.ClampDamage(dmg * (double)Tuning.Get("brand_small_mul", 0.8f));
+        int small = Mathf.Max(0, Tuning.GetInt("brand_small", 6));
+        float gap = Tuning.Get("brand_small_gap", 0.08f);
+        foreach(var c in centers) {
+            MeteorFall.Drop(new MeteorFall.Opts {
+                at = c.pos, follow = c, dmg = bigDmg, radius = r * Tuning.Get("brand_big_radius", 1.8f), big = true, fallTime = bigFall,
+                sound = true, owner = this, brand = true, forceCrit = true, critExtra = BrandCritExtra, chain = ChainCount,
+            });
+        }
+        // 작은 운석은 큰 운석이 떨어지기 조금 전부터 둘레에 (큰 운석과 거의 같이 쾅쾅쾅)
+        float lead = Mathf.Max(0f, bigFall - Tuning.Get("meteor_fall_time", 0.45f) - small * gap * 0.5f);
+        if(lead > 0f) yield return new WaitForSeconds(lead);
+        for(int k = 0; k < small; k++) {
+            foreach(var c in centers) {
+                Vector3 at = (Alive(c) ? c.pos : c.transform.position) + (Vector3)(Random.insideUnitCircle * cr);
                 MeteorFall.Drop(new MeteorFall.Opts {
-                    at = e.pos, follow = e, dmg = dmg, radius = r, sound = k == 0 && i == 0, owner = this,
-                    brand = true, forceCrit = true, critExtra = BrandCritExtra, bossBonus = true, chain = ChainCount, skyJitter = jitter,
+                    at = at, dmg = smallDmg, radius = r * 0.7f, owner = this, forceCrit = true, critExtra = BrandCritExtra,
+                    skyJitter = Tuning.Get("brand_sky_jitter", 0.9f),
                 });
             }
             if(gap > 0f) yield return new WaitForSeconds(gap);
@@ -142,14 +175,6 @@ public class MeteorGun : GunWeapon
     }
 
     static bool Alive(Enemy e) => e != null && e._state != Enemy.EnemyState.dead && e.gameObject.activeInHierarchy;
-
-    // 화면 안 적: 보스 먼저, 그다음 지금 체력이 많은 순
-    static List<Enemy> StrongestList()
-    {
-        var list = AugmentManager.NearestInRange(Vector3.zero, 999);
-        list.Sort((a, b) => a.IsBoss != b.IsBoss ? (a.IsBoss ? -1 : 1) : b.CurrentHealth.CompareTo(a.CurrentHealth));
-        return list;
-    }
 
     // 대충돌 (2026-11-21 사용자 결정. 마지막: "블랙홀이 너무 자주·많이 당겨서 적이 다가오질 못해, 사기"):
     //  1) impact_hole_interval(5)초마다 블랙홀 impact_wells(1)개, 적이 가장 몰린 곳(우주선에서 impact_min_dist 칸 밖, 가까우면 반대쪽으로 밀어요)에 열려
@@ -559,7 +584,7 @@ public class MeteorFall : MonoBehaviour
             if(c == null || !done.Add(c.gameObject)) continue;
             if(c.TryGetComponent(out Enemy e)) {
                 if(e._state == Enemy.EnemyState.dead || !e.gameObject.activeInHierarchy) continue;
-                AugmentManager.WeaponHit(e, o.bossBonus ? SniperBullet.BossBonus(e, dmg) : dmg, crit, critDmg, HitKind.Weapon, pen);
+                AugmentManager.WeaponHit(e, o.bossBonus ? SniperBullet.BossBonus(e, dmg) : dmg, crit, critDmg, HitKind.Weapon, pen, SideWeapon.Meteor);
                 any = true;
             } else if(c.TryGetComponent(out Dummy d)) {
                 d.addDamage(dmg, crit, critDmg);
@@ -687,7 +712,10 @@ public class MeteorScatter : MonoBehaviour
                 if(dot > 0f) d = (d - a * (2f * dot)).normalized;   // 우주선 쪽이면 반대쪽으로 꺾어요
             }
             float k = jitter > 0f ? Random.Range(1f - jitter, 1f) : 1f;
-            items.Add((e, d, dist * k * (e.IsBoss ? 0.3f : 1f)));
+            // 보스 넉백 (2026-11-24 사용자: 보스는 넉백에 안 밀리게): 예전 0.3 → boss_knockback_mul (0 = 안 밀려요)
+            float bossK = Tuning.Get("boss_knockback_mul", 0f);
+            if(e.IsBoss && bossK <= 0f) continue;
+            items.Add((e, d, dist * k * (e.IsBoss ? bossK : 1f)));
         }
     }
 

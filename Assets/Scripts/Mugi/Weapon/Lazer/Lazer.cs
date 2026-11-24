@@ -177,7 +177,7 @@ public class Lazer : ContactWeapon
     {
         if(shootLazer.isShooting || TimerAs > 0f) { StopBeam(); TimerAs = 0f; }   // 합체하는 순간 돌던 빔은 꺼요
         float reload = Mathf.Max(Tuning.Get("starlight_reload", 1f) * (1 - Trait(TraitsData.TraitsType.AttackSpeed)), Tuning.Get("starlight_reload_min", 0.4f));
-        starTimer += Time.deltaTime * AugmentManager.AttackSpeedFactor;   // 증강 공격속도(시간 가속 등)만큼 빨리 차요
+        starTimer += Time.deltaTime * AugmentManager.AttackSpeedFactor * (1f + AugmentManager.Silver("sl_reload"));   // 실버 "별 장전"   // 증강 공격속도(시간 가속 등)만큼 빨리 차요
         if(starTimer < reload) return;
         var list = AugmentManager.NearestInRange(transform.position, 999);
         if(list.Count == 0) return;   // 화면에 적이 없으면 기다렸다가 나타나면 바로
@@ -195,7 +195,7 @@ public class Lazer : ContactWeapon
         int n = Mathf.Max(1, Tuning.GetInt("starlight_count", 3)) + AugmentManager.ExtraShots();
         int more = AugmentManager.WL("sl_more");
         if(more > 0) n += AugmentDefs.SlMore(more);
-        long dmg = ClampDamage(HitDamage * (double)Tuning.Get("starlight_hit_mul", 0.4f));
+        long dmg = ClampDamage(HitDamage * (double)Tuning.Get("starlight_hit_mul", 0.4f) * (1.0 + AugmentManager.Silver("sl_power")));   // 실버 "별빛 응축"
         int lg = AugmentManager.WL("sl_long");
         float len = Tuning.Get("starlight_ray_len", 2.2f) * (lg > 0 ? 1f + AugmentDefs.SlLong(lg) : 1f);
         int eight = AugmentManager.WL("sl_eight");
@@ -214,5 +214,5 @@ public class Lazer : ContactWeapon
 
     // 별빛 섬광 한 대 (StarlightFall 에서 불러요)
     public void StarHit(Enemy e, long dmg) =>
-        AugmentManager.WeaponHit(e, dmg, RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, HitKind.Laser, Armor.Pen(TraitType));
+        AugmentManager.WeaponHit(e, dmg, RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, HitKind.Laser, Armor.Pen(TraitType), SideWeapon.Lazer);
 }

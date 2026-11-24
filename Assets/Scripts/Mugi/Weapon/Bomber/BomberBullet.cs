@@ -70,7 +70,7 @@ public class BomberBullet : Bullet
         Vector3 b = sr.sprite.bounds.size;
         float size = Mathf.Max(b.x, b.y);
         if(size <= 0.0001f) return;
-        float s = FlightSize * SizeMul / size;
+        float s = FlightSize * SizeMul * sizeMul / size;   // sizeMul: 이 폭탄만의 크기 (2026-11-24 사용자: 표적 폭탄 > 호위기 폭탄. 예전엔 여기서 덮어써서 같아 보였어요)
         transform.localScale = new Vector3(s, s, 1f);
     }
 
@@ -82,14 +82,18 @@ public class BomberBullet : Bullet
     static float SizeMul => AugmentManager.Instance != null ? AugmentManager.Instance.BulletScaleMultiplier : 1f;
 
     // Bomber 가 쏠 때 불러요
-    public void Launch(long damage, Vector3 targetPos, Enemy follow = null)
+    // size: 이 폭탄만의 크기 배율 (나는 그림 + 폭발 범위). 예전엔 폭발할 때 그림 크기를 폭발 범위로 다시 정해서 작은 폭탄도 같은 크기로 터졌어요 (2026-11-24 사용자: 본체 표적 폭탄이 호위기 폭탄보다 크게)
+    float sizeMul = 1f;
+
+    public void Launch(long damage, Vector3 targetPos, Enemy follow = null, float size = 1f)
     {
         Bullet_Damage = damage;
+        sizeMul = size;
         homing = follow;
         target = new Vector3(targetPos.x, targetPos.y, transform.position.z);
         Vector3 d = target - transform.position;
         // 예전엔 초당 2칸 + 2.5초 시간 제한이라 멀리 있는 적까지 가기 전에 허공에서 터졌어요
-        flySpeed = FlySpeed * (Guided ? 1.6f : 1f);   // 유도 폭격은 미사일처럼 빨라요
+        flySpeed = FlySpeed * (Guided ? Tuning.Get("focus_fly_mul", 3f) : 1f);   // 집중 포화는 미사일처럼 빨라요 (2026-11-24: 예전 1.6 → 3)
         flyDir = d.sqrMagnitude > 0.0001f ? d.normalized : transform.up;
         transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(flyDir.y, flyDir.x) * Mathf.Rad2Deg - 90f);
     }
@@ -176,10 +180,11 @@ public class BomberBullet : Bullet
         float r = BaseRadius;
         if(Bomber.instance != null && Bomber.instance.ExploseRangeIncrease) r *= 1.5f;   // 패시브
         r *= SizeMul;                                                                     // 탄 크기 증강 (큰 탄 등)
+        r *= sizeMul;                                                                     // 이 폭탄만의 크기 (집중 포화 표적 폭탄 · 호위기 폭탄)
         r *= AugmentManager.BombRadiusMultiplier;                                         // 폭발 범위 증강 (화약 연구, 연쇄 세트 2)
         int big = AugmentManager.WL("bm_big");
         if(big > 0) r *= 1f + AugmentDefs.BmBig(big);                                     // 무기 전용 "대형 폭탄"
-        if(Guided) r *= 1.4f;                                                             // 합체 "유도 폭격"
+        if(Guided) r *= Tuning.Get("focus_radius_mul", 0.7f);                             // 합체 "집중 포화": 좁은 폭발 (2026-11-24 사용자: 유도 폭격 → 보스 전용 새 무기 "집중 포화" (A안))
         return r;
     }
 
@@ -195,25 +200,25 @@ public class BomberBullet : Bullet
         transform.rotation = Quaternion.identity;
         if(ExplosionEffect != null) ExplosionEffect.SetBool("isMoving", false);
 
-        Blast(r, Bullet_Damage);
+        bool hitFocus = Blast(r, Bullet_Damage, homing);
+        if(Guided && hitFocus && Bomber.instance != null) Bomber.instance.OnFocusHit(homing);   // 집중 포화: 표적에 쌓임 +1
 
-        // 2차 폭발 (무기 전용) / 이중 폭발 (합체): 0.5초 뒤 한 번 더
-        int dbl = Guided ? AugmentManager.WL("gb_double") : 0;
-        int second = AugmentManager.WL("bm_second");
-        if(dbl > 0) StartCoroutine(SecondBlast(r * 1.3f, AugmentDefs.GbDouble(dbl)));
-        else if(second > 0) StartCoroutine(SecondBlast(r, AugmentDefs.BmSecond(second)));
+        // 2차 폭발 (무기 전용): 0.5초 뒤 한 번 더
+        int second = Guided ? 0 : AugmentManager.WL("bm_second");
+        if(second > 0) StartCoroutine(SecondBlast(r, AugmentDefs.BmSecond(second)));
 
         StartCoroutine(FinishAfter(ExplosionShowTime));
     }
 
-    // 반경 안의 적·더미에게 한 번씩
-    void Blast(float r, long damage)
+    // 반경 안의 적·더미에게 한 번씩. focus 가 맞았으면 true
+    bool Blast(float r, long damage, Enemy focus = null)
     {
         var done = new System.Collections.Generic.HashSet<GameObject>();
         bool any = false;
         foreach(var c in Physics2D.OverlapCircleAll(transform.position, r))
             if(c != null && c.gameObject != gameObject && done.Add(c.gameObject) && Hit(c.gameObject, damage, PlayerCritDamage)) any = true;
         if(any) AugmentManager.WeaponHitEvent(SideWeapon.Bomber);   // 종결 증강 게이지
+        return focus != null && done.Contains(focus.gameObject);
     }
 
     IEnumerator SecondBlast(float r, float mul)

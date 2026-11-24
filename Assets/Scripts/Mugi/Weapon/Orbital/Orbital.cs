@@ -68,6 +68,7 @@ public class Orbital : ContactWeapon
             int fast = AugmentManager.WL("ob_fast");
             if(fast > 0) t /= 1f + AugmentDefs.ObFast(fast);
             if(extraSpeed) t /= 1.3f;
+            t /= 1f + AugmentManager.Silver("ts_rapid");   // 실버 "드론 속사" (독안개 드론)
             t /= AugmentManager.AttackSpeedFactor;
             return Mathf.Max(0.12f, t);
         }
@@ -110,7 +111,7 @@ public class Orbital : ContactWeapon
         if(dir.sqrMagnitude < 0.0001f) return;
         dir.Normalize();
         // 드론 추가: 드론이 늘수록 한 대 피해가 줄어요 (2026-11-22 증강 하나씩 측정 → 조정안 v3 (탄 개수는 그대로, 피해만))
-        long dmg = ClampDamage(HitDamage * (double)Tuning.Get("drone_damage_mul", 1f) * AugmentDefs.ObShare(AugmentManager.WL("ob_extra")));
+        long dmg = ClampDamage(HitDamage * (double)Tuning.Get("drone_damage_mul", 1f) * AugmentDefs.ObShare(AugmentManager.WL("ob_extra")) * (1.0 + AugmentManager.Silver("ts_power")));   // 실버 "독 탄두" (독안개 드론)
         float speed = Tuning.Get("drone_bullet_speed", 7f);
         float critDmg = Player.instance.FinalCriticalDamage + ExtraCritDamage;
         DroneBullet.Spawn(from, dir, speed, dmg, RollCrit(ExtraCritChance), RollStun(StunPercent), critDmg, ToxSat);
@@ -292,7 +293,7 @@ public class DroneBullet : MonoBehaviour
     void Apply(Collider2D c)
     {
         if(c.TryGetComponent(out Enemy e)) {
-            e.OnHit(poison ? PoisonArea.StackBonus(e, damage) : damage, stun, crit, critDamage, Armor.Pen(TraitsData.WeaponType.CodeA));   // 독안개 드론: 독 중첩 보너스
+            e.OnHit(poison ? PoisonArea.StackBonus(e, damage) : damage, stun, crit, critDamage, Armor.Pen(TraitsData.WeaponType.CodeA), SideWeapon.Orbital);   // 독안개 드론: 독 중첩 보너스
             if(poison) Orbital.PoisonHit(e);   // 독안개 드론: 맞은 적 둔화 + 주변으로 독
             AugmentManager.WeaponHitEvent(SideWeapon.Orbital);   // 종결 증강 게이지
         } else if(c.TryGetComponent(out Dummy d)) {

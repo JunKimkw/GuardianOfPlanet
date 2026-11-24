@@ -949,7 +949,7 @@ public partial class AugmentManager
             long tickDmg = (long)Mathf.Max(1, PlayerAttack * 0.1f);
             foreach(var t in EnemiesInRadius(b.pos, b.radius)) {
                 Vector3 d = b.pos - t.transform.position;
-                float speed = t.IsBoss ? 0.4f : 3f;
+                float speed = t.IsBoss ? 0.4f * Mathf.Clamp01(Tuning.Get("blackhole_boss_pull", 0f) / 0.3f) : 3f;   // 2026-11-25: 보스는 안 끌려가요 (blackhole_boss_pull 0)
                 t.transform.position += Vector3.ClampMagnitude(d, speed * dt);
                 if(!t.IsBoss && Synergy(AugTag.Gravity, 8) && d.sqrMagnitude < 0.36f) { t.ForceKill(); continue; }
                 if(tick) HitEffect(t, tickDmg, 99);

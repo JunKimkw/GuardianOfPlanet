@@ -173,6 +173,7 @@ MonoBehaviour:
   ExploseRangeIncrease: 0
   ExtraAttackSpeedScale: 0
   ExploseDamagePercent: 0
+  escortSprite: {fileID: 21300000, guid: 1cb1d8b07041c4d4c8bcd65b1cce1052, type: 3}
 --- !u!114 &-2727158500487970628
 MonoBehaviour:
   m_ObjectHideFlags: 0

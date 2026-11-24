@@ -885,7 +885,8 @@ public class RemasterUI : MonoBehaviour
         // 한 번 누르면 증강 5단계(없음·일부·1레벨·중간·최대) × 6상황을 전부 차례로 (약 1시간 40분)
         Btn(p, "측정 전체\n증강 5단계 (1시간 40분)", mbtn, new Vector2(370, -617), BRed, () => { CloseAllModals(); mgr.DebugMeasure(7); }, 17);
         // 기록이 빠진 칸(제대로 잰 회차가 모자란 칸)만 다시 · 속도 비교 x1 vs x5 (2026-11-22)
-        Btn(p, "빈 칸만\n다시", new Vector2(176, 60), new Vector2(-376, -688), BYellow, () => { CloseAllModals(); mgr.DebugMeasure(8); }, 17);
+        // 합체 확인 (2026-11-23 사용자: 합체 확인 약 20분). 예전 "빈 칸만 다시"(mode 8) 자리
+        Btn(p, "합체 확인\n(tuning 회차)", new Vector2(176, 60), new Vector2(-376, -688), BYellow, () => { CloseAllModals(); mgr.DebugMeasure(18); }, 17);
         Btn(p, "속도 비교\n(약 7분)", new Vector2(176, 60), new Vector2(-188, -688), BBlue, () => { CloseAllModals(); mgr.DebugMeasure(9); }, 17);
         // 초반·후반 확인 (2026-11-22 사용자: 초반형·후반형 나누기): 증강 없음·셋 다 최대 × 3상황 × 2회
         Btn(p, "초반·후반 확인\n(약 50분)", new Vector2(176, 60), new Vector2(0, -688), BGreen, () => { CloseAllModals(); mgr.DebugMeasure(16); }, 16);
@@ -933,6 +934,7 @@ public class RemasterUI : MonoBehaviour
             if(fd.a != w && fd.b != w) continue;   // 양쪽 합체: B 무기 창에도 카드·합체 전용 증강·종결을 보여 줘요
             defs.Add(AugmentDefs.Get(fd.card));
             foreach(var id in fd.augs) defs.Add(AugmentDefs.Get(id));
+            foreach(var id in AugmentDefs.FusionSilvers[f]) defs.Add(AugmentDefs.Get(id));   // 합체 실버 증강 (2026-11-24)
             defs.Add(AugmentDefs.Get(AugmentDefs.UltIds[f]));   // 종결 증강
         }
 

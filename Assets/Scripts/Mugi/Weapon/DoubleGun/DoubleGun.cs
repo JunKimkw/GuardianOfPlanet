@@ -31,12 +31,13 @@ public class DoubleGun : GunWeapon
     public override float getAttackSpeed()
     {
         int l = AugmentManager.WL("dg_rapid");
-        return base.getAttackSpeed() / (l > 0 ? 1f + AugmentDefs.DgRapid(l) : 1f);
+        return base.getAttackSpeed() / (l > 0 ? 1f + AugmentDefs.DgRapid(l) : 1f) / (1f + AugmentManager.Silver("sd_rapid"));   // 실버 "연사 강화" (분열 쌍발)
     }
 
     protected override void Fire()
     {
         base.Fire();
+        for(int i = AugmentManager.WL("sd_extra"); i > 0; i--) CreateBullet();   // 실버 "추가 탄" (분열 쌍발, 2026-11-24 사용자: 피해%만 말고 추가탄 같은 실버도)
         if(doubleAttack) StartCoroutine(DelayedAttack());
     }
 

@@ -31,10 +31,10 @@ public class PoisonPlane : WeaponBase
 
     void Update()
     {
-        TimerAs += Time.deltaTime * AugmentManager.AttackSpeedFactor;   // 증강 공격속도(시간 가속·무거운 사슬·강철 장갑)만큼 빨리 차요 (2026-11-21 점검: 예전엔 안 먹었어요)
+        TimerAs += Time.deltaTime * AugmentManager.AttackSpeedFactor * (1f + AugmentManager.Silver("pb_reload"));   // 실버 "독탄 장전" (역병 폭탄)   // 증강 공격속도(시간 가속·무거운 사슬·강철 장갑)만큼 빨리 차요 (2026-11-21 점검: 예전엔 안 먹었어요)
         if(TimerAs >= 10 * (1 - Trait(TraitsData.TraitsType.AttackSpeed))) {
             TimerAs = 0;
-            long dmg = HitDamage;
+            long dmg = ClampDamage(HitDamage * (1.0 + AugmentManager.Silver("pb_power")));   // 실버 "맹독" (역병 폭탄)
             int pm = AugmentManager.WL("pb_more");   // 역병 살포: 독탄 +
             if(AugmentManager.Fused(AugmentDefs.FzPlague) && FireAimed((extraBullet ? 4 : 3) + (pm > 0 ? AugmentDefs.PbMore(pm) : 0), dmg)) return;   // 역병 폭탄: 적을 조준
             int spread = AugmentManager.WL("ps_spread");

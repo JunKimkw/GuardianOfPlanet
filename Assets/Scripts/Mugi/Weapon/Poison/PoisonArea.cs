@@ -62,7 +62,7 @@ public class PoisonArea : MonoBehaviour
         while(enemyOnPoison.Find(d => d.gameObject == enemy.gameObject) != null) {
             // 리마스터: 독 지대 피해 (증강 맹독·변이 배율, 전염 계열이면 독 상태)
             AugmentManager.CurrentHitKind = HitKind.PoisonArea;
-            try { enemy.OnHit(StackBonus(enemy, poisonDamage), false, PoisonPlane.instance.Poison_canCrit ? Random.Range(1, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage, Armor.Pen(TraitsData.WeaponType.Poison)); }
+            try { enemy.OnHit(StackBonus(enemy, poisonDamage), false, PoisonPlane.instance.Poison_canCrit ? Random.Range(1, 101) <= Player.instance.FinalCriticalChance : false, Player.instance.FinalCriticalDamage, Armor.Pen(TraitsData.WeaponType.Poison), SideWeapon.Poison); }
             finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
             if(slowAmount > 0f && enemy != null) enemy.AddSlow(slowAmount, 1f);   // 지대 위에 있는 동안 계속 느려요 (나오면 1초 뒤 풀려요)
             AugmentManager.WeaponHitEvent(SideWeapon.Poison);   // 종결 증강 게이지

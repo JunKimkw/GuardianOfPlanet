@@ -48,7 +48,7 @@ public class Bomber : GunWeapon
     {
         long dmg = HitDamage;
         if(AugmentManager.Fused(AugmentDefs.FzGuided)) {
-            GuidedVolley(dmg);
+            FocusVolley(ClampDamage(dmg * (1.0 + AugmentManager.Silver("gb_power"))));   // 실버 "폭약 증량"
             return;
         }
         Vector3 center = ClampToScreen(aimPoint);
@@ -67,50 +67,147 @@ public class Bomber : GunWeapon
         }
     }
 
-    // 합체 "유도 폭격": 폭탄이 적을 쫓아가요. 미사일 추가 / 폭격 편대면 여러 발
-    // 노리는 적 (2026-11-21 사용자 결정: "무리로 통일"): 폭탄마다 서로 다른 무리.
-    //  - 화면 안 적마다 반경 guided_crowd_radius(1칸) 안 적 수를 세서 많은 순(같으면 우주선에 가까운 순)으로,
-    //    이미 고른 무리와 guided_crowd_gap(1.5칸) 이상 떨어진 곳만 골라요 (폭발끼리 안 겹치게)
-    //  - 2마리 이상 모인 무리가 모자라면 남은 폭탄은 아직 안 고른 가까운 적에게. 적이 폭탄보다 적으면 같은 적에게 여러 발
-    void GuidedVolley(long dmg)
-    {
-        int count = 1;
-        int ml = AugmentManager.WL("gb_missile"), fl = AugmentManager.WL("gb_fleet");
-        if(ml > 0) count += AugmentDefs.GbMissile(ml);
-        if(fl > 0) count = Mathf.Max(count, AugmentDefs.GbFleet(fl));
-        var all = AugmentManager.NearestInRange(transform.position, 999);   // 화면 안, 가까운 순
-        if(all.Count == 0) { SpawnBomb(ClampToScreen(aimPoint), dmg); return; }
-        float cr = Tuning.Get("guided_crowd_radius", 1f), gap = Tuning.Get("guided_crowd_gap", 1.5f);
-        var scored = new List<(Enemy e, int n, int order)>();
-        for(int i = 0; i < all.Count; i++) {
-            int n = 0;
-            foreach(var o in all) if(((Vector2)(o.pos - all[i].pos)).sqrMagnitude <= cr * cr) n++;
-            scored.Add((all[i], n, i));
-        }
-        scored.Sort((x, y) => x.n != y.n ? y.n.CompareTo(x.n) : x.order.CompareTo(y.order));
-        var targets = new List<Enemy>();
-        foreach(var sc in scored) {
-            if(targets.Count >= count || sc.n < 2) break;
-            bool apart = true;
-            foreach(var t in targets) if(((Vector2)(t.pos - sc.e.pos)).sqrMagnitude < gap * gap) { apart = false; break; }
-            if(apart) targets.Add(sc.e);
-        }
-        foreach(var e in all) {   // 무리가 모자라면 가까운 적
-            if(targets.Count >= count) break;
-            if(!targets.Contains(e)) targets.Add(e);
-        }
-        for(int i = 0; i < count; i++) {
-            var e = targets[i % targets.Count];
-            SpawnBomb(ClampToScreen(e.pos), dmg, e);
+    // 합체 "집중 포화" (2026-11-24 사용자: 유도 폭격 → 보스 전용 새 무기 "집중 포화" (A안)):
+    //  1) 표적: 가장 강한 적 하나 (보스 먼저, 그다음 체력이 많은 순). 표적이 살아 있고 화면 안이면 계속 그 적만 노려요
+    //  2) 장전마다 유도 폭탄 1발(+ 집중 사격)이 표적을 쫓아가 터져요. 폭발 범위는 좁아요 (focus_radius_mul) → 무리에는 약해요
+    //  3) 같은 표적을 맞힐 때마다 쌓임 +1 → 피해 + focus_stack_per(5%) × 쌓임, 최대 focus_stack_max(20)번 (+ 집중 강화) = 최대 2배
+    //     표적이 바뀌면 처음부터 (실버 "조준 유지"면 일부 남겨요). 보스는 오래 살아서 끝까지 쌓이고, 졸개는 금방 죽어서 거의 안 쌓여요
+    //  4) 최후의 일격(R): 최대까지 쌓이면 표적에 거대 폭발 → 쌓임 절반으로
+    Enemy focusTarget;
+    int focusStacks;
+    public static int FocusMaxStacks {
+        get {
+            int l = AugmentManager.WL("fc_stack");
+            return Mathf.Max(1, Tuning.GetInt("focus_stack_max", 20) + (l > 0 ? AugmentDefs.FcStack(l) : 0));
         }
     }
+    public double FocusMul => 1.0 + Tuning.Get("focus_stack_per", 0.05f) * focusStacks;
+
+    static bool AliveInRange(Enemy e) => e != null && e._state != Enemy.EnemyState.dead && e.gameObject.activeInHierarchy && e.IsInRange;
+
+    void FocusVolley(long dmg)
+    {
+        if(!AliveInRange(focusTarget)) {
+            var next = AugmentManager.StrongestInRange();
+            if(next != focusTarget) {
+                float keep = AugmentManager.Silver("fc_keep") * Tuning.Get("focus_keep_mul", 1.5f);   // 실버 "조준 유지": 쌓임 일부를 남겨요
+                focusStacks = Mathf.FloorToInt(focusStacks * Mathf.Clamp01(keep));
+            }
+            focusTarget = next;
+        }
+        if(focusTarget == null) { SpawnBomb(ClampToScreen(aimPoint), dmg); return; }
+        LockOnMark.Place(focusTarget, 1.5f);   // 빨간 표적 표식
+        int count = 1;
+        int salvo = AugmentManager.WL("fc_salvo");
+        if(salvo > 0) count += AugmentDefs.FcSalvo(salvo);
+        long hit = ClampDamage(dmg * FocusMul * Tuning.Get("focus_damage_mul", 0.12f));   // 빨리 쏘는 만큼 1발 피해는 작게
+        for(int i = 0; i < count; i++) SpawnBomb(ClampToScreen(focusTarget.pos), hit, focusTarget);
+    }
+
+    // 폭탄이 표적을 맞혔을 때 (BomberBullet 이 불러요)
+    public void OnFocusHit(Enemy e)
+    {
+        if(e == null || e != focusTarget) return;
+        int max = FocusMaxStacks;
+        focusStacks = Mathf.Min(max, focusStacks + 1);
+        float k = focusStacks / (float)max;
+        RemasterFx.Ring(e.pos, Mathf.Lerp(0.4f, 1.1f, k), Color.Lerp(new Color(1f, 0.75f, 0.3f), new Color(1f, 0.15f, 0.15f), k), 0.2f);   // 쌓일수록 크고 빨갛게
+        int fin = AugmentManager.WL("fc_finale");
+        if(fin > 0 && focusStacks >= max) {   // 최후의 일격
+            long big = ClampDamage(HitDamage * FocusMul * Tuning.Get("focus_damage_mul", 0.12f) * AugmentDefs.FcFinale(fin));   // 지금 폭탄 1발(작아진 것) × 배율
+            RemasterFx.Ring(e.pos, 2.2f, Color.white, 0.35f);
+            RemasterFx.Burst(e.pos, 1.6f, new Color(1f, 0.4f, 0.2f));
+            AugmentManager.WeaponHit(e, big, RollCrit(), Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.Pen(TraitType), SideWeapon.Bomber);
+            focusStacks = max / 2;
+        }
+    }
+
+    // 집중 포화 상시 공격: 호위 폭격기 (2026-11-24 사용자: 집중 포화 상시 무기 = 호위 폭격기 (B안))
+    //  우주선 양옆에 작은 폭격기 escort_count(2)대(+ 실버 "호위기 추가")가 따라다니며, 가까운 적에게 소형 폭탄을 escort_interval 초마다 떨어뜨려요.
+    //  표적 폭격(보스)과 따로 가까운 적을 정리해요. 폭탄 1발 = 폭격기 1발 × escort_mul. 그림은 escortSprite (빨간 우주선, Bomber 프리팹에서 연결)
+    public Sprite escortSprite;
+    readonly System.Collections.Generic.List<Transform> escorts = new System.Collections.Generic.List<Transform>();
+    readonly System.Collections.Generic.List<float> escortTimers = new System.Collections.Generic.List<float>();
+
+    protected override void Update()
+    {
+        base.Update();
+        bool on = AugmentManager.Fused(AugmentDefs.FzGuided);
+        UpdateEscorts(on, on && IsShooting);
+    }
+
+    void OnDisable() => UpdateEscorts(false, false);
+
+    void UpdateEscorts(bool on, bool fire)
+    {
+        int want = on ? Mathf.Max(0, Tuning.GetInt("escort_count", 2)) + AugmentManager.WL("fc_escort") : 0;   // 실버 "호위기 추가"
+        while(escorts.Count > want) {
+            int i = escorts.Count - 1;
+            if(escorts[i] != null) Destroy(escorts[i].gameObject);
+            escorts.RemoveAt(i);
+            escortTimers.RemoveAt(i);
+        }
+        if(want == 0) return;
+        var wm = WeaponManager.instance;
+        Vector3 ship = wm != null && wm.mainWeapon != null ? wm.mainWeapon.transform.position : transform.position;
+        ship.z = 0f;
+        while(escorts.Count < want) {
+            var go = new GameObject("FocusEscort");
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = escortSprite;
+            sr.sortingLayerName = RemasterFx.FxLayer;
+            sr.sortingOrder = 5;
+            go.transform.localScale = Vector3.one * Tuning.Get("escort_size", 0.04f);
+            go.transform.position = ship;
+            escorts.Add(go.transform);
+            escortTimers.Add(Random.Range(0f, 0.3f));   // 같이 쏘지 않게 조금씩 어긋나게
+        }
+        float dt = Time.deltaTime;
+        float side = Tuning.Get("escort_side", 0.8f), back = Tuning.Get("escort_back", -0.25f);
+        float interval = Mathf.Max(0.05f, Tuning.Get("escort_interval", 0.9f));
+        for(int i = 0; i < escorts.Count; i++) {
+            var t = escorts[i];
+            if(t == null) continue;
+            t.localScale = Vector3.one * Tuning.Get("escort_size", 0.04f);   // tuning 을 바꾸면 플레이 중에도 바로
+            // 자리: 양옆으로 번갈아 (3대째부터는 조금 더 바깥·뒤), 살짝 떠다녀요
+            int rank = i / 2;
+            float sign = i % 2 == 0 ? -1f : 1f;
+            Vector3 home = ship + new Vector3(sign * side * (1f + 0.5f * rank), back - 0.25f * rank + 0.12f * Mathf.Sin(Time.time * 2.2f + i), 0f);
+            t.position = Vector3.Lerp(t.position, home, Mathf.Clamp01(8f * dt));
+            var near = AugmentManager.NearestInRange(t.position, 1);
+            Vector3 look = near.Count > 0 ? near[0].pos : t.position + Vector3.up;
+            Vector3 d = look - t.position;
+            if(d.sqrMagnitude > 0.0001f)
+                t.rotation = Quaternion.Slerp(t.rotation, Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg - 90f), Mathf.Clamp01(10f * dt));
+            if(!fire || near.Count == 0) continue;
+            escortTimers[i] += dt * AugmentManager.AttackSpeedFactor;
+            if(escortTimers[i] < interval) continue;
+            escortTimers[i] = 0f;
+            Vector3 from = t.position;
+            Vector3 to = near[0].pos;
+            to.z = 0f;
+            var bomb = TakeBullet<BomberBullet>(PoolObjectTypeBullet.Bomber, from, LookRotation(from, to));
+            bomb.transform.localScale *= Tuning.Get("escort_bomb_size", 0.55f);
+            bomb.gameObject.SetActive(true);
+            bomb.Launch(ClampDamage(HitDamage * (double)Tuning.Get("escort_mul", 0.08f) * (1.0 + AugmentManager.Silver("fc_escort_power"))), to, null, Tuning.Get("escort_bomb_size", 0.55f));
+        }
+    }
+
+    // 실버 "속사 폭격" (집중 포화)
+    // 집중 포화 (2026-11-24 사용자: "록온하고 폭격기 쏘는 게 너무 느려서 의미가 없어 보여"): 폭격기 장전(5초) × focus_reload_mul(0.12) ≈ 0.6초마다 퍼부어요
+    //  1발 피해는 focus_damage_mul(0.12)로 줄여서 초당 피해는 예전과 비슷하게 (쌓임은 약 12초면 최대)
+    public override float getAttackSpeed() => base.getAttackSpeed() / (1f + AugmentManager.Silver("gb_rapid"))
+                                              * (AugmentManager.Fused(AugmentDefs.FzGuided) ? Tuning.Get("focus_reload_mul", 0.12f) : 1f);
 
     void SpawnBomb(Vector3 target, long dmg, Enemy homing = null)
     {
         Vector3 from = ShootingPoint.position;
         var b = TakeBullet<BomberBullet>(PoolObjectTypeBullet.Bomber, from, LookRotation(from, target));
         b.gameObject.SetActive(true);
-        b.Launch(dmg, target, homing);
+        // 집중 포화 표적 폭탄은 크게 (focus_bomb_size, 호위기 폭탄보다 크게)
+        float size = AugmentManager.Fused(AugmentDefs.FzGuided) ? Tuning.Get("focus_bomb_size", 1f) : 1f;
+        if(size != 1f) b.transform.localScale *= size;
+        b.Launch(dmg, target, homing, size);
     }
 
     void Aim(Vector3 fallback)

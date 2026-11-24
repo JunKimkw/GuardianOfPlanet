@@ -206,7 +206,7 @@ public abstract class ContactWeapon : WeaponBase
         foreach(var e in enemyBuffer) {
             if(e == null || !Due(e, now)) continue;
             AugmentManager.CurrentHitKind = HitKind.Laser;   // 증강 "굴절"
-            try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, Armor.Pen(TraitType)); }
+            try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, Armor.Pen(TraitType), Side); }
             finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
         }
 
@@ -287,7 +287,7 @@ public abstract class ContactWeapon : WeaponBase
                 if(timers.TryGetValue(e, out float t) && now < t) continue;
                 timers[e] = now + HitInterval;
                 AugmentManager.CurrentHitKind = HitKind.Laser;
-                try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, Armor.Pen(TraitType)); }
+                try { e.OnHit(ClampDamage(HitDamage * ContactDamageMul), RollHitStun(), RollCrit(ExtraCritChance), Player.instance.FinalCriticalDamage + ExtraCritDamage, Armor.Pen(TraitType), Side); }
                 finally { AugmentManager.CurrentHitKind = HitKind.Weapon; }
                 hits++;
                 OnCircleHit(e, center);

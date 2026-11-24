@@ -79,9 +79,77 @@ public class strLazer : ContactWeapon
     void Update()
     {
         if(!shooting) return;
+        // 상시 공격 (2026-11-24 사용자: 블랙홀만 기다리면 적이 가까이 올 때 쓸모가 없어요)
+        if(AugmentManager.Fused(AugmentDefs.FzSingularity)) SingularityShots();
+        else if(AugmentManager.Fused(AugmentDefs.FzGravBomb)) GravBombBase();
         timer += Time.deltaTime;
         if(timer < Interval) return;
         if(Open()) timer = 0f;
+    }
+
+    float baseShotTimer;
+    static readonly Color SingShotColor = new Color(0.75f, 0.45f, 1f);
+
+    Vector3 ShipPos {
+        get {
+            var wm = WeaponManager.instance;
+            Vector3 p = wm != null && wm.mainWeapon != null ? wm.mainWeapon.transform.position : transform.position;
+            p.z = 0f;
+            return p;
+        }
+    }
+
+    // 특이점 저격 상시 사격: 가장 가까운 적에게 작은 저격탄을 빠르게 계속 (sing_shot_*). 저격탄이라 항상 치명타·보스 추가 피해
+    void SingularityShots()
+    {
+        baseShotTimer += Time.deltaTime * AugmentManager.AttackSpeedFactor;
+        if(baseShotTimer < Mathf.Max(0.05f, Tuning.Get("sing_shot_interval", 0.35f) / (1f + AugmentManager.Silver("sg_scope")))) return;   // 실버 "속사 조준경"
+        Vector3 from = ShipPos;
+        var near = AugmentManager.NearestInRange(from, 1 + AugmentManager.WL("sg_twin"));   // 실버 "연속 조준": 다음으로 가까운 적에게도 (2026-11-24 사용자: 피해%만 말고 추가탄 같은 실버도)
+        if(near.Count == 0) return;
+        baseShotTimer = 0f;
+        foreach(var e in near) SingShot(from, e);
+    }
+
+    void SingShot(Vector3 from, Enemy target)
+    {
+        var b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Sniper).GetComponent<SniperBullet>();
+        b.transform.position = from;
+        b.transform.rotation = LookRotation(from, target.pos);
+        b.isCritical = true;
+        b.isStunning = false;
+        // (2026-11-24 사용자: 더 길게 + 적 통과) 관통탄, 굵기 sing_shot_size · 길이 sing_shot_length 배
+        b.setBulletStats(ClampDamage(HitDamage * (double)Tuning.Get("sing_shot_mul", 0.5f) * (1.0 + AugmentManager.Silver("sg_power"))), true, ExtraCritDamage);
+        b.pierceLeft = 0;
+        Vector3 sc = b.transform.localScale;
+        b.transform.localScale = new Vector3(sc.x * Tuning.Get("sing_shot_size", 0.5f), sc.y * Tuning.Get("sing_shot_length", 1.4f), sc.z);
+        b.Tint(SingShotColor);   // 블랙홀 보라색 (기본 저격탄과 구분)
+        b.gameObject.SetActive(true);
+        RemasterFx.Burst(from, 0.25f, SingShotColor);   // 쏠 때 보라 불꽃
+    }
+
+    // 중력 폭탄 상시 공격: 일반 폭격기 폭탄을 가장 가까운 적에게 계속 (gravbomb_base_*)
+    void GravBombBase()
+    {
+        baseShotTimer += Time.deltaTime * AugmentManager.AttackSpeedFactor;
+        if(baseShotTimer < Mathf.Max(0.05f, Tuning.Get("gravbomb_base_interval", 0.8f) / (1f + AugmentManager.Silver("gv_support")))) return;   // 실버 "폭격 지원"
+        Vector3 from = ShipPos;
+        var near = AugmentManager.NearestInRange(from, 1 + AugmentManager.WL("gv_cluster"));   // 실버 "집속 폭격": 다음으로 가까운 적에게도 (2026-11-24 사용자: 피해%만 말고 추가탄 같은 실버도)
+        if(near.Count == 0) return;
+        baseShotTimer = 0f;
+        foreach(var e in near) BaseBomb(from, e.pos);
+    }
+
+    void BaseBomb(Vector3 from, Vector3 to)
+    {
+        to.z = 0f;
+        var b = ObjectPoolBullet.Instance.GetPoolObject(PoolObjectTypeBullet.Bomber).GetComponent<BomberBullet>();
+        b.transform.position = from;
+        b.transform.rotation = LookRotation(from, to);
+        b.isCritical = RollCrit(ExtraCritChance);
+        b.isStunning = false;
+        b.gameObject.SetActive(true);
+        b.Launch(ClampDamage(HitDamage * (double)Tuning.Get("gravbomb_base_mul", 0.4f) * (1.0 + AugmentManager.Silver("gv_power"))), to);
     }
 
     // 화면 안에서 적이 가장 많이 모인 곳에 열어요. 적이 없으면 false (다음 프레임에 다시)
@@ -298,9 +366,11 @@ public class BlackHole : MonoBehaviour
     // 끌려가는 동안엔 우주선에 닿아도 피해를 안 줘요 (Enemy.gravityUntil). 보스는 blackhole_boss_pull 만큼만 끌려와요
     public static void PullToSlots(Vector3 c, List<Enemy> enemies, float hold, float pull, float age, float dt)
     {
-        float bossPull = Tuning.Get("blackhole_boss_pull", 0.3f);
+        // 2026-11-25 사용자: "보스가 왜 아직도 밀려나가" → 보스는 넉백처럼 끌어당기기에도 안 움직여요 (예전 0.3)
+        float bossPull = Tuning.Get("blackhole_boss_pull", 0f);
         foreach(var e in enemies) {
             if(e == null || e._state == Enemy.EnemyState.dead) continue;
+            if(e.IsBoss && bossPull <= 0f) continue;
             Vector3 p = e.transform.position;
             float k = e.IsBoss ? bossPull : 1f;
             int id = e.GetInstanceID() & 0x7fffffff;
@@ -395,7 +465,7 @@ public class BlackHole : MonoBehaviour
         if(e == null || e._state == Enemy.EnemyState.dead) return;
         bool crit = forceCrit || Random.Range(1, 101) <= Player.instance.FinalCriticalChance + owner.ExtraCritChance;
         AugmentManager.WeaponHit(e, dmg, crit, Player.instance.FinalCriticalDamage + owner.ExtraCritDamage, HitKind.Weapon,
-                                 pen >= 0f ? pen : Armor.Pen(TraitsData.WeaponType.StrLaser));
+                                 pen >= 0f ? pen : Armor.Pen(TraitsData.WeaponType.StrLaser), SideWeapon.StrLaser);
         AugmentManager.WeaponHitEvent(SideWeapon.StrLaser);   // 합체 종결 증강 게이지
     }
 
@@ -403,7 +473,10 @@ public class BlackHole : MonoBehaviour
     void Collapse()
     {
         Vector3 c = transform.position;
-        int gathered = AugmentManager.EnemiesNear(c, radius).Count;   // 모인 적 수 (많을수록 세져요)
+        var near = AugmentManager.EnemiesNear(c, radius);
+        int gathered = near.Count;   // 모인 적 수 (많을수록 세져요)
+        // (2026-11-23 사용자: 합체는 거의 종결 무기라 어떤 상황에서도 쓸 만하게 (상황별 차이 줄이기)) 보스는 모인 적 fusion_boss_gather(6)마리로 셈 (예전엔 보스 혼자면 보너스가 거의 없었어요)
+        if(near.Exists(e => e != null && e.IsBoss)) gathered += Mathf.Max(0, Tuning.GetInt("fusion_boss_gather", 6) - 1);
         if(AugmentManager.Fused(AugmentDefs.FzSingularity)) Snipe(c, gathered);
         else if(AugmentManager.Fused(AugmentDefs.FzGravBomb)) GravBombFx.Drop(owner, c, radius, gathered);
         else {
@@ -515,7 +588,7 @@ public class GravBombFx : MonoBehaviour
         dir = dir.sqrMagnitude < 0.0001f ? Vector3.up : dir.normalized;
         var hitList = AugmentManager.EnemiesNear(c, r).FindAll(e => e != null && e._state != Enemy.EnemyState.dead && e.gameObject.activeInHierarchy);
         if(hitList.Count > 0)
-            new GameObject("GravBombPush").AddComponent<MeteorScatter>().Run(c - dir * Tuning.Get("singularity_fan_back", 0.5f), hitList, Tuning.Get("gravbomb_push", 2f), 0.25f, -dir, 0.3f);
+            new GameObject("GravBombPush").AddComponent<MeteorScatter>().Run(c - dir * Tuning.Get("singularity_fan_back", 0.5f), hitList, Tuning.Get("gravbomb_push", 0.8f), 0.25f, -dir, 0.3f);   // 2026-11-24 사용자: 덜 밀리게 (예전 2, 종결은 그대로 2)
         Destroy(go);
     }
 
@@ -525,7 +598,7 @@ public class GravBombFx : MonoBehaviour
         foreach(var e in AugmentManager.EnemiesNear(p, r)) {
             if(e == null || e._state == Enemy.EnemyState.dead) continue;
             AugmentManager.WeaponHit(e, dmg, Random.Range(1, 101) <= Player.instance.FinalCriticalChance + owner.ExtraCritChance,
-                                     Player.instance.FinalCriticalDamage + owner.ExtraCritDamage, HitKind.Weapon, Armor.Pen(TraitsData.WeaponType.Bomber));   // 중력 폭탄 = 폭격기 관통력
+                                     Player.instance.FinalCriticalDamage + owner.ExtraCritDamage, HitKind.Weapon, Armor.Pen(TraitsData.WeaponType.Bomber), SideWeapon.StrLaser);   // 중력 폭탄 = 폭격기 관통력
             AugmentManager.WeaponHitEvent(SideWeapon.StrLaser);
         }
     }

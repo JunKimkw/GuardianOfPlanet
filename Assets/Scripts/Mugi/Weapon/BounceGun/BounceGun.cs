@@ -23,6 +23,9 @@ public class BounceGun : GunWeapon
 
     void Awake() => instance = this;
 
+    // 실버 "혜성 장전" (혜성탄, 2026-11-24 사용자: 합체마다 어울리는 실버를 더 (개수는 달라도 됨))
+    public override float getAttackSpeed() => base.getAttackSpeed() / (1f + AugmentManager.Silver("cm_rapid"));
+
     public override void SetDamage() =>
         Damage = Balanced("bounce", 25f);
 

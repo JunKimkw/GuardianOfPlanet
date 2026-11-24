@@ -61,7 +61,7 @@ public partial class AugmentManager
         ultBusy[f] = true;
         if(f != AugmentDefs.FzImpact)   // 2026-11-21 사용자: 소행성 충돌은 발동 문구를 띄우지 않아요
             ui.Toast($"{(lucky ? "대박! " : "")}종결: {AugmentDefs.UltNames[f]}", AugmentDefs.GradeColor(AugGrade.Prism), true);
-        UltimateFx.Play(f, weapon.HitDamage, () => ultBusy[f] = false);
+        UltimateFx.Play(f, WeaponBase.ClampDamage(weapon.HitDamage * (double)AugmentDefs.UltScale(f)), () => ultBusy[f] = false);   // 종결 배율 (2026-11-25 사용자: 종결도 분류 점수대로 (A))
     }
 
     // 개발용: 지금 싸우는 합체 무기 (연습장에서 고른 것, 아니면 출격 중인 합체 무기 중 처음 것). 없으면 -1
@@ -113,6 +113,7 @@ public class UltimateFx : MonoBehaviour
 
     IEnumerator Run(int f, long dmg, System.Action done)
     {
+        curUlt = f;   // 보스 배율 (두 종결이 겹치면 나중 것 기준이에요)
         IEnumerator body;
         switch(f) {
             case AugmentDefs.FzGuided: body = CarpetRaid(dmg); break;
@@ -135,6 +136,14 @@ public class UltimateFx : MonoBehaviour
     }
 
     // ---- 공통
+    // 종결 보스 배율 (2026-11-25 사용자: 종결도 분류 점수대로 (A)): 종결이 보스를 때릴 때만 곱해요 (처형은 일반 적만이라 빼요)
+    static int curUlt = -1;
+    static void UltHit(Enemy e, long dmg, bool crit, float critDamage, HitKind kind, float pen)
+    {
+        if(e != null && e.IsBoss && curUlt >= 0) dmg = WeaponBase.ClampDamage(dmg * (double)AugmentDefs.UltBossMul(curUlt));
+        AugmentManager.WeaponHit(e, dmg, crit, critDamage, kind, pen);
+    }
+
     static float HalfW => GameManager.instance.mainCamera.orthographicSize * GameManager.instance.mainCamera.aspect;
     static float HalfH => GameManager.instance.mainCamera.orthographicSize;
     static Vector3 Ship => WeaponManager.instance != null && WeaponManager.instance.mainWeapon != null ? WeaponManager.instance.mainWeapon.transform.position : Vector3.zero;
@@ -144,7 +153,7 @@ public class UltimateFx : MonoBehaviour
     static void Hit(Enemy e, long dmg)
     {
         bool crit = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
-        AugmentManager.WeaponHit(e, dmg, crit, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
+        UltHit(e, dmg, crit, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
     }
 
     static void Boom(Vector3 p, float r, long dmg, Color c)
@@ -284,14 +293,20 @@ public class UltimateFx : MonoBehaviour
     //  적마다 1~2발 (가까운 적부터 차례로 나눠요). 목표가 먼저 죽으면 가까운 적으로 다시 꺾어요. 숫자 ult_guided_*
     class Missile { public GameObject root; public SpriteRenderer head; public Vector3 pos, vel; public Enemy target; public float age; }
 
+    //  (2026-11-24 사용자: 집중 포화도 상시 무기 + 종결은 가장 강한 적 하나에 폭탄 집중) 집중 포화 종결: 화면에서 가장 강한 적 하나(보스 먼저)에 표적을 찍고, 유도 폭탄 ult_focus_count 발이 사방으로 퍼졌다가
+    //  모두 그 적에게 꽂혀요 (표적이 먼저 죽으면 다음으로 강한 적). 다 꽂히면 표적 자리에 거대 폭발 (× ult_focus_final_mul)
     IEnumerator CarpetRaid(long dmg)
     {
         Vector3 o0 = Ship;
-        var targets = AugmentManager.NearestInRange(o0, 999);
-        if(targets.Count == 0) yield break;
-        int n = Mathf.Clamp(targets.Count * 2, Mathf.RoundToInt(M("ult_guided_min", 24f)), Mathf.RoundToInt(M("ult_guided_max", 60f)));
+        var focus = AugmentManager.StrongestInRange();
+        if(focus == null) yield break;
+        var targets = new List<Enemy> { focus };
+        LockOnMark.Place(focus, 4f);
+        RemasterFx.Ring(focus.transform.position, 1.6f, new Color(1f, 0.2f, 0.2f), 0.4f);
+        int n = Mathf.Max(1, Mathf.RoundToInt(M("ult_focus_count", 30f)));
         float launch = M("ult_guided_launch", 0.6f);
-        long hit = Mul(dmg, M("ult_guided_mul", 1.2f));
+        long hit = Mul(dmg, M("ult_focus_mul", 1.2f));
+        Vector3 lastAt = focus.transform.position;
         var fire = new Color(1f, 0.55f, 0.2f);
         var ms = new List<Missile>();
         int fired = 0;
@@ -310,10 +325,8 @@ public class UltimateFx : MonoBehaviour
             for(int i = ms.Count - 1; i >= 0; i--) {
                 var m = ms[i];
                 m.age += dt;
-                if(!Alive(m.target)) {
-                    var nn = AugmentManager.NearestInRange(m.pos, 1);
-                    m.target = nn.Count > 0 ? nn[0] : null;
-                }
+                if(!Alive(m.target)) m.target = Alive(focus) ? focus : (focus = AugmentManager.StrongestInRange());   // 표적이 죽으면 다음으로 강한 적
+                if(m.target != null) lastAt = m.target.transform.position;
                 Vector3 goal = m.target != null ? m.target.transform.position : m.pos + m.vel;
                 goal.z = 0f;
                 // 처음 0.2초는 퍼져 나가고, 그다음 점점 세게 꺾으며 빨라져요
@@ -324,14 +337,21 @@ public class UltimateFx : MonoBehaviour
                 m.root.transform.position = m.pos;
                 m.head.transform.Rotate(0f, 0f, 900f * dt);
                 if((m.target != null && (goal - m.pos).magnitude <= 0.3f) || m.age > 2.5f) {
-                    Impact(m.pos, 0.9f, hit, fire);
-                    RemasterFx.Spark(m.pos, 0.9f, new Color(1f, 0.85f, 0.35f));
+                    Impact(m.pos, 0.6f, hit, fire);   // 좁은 폭발 (집중 포화)
+                    RemasterFx.Spark(m.pos, 0.6f, new Color(1f, 0.85f, 0.35f));
                     EndProjectile(m.root, m.head);
                     ms.RemoveAt(i);
                 }
             }
             yield return null;
         }
+        // 마무리: 표적 자리에 거대 폭발
+        Vector3 end = Alive(focus) ? focus.transform.position : lastAt;
+        end.z = 0f;
+        yield return new WaitForSeconds(0.15f);
+        RemasterFx.Ring(end, 2.4f, Color.white, 0.35f);
+        Impact(end, 1.4f, Mul(dmg, M("ult_focus_final_mul", 6f)), new Color(1f, 0.35f, 0.15f));
+        if(focus != null) LockOnMark.Release(focus);
     }
 
     // 1 궤도 포격 (2026-11-21 두 번째: "다른 종결보다 위력이 너무 약해") 궤도 일제 사격
@@ -593,7 +613,7 @@ public class UltimateFx : MonoBehaviour
                 if(!once.Add(e)) break;
                 pierced.Add(e);
                 RemasterFx.Burst(e.transform.position, 0.5f, gold);
-                AugmentManager.WeaponHit(e, SniperBullet.BossBonus(e, hit), true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
+                UltHit(e, SniperBullet.BossBonus(e, hit), true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
                 break;
             }
         }
@@ -690,7 +710,7 @@ public class UltimateFx : MonoBehaviour
             if(along <= 0f || (d - dir * along).magnitude > width * 0.5f + 0.25f) continue;
             pierced.Add(e);
             RemasterFx.Burst(e.transform.position, 0.45f, Color.white);
-            AugmentManager.WeaponHit(e, SniperBullet.BossBonus(e, hit), true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);   // 레일건처럼 모두 치명타, 보스 추가 피해
+            UltHit(e, SniperBullet.BossBonus(e, hit), true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);   // 레일건처럼 모두 치명타, 보스 추가 피해
         }
         for(float t = 0f; t < 0.35f; t += Time.deltaTime) {
             float k = 1f - t / 0.35f;
@@ -1358,7 +1378,7 @@ public class UltimateFx : MonoBehaviour
         RemasterFx.Ring(c, R, new Color(0.75f, 0.4f, 1f), 0.35f);
         var shot = AugmentManager.EnemiesNear(c, R);
         foreach(var e in shot)
-            AugmentManager.WeaponHit(e, hit, true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
+            UltHit(e, hit, true, Player.instance.FinalCriticalDamage, HitKind.Weapon, Armor.UltPen);
         Destroy(hole);
         // 2026-11-22 사용자: 저격에 맞은 적이 우주선 반대쪽으로 부채꼴로 퍼지며 ult_singularity_push 칸 밀려요 (특이점 저격 무기와 같은 방식, 무기는 2칸)
         //  밀어내는 중심을 구멍보다 singularity_fan_back 칸 뒤(우주선 쪽)에 둬요. 우주선 쪽으로 가는 적은 반대로 꺾어요
@@ -1419,6 +1439,13 @@ public class UltimateFx : MonoBehaviour
         long hit = Mul(dmg, M("ult_gravbomb_mul", 4f));
         var orange = new Color(1f, 0.6f, 0.2f);
         Boom(c, w * 0.8f, hit, orange);
+        // 2026-11-24 사용자: 종결은 모였다 터질 때 중력 폭탄 예전만큼(ult_gravbomb_push 칸) 우주선 반대쪽으로 부채꼴로 밀려요
+        Vector3 pdir = c - Ship;
+        pdir.z = 0f;
+        pdir = pdir.sqrMagnitude < 0.0001f ? Vector3.up : pdir.normalized;
+        var pushed = AugmentManager.EnemiesNear(c, w * 0.8f).FindAll(e => e != null && e._state != Enemy.EnemyState.dead && e.gameObject.activeInHierarchy);
+        if(pushed.Count > 0)
+            new GameObject("UltGravPush").AddComponent<MeteorScatter>().Run(c - pdir * Tuning.Get("singularity_fan_back", 0.5f), pushed, M("ult_gravbomb_push", 2f), 0.25f, -pdir, 0.3f);
         for(int i = 0; i < 6; i++) {
             yield return new WaitForSeconds(0.12f);
             float a = i * 60f * Mathf.Deg2Rad;
@@ -1818,7 +1845,7 @@ public class UltimateFx : MonoBehaviour
             if(!zodiac && !Under(e.transform.position, pts, shape.paths, band, starR)) continue;
             RemasterFx.Burst(e.transform.position, 0.45f, gold);
             bool crit = Random.Range(1, 101) <= Player.instance.FinalCriticalChance;
-            AugmentManager.WeaponHit(e, hit, crit, Player.instance.FinalCriticalDamage, HitKind.Weapon, pen);
+            UltHit(e, hit, crit, Player.instance.FinalCriticalDamage, HitKind.Weapon, pen);
             if(weaponGauge) AugmentManager.WeaponHitEvent(SideWeapon.BounceGun);
         }
 

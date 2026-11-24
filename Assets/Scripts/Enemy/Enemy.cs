@@ -237,7 +237,7 @@ public partial class Enemy : MonoBehaviour
         EnemyManager.EnemyReached(this);
     }
     // armorPen: 방어 관통력 0~1 (Armor.Pen(무기), Armor.EffectPen, Armor.UltPen). 1 이면 방어 무시
-    public void OnHit(long DealtDamage, bool Stunned, bool Critical, float CritDamage, float armorPen = 0f)
+    public void OnHit(long DealtDamage, bool Stunned, bool Critical, float CritDamage, float armorPen = 0f, SideWeapon src = SideWeapon.None)
     {
         // 이미 죽었거나(사라지는 중) 비활성인 적은 무시 (비활성 오브젝트에서 코루틴 시작 오류 방지)
         if(_state == EnemyState.dead || !gameObject.activeInHierarchy)
@@ -254,6 +254,8 @@ public partial class Enemy : MonoBehaviour
         // 환생 트리 "보스 사냥꾼"
         if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && aug != null)
             baseDamage = (long)(baseDamage * (double)aug.BossDamageMul);
+        // 합체 보스 추가 피해 (2026-11-24 사용자: 합체 보스 추가 피해 배율): 합체 무기가 보스를 때릴 때만
+        if(src != SideWeapon.None && IsBoss) { double fb = AugmentManager.FusionBossMul(src); if(fb != 1.0) baseDamage = WeaponBase.ClampDamage(baseDamage * fb); }
         // 방어력 (2026-11-20): 치명타·배율을 다 곱한 뒤에 깎아요 → 큰 한 방일수록 덜 깎여요. 최소 1
         if(Armor > 0 && baseDamage > 0)
             baseDamage = System.Math.Max(1L, (long)global::Armor.Apply(baseDamage, Armor, armorPen));
@@ -280,7 +282,7 @@ public partial class Enemy : MonoBehaviour
         if(_typeofEnemy == typeofEnemy.InfiniteStage || _typeofEnemy == typeofEnemy.InfiniteStageBoss)
             OfflineProgress.RecordDamage(System.Math.Min(totalDamage, CurrentHealth) / NumberScale);
         // 개발용: 무기별 DPS 기록 (테스트 모드에선 체력이 다시 차니까 피해 전부)
-        DevTools.RecordHit((AugmentManager.DebugNoDeath ? totalDamage : System.Math.Min(totalDamage, CurrentHealth)) / NumberScale);
+        DevTools.RecordHit((AugmentManager.DebugNoDeath ? totalDamage : System.Math.Min(totalDamage, CurrentHealth)) / NumberScale, IsBoss);
 
         // 처형: 남을 체력이 기준 이하면 바로 처치
         if(aug != null && !AugmentManager.DebugNoDeath && CurrentHealth - totalDamage > 0 && aug.ShouldExecute(this, CurrentHealth - totalDamage))

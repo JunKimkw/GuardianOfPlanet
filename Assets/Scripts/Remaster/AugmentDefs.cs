@@ -210,6 +210,118 @@ public static class AugmentDefs
     public static float CmImpact(int L) => Lin(L, 0.4f, 0.2f);               // 혜성탄 혜성 충돌 (R ★3): 1발 × 이 값 × (1 + 0.1 × 튕긴 수)
 
     // 합체 무기 전용
+    // 합체 증강 피해 배율 (2026-11-23 사용자: 합체 증강 최대 250k~400k 로): 합체 전용 증강 레벨 합 ÷ 최대 레벨 합 만큼 1 → 이 값으로. 셋 다 최대면 그대로 곱해요. 탄 개수는 그대로
+    //  측정 "합체 확인"(11-23)의 합체 증강 최대를 250k~400k 에 맞춘 값. tuning fz_aug_mul_<카드 id>
+    public static readonly System.Collections.Generic.Dictionary<string, float> FusionAugMulDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "fz_guided", 0.59f },   // 집중 포화 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_satlaser", 2.96f },   // 위성 레이저 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_railgun", 2.7f },   // 레일건 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_plague", 0.9f },   // 역병 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_splitdbl", 0.17f },   // 분열 쌍발 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_micro", 0.7f },   // 마이크로 미사일 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_toxsat", 1.3f },   // 독안개 드론 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_starlight", 1.18f },   // 별빛 섬광 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_singularity", 5.32f },   // 특이점 저격 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_gravbomb", 1.01f },   // 중력 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_constellation", 1.62f },   // 혜성탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_brand", 3.86f },   // 운석 낙인 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_impact", 3.11f },   // 대충돌 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+    };
+    // 합체 기본 피해 배율 (2026-11-24 사용자: 합체만(증강 없음)일 때 무리 + 보스 합이 비슷하게). tuning fz_base_mul_<카드 id>
+    //  합체 증강 없을 때부터 곱해요. 합체 증강 최대(무리)는 그대로 두려고 fz_aug_mul 을 이만큼 나눠 뒀어요
+    public static readonly System.Collections.Generic.Dictionary<string, float> FusionBaseMulDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "fz_splitdbl", 1.43f },   // 분열 쌍발 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_railgun", 0.38f },   // 레일건 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_brand", 0.68f },   // 운석 낙인 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_gravbomb", 1.41f },   // 중력 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_satlaser", 0.36f },   // 위성 레이저 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_constellation", 0.67f },   // 혜성탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_starlight", 0.94f },   // 별빛 섬광 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_plague", 2.96f },   // 역병 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_singularity", 0.57f },   // 특이점 저격 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_impact", 1.23f },   // 대충돌 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_toxsat", 2.75f },   // 독안개 드론 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_guided", 0.73f },   // 집중 포화 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_micro", 2.23f },   // 마이크로 미사일 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+    };
+    // 종결 배율·종결 보스 배율 (2026-11-25 사용자: 종결도 분류 점수대로 (A)). tuning ult_scale_<카드 id>, ult_boss_mul_<카드 id> (기본 1, 종결만 측정 뒤에 맞춰요)
+    //  (2026-11-25 종결만 측정(3분, 무기 멈춤) + 사용자 분류 점수 (6점 무리 = 1.5M, 보스 1점 = 무리 1점 × 0.55))
+    //  보스 배율은 종결이 직접 때리는 피해에만 붙어요. 무기 탄을 빌려 쓰는 종결(역병·분열·마이크로·운석 낙인)은 보스 피해도 종결 배율로만
+    public static readonly System.Collections.Generic.Dictionary<string, float> UltScaleDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "fz_guided", 1.83f },   // 집중 포화
+        { "fz_satlaser", 1.37f },   // 위성 레이저
+        { "fz_railgun", 0.2f },   // 레일건
+        { "fz_plague", 2.6f },   // 역병 폭탄
+        { "fz_splitdbl", 8.5f },   // 분열 쌍발
+        { "fz_micro", 1.95f },   // 마이크로 미사일
+        { "fz_toxsat", 3.19f },   // 독안개 드론
+        { "fz_starlight", 4.52f },   // 별빛 섬광
+        { "fz_singularity", 2.1f },   // 특이점 저격
+        { "fz_gravbomb", 8.34f },   // 중력 폭탄
+        { "fz_constellation", 1.26f },   // 혜성탄
+        { "fz_brand", 8.57f },   // 운석 낙인
+        { "fz_impact", 1.99f },   // 대충돌
+    };
+    public static readonly System.Collections.Generic.Dictionary<string, float> UltBossMulDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "fz_guided", 1.67f },   // 집중 포화
+        { "fz_satlaser", 31.3f },   // 위성 레이저
+        { "fz_railgun", 16.9f },   // 레일건
+        { "fz_plague", 0.84f },   // 역병 폭탄 (보스 배율 자리를 거의 안 거쳐요)
+        { "fz_splitdbl", 2.66f },   // 분열 쌍발 (보스 배율 자리를 거의 안 거쳐요)
+        { "fz_micro", 2.59f },   // 마이크로 미사일 (보스 배율 자리를 거의 안 거쳐요)
+        { "fz_toxsat", 6.54f },   // 독안개 드론
+        { "fz_starlight", 4f },   // 별빛 섬광
+        { "fz_singularity", 12.87f },   // 특이점 저격
+        { "fz_gravbomb", 6.21f },   // 중력 폭탄
+        { "fz_constellation", 11.86f },   // 혜성탄
+        { "fz_brand", 1.95f },   // 운석 낙인 (보스 배율 자리를 거의 안 거쳐요)
+        { "fz_impact", 3.77f },   // 대충돌
+    };
+    public static float UltScale(int f) => Tuning.Get("ult_scale_" + Fusions[f].card, UltScaleDefaults.TryGetValue(Fusions[f].card, out float v) ? v : 1f);
+    public static float UltBossMul(int f) => Tuning.Get("ult_boss_mul_" + Fusions[f].card, UltBossMulDefaults.TryGetValue(Fusions[f].card, out float v) ? v : 1f);
+    public static float FusionBaseMul(FusionDef f) => Tuning.Get("fz_base_mul_" + f.card, FusionBaseMulDefaults.TryGetValue(f.card, out float v) ? v : 1f);
+    public static float FusionAugMul(FusionDef f) =>Tuning.Get("fz_aug_mul_" + f.card, FusionAugMulDefaults.TryGetValue(f.card, out float v) ? v : 1f);
+    // 합체 보스 추가 피해 배율 (2026-11-24 사용자: 합체 보스 추가 피해 배율): 합체 무기가 보스를 때릴 때만 곱해요 (무리 상대 피해·탄 개수는 그대로). tuning fz_boss_mul_<카드 id>
+    //  (2026-11-24 사용자: 합체만(합체 증강 없음) 기준, 보스 피해 = 자기 무리 피해의 약 절반) 측정 "합체 확인"(11-24 03:03) 합체만 값으로 정했어요. 증강 최대는 아직 안 맞췄어요
+    public static readonly System.Collections.Generic.Dictionary<string, float> FusionBossMulDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "fz_micro", 0.2f },   // 마이크로 미사일 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_brand", 1.53f },   // 운석 낙인 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_guided", 1.35f },   // 집중 포화 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_railgun", 1.94f },   // 레일건 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_satlaser", 8.99f },   // 위성 레이저 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_plague", 0.23f },   // 역병 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_toxsat", 0.2f },   // 독안개 드론 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_singularity", 3.37f },   // 특이점 저격 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_impact", 1.6f },   // 대충돌 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_starlight", 2.28f },   // 별빛 섬광 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_constellation", 4.03f },   // 혜성탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_splitdbl", 0.2f },   // 분열 쌍발 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_gravbomb", 0.88f },   // 중력 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+    };
+    // 합체 증강 최대일 때 보스 배율 (2026-11-25 측정(tools/fusion_balance_measured.js): 사용자 분류 + 증강 최대 예전 목표 × 실버 1.4). 합체 증강 레벨만큼 fz_boss_mul → fz_boss_mul_max (합체만과 증강 최대의 보스 비율을 따로 맞추려고)
+    public static readonly System.Collections.Generic.Dictionary<string, float> FusionBossMulMaxDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "fz_guided", 0.75f },   // 집중 포화 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_satlaser", 3.23f },   // 위성 레이저 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_railgun", 1.79f },   // 레일건 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_plague", 0.25f },   // 역병 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_splitdbl", 2.62f },   // 분열 쌍발 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_micro", 0.2f },   // 마이크로 미사일 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_toxsat", 0.76f },   // 독안개 드론 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_starlight", 2.92f },   // 별빛 섬광 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_singularity", 2.17f },   // 특이점 저격 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_gravbomb", 4.4f },   // 중력 폭탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_constellation", 4.06f },   // 혜성탄 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_brand", 1.29f },   // 운석 낙인 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+        { "fz_impact", 1.5f },   // 대충돌 (2026-11-25 측정 + 사용자 분류 점수 (무리 전용 8:2 … 보스 전용 3:8), 증강 최대 6점 무리 770k)
+    };
+    public static float FusionBossMulMax(FusionDef f) => Tuning.Get("fz_boss_mul_max_" + f.card, FusionBossMulMaxDefaults.TryGetValue(f.card, out float v) ? v : FusionBossMul(f));
+    public static float FusionBossMul(FusionDef f) => Tuning.Get("fz_boss_mul_" + f.card, FusionBossMulDefaults.TryGetValue(f.card, out float v) ? v : 1f);
+    public static SideWeapon SideOf(TraitsData.WeaponType t) => t switch {
+        TraitsData.WeaponType.DoubleGun => SideWeapon.DoubleGun, TraitsData.WeaponType.TrackingMissile => SideWeapon.TrackingGun,
+        TraitsData.WeaponType.SniperGun => SideWeapon.Sniper, TraitsData.WeaponType.Bomber => SideWeapon.Bomber,
+        TraitsData.WeaponType.BounceGun => SideWeapon.BounceGun, TraitsData.WeaponType.Poison => SideWeapon.Poison,
+        TraitsData.WeaponType.CircleLaser => SideWeapon.Lazer, TraitsData.WeaponType.StrLaser => SideWeapon.StrLaser,
+        TraitsData.WeaponType.CodeA => SideWeapon.Orbital, TraitsData.WeaponType.Meteor => SideWeapon.Meteor, _ => SideWeapon.None };
     public const float FusionPower = 3f, FusionPowerFull = 5f;               // 합체 직후 A의 3배, 전용 증강 3개를 다 모으면 5배
     public static float GbDouble(int L) => Lin(L, 1.0f, 0.2f);
     public static int GbMissile(int L) => 2 + (L - 1) / 2;
@@ -220,6 +332,46 @@ public static class AugmentDefs
     public static float RgCharge(int L) => Lin(L, 0.25f, 0.05f);
     public static float RgBlast(int L) => Lin(L, 0.30f, 0.10f);
     public static int RgMegaEvery(int L) => 5 - L;
+    // 증강별 피해 보정 (2026-11-25 사용자: 효과가 거의 없는 증강은 '약함'(골드 ×1.8·실버 ×1.3), 너무 센 증강은 '셈'(골드 ×3·실버 ×1.6) 으로). tuning aug_adj_<id>
+    //  그 증강을 가지면 합체 무기 피해 × Lerp(1, 이 값, 레벨/최대). 탄 개수 같은 효과는 그대로 두고 피해만 (사용자 규칙)
+    //  측정 "합체 확인" 11-24 05:09 증강 하나씩 (무리 3상황 평균, 합체만 대비 배수)
+    public static readonly System.Collections.Generic.Dictionary<string, float> AugAdjDefaults = new System.Collections.Generic.Dictionary<string, float> {
+        { "bd_more", 0.51f },   // 운석 낙인 연속 낙인: 측정 ×5.87 → ×3
+        { "ts_more", 0.51f },   // 독안개 드론 드론 증원: 측정 ×5.92 → ×3
+        { "ts_ring", 0.64f },   // 독안개 드론 역병의 고리: 측정 ×4.66 → ×3
+        { "sd_more", 0.72f },   // 분열 쌍발 분열 추가: 측정 ×4.18 → ×3
+        { "pb_spread", 0.75f },   // 역병 폭탄 역병 확산: 측정 ×4.00 → ×3
+        { "gv_more", 0.82f },   // 중력 폭탄 블랙홀탄 추가: 측정 ×3.66 → ×3
+        { "sd_extra", 0.44f },   // 분열 쌍발 추가 탄: 측정 ×3.61 → ×1.6
+        { "sat_cool", 1.32f },   // 위성 레이저 냉각 장치: 측정 ×0.98 → ×1.3
+        { "gv_support", 1.36f },   // 중력 폭탄 폭격 지원: 측정 ×0.95 → ×1.3
+        { "gv_power", 1.26f },   // 중력 폭탄 대형 폭약: 측정 ×1.04 → ×1.3
+        { "fc_keep", 1.29f },   // 집중 포화 조준 유지: 측정 ×1.01 → ×1.3
+        { "fc_escort_power", 1.15f },   // 집중 포화 호위 화력: 측정 ×1.13 → ×1.3
+        { "sd_accel", 1.7f },   // 분열 쌍발 튕김 가속: 측정 ×1.06 → ×1.8
+        { "sd_endless", 1.43f },   // 분열 쌍발 무한 분열: 측정 ×1.26 → ×1.8
+        { "pb_toxic", 1.66f },   // 역병 폭탄 맹독 폭발: 측정 ×1.08 → ×1.8
+    };
+    public static float AugAdj(string id) => Tuning.Get("aug_adj_" + id, AugAdjDefaults.TryGetValue(id, out float v) ? v : 1f);
+    // 약한 증강을 올린 몫은 설명에도 보여요 ("합체 피해 +N%")
+    static string AdjText(string id, int L, AugmentDef def)
+    {
+        float a = AugAdj(id);
+        if(a <= 1.001f || def == null) return "";
+        return $"\n합체 피해 +{P((a - 1f) * Mathf.Clamp01(L / (float)Mathf.Max(1, def.maxLevel)))}";
+    }
+
+    public static int FcStack(int L) => 5 * L;                               // 집중 강화: 쌓임 최대 +5 / 레벨 (+25% 피해)
+    public static int FcSalvo(int L) => L;                                   // 집중 사격: 폭탄 +1 / 레벨
+    public static float FcFinale(int L) => Tuning.Get("focus_finale_mul", 20f) + 8f * (L - 1);   // 최후의 일격: 지금 폭탄 1발 × 20 · 28 · 36 (2026-11-24 빨리 쏘게 바꾸며 1발이 작아져서 올렸어요)
+    public static int RgBolts(int L) => L;   // 번개 추가(실버): 주변 번개 +1 / 레벨 (2026-11-24 사용자)
+    public static float FzSilverPct(int L) => Tuning.Get("fz_silver_per", 0.1f) * L;   // 합체 실버 증강: 레벨당 +10% (피해 또는 공격 속도)
+    // 합체마다 실버 증강 id (FusionDef.augs 밖이라 합체 위력·종결 조건에 안 들어가요). 테스트 창·합체 풀기에서 써요
+    public static readonly string[][] FusionSilvers = {
+        new[] { "gb_power", "gb_rapid", "fc_escort", "fc_escort_power", "fc_keep" }, new[] { "sat_power", "sat_cool" }, new[] { "rg_static", "rg_bolt" }, new[] { "pb_reload", "pb_power" }, new[] { "sd_extra", "sd_rapid" },
+        new[] { "mc_fuel", "mc_reload" }, new[] { "ts_rapid", "ts_power" }, new[] { "sl_power", "sl_reload" }, new[] { "sg_twin", "sg_scope", "sg_power" }, new[] { "gv_cluster", "gv_support", "gv_power" },
+        new[] { "cm_power", "cm_rapid" }, new[] { "bd_rain", "bd_reload" }, new[] { "im_rain", "im_reload" },
+    };
     public static int PbMore(int L) => L;                                    // 역병 폭탄 역병 살포 (최대 ★3): 독탄 +1·2·3 (2026-11-21, "독 장판 확대" 대신)
     public static float PbToxic(int L) => Lin(L, 1.0f, 0.3f);
     public static int PbSpread(int L) => L;
@@ -382,7 +534,7 @@ public static class AugmentDefs
 
     // 합체 8종 (A + B). 같은 A 가 둘이면 (360 레이저) 하나를 고르면 다른 하나는 그 원정에서 안 나와요
     public static readonly FusionDef[] Fusions = {
-        new FusionDef(SideWeapon.Bomber, SideWeapon.TrackingGun, "유도 폭격", "fz_guided", "폭탄이 적을 쫓아가서 더 크게 터져요", "gb_double", "gb_missile", "gb_fleet"),
+        new FusionDef(SideWeapon.Bomber, SideWeapon.TrackingGun, "집중 포화", "fz_guided", "가장 강한 적(보스 먼저)을 표적으로 찍고 유도 폭탄을 그 적에게만 퍼부어요. 같은 표적을 맞힐수록 피해가 쌓여요 (최대 2배). 폭발 범위는 좁아요. 호위 폭격기 2대가 따라다니며 가까운 적에게 폭탄을 떨어뜨려요", "fc_stack", "fc_salvo", "fc_finale"),   // 2026-11-24 사용자: 유도 폭격 → 보스 전용 새 무기 "집중 포화" (A안)
         new FusionDef(SideWeapon.Lazer, SideWeapon.Orbital, "위성 레이저", "fz_satlaser", "우주선 양쪽 날개의 위성 2대가 가장 가까운 적을 레이저로 계속 비춰요. 같은 적을 오래 비출수록 세져요 (최대 4배)", "sat_more", "sat_long", "sat_focus"),
         new FusionDef(SideWeapon.Sniper, SideWeapon.None, "레일건", "fz_railgun", "탄 대신 화면 끝까지 꿰뚫는 빔을 쏴요", "rg_charge", "rg_blast", "rg_mega"),
         new FusionDef(SideWeapon.Poison, SideWeapon.Bomber, "역병 폭탄", "fz_plague", "독탄이 적을 조준해서 날아가 폭발하고, 독 지대가 1.5배 커지고 적을 30% 느리게 해요", "pb_more", "pb_toxic", "pb_spread"),
@@ -396,16 +548,20 @@ public static class AugmentDefs
         // 2026-11-20 사용자 결정: 튕김총 진화 "혜성탄" (내부 이름은 constellation, 종결 "운명의 별자리"). 동작은 CometShot.cs
         new FusionDef(SideWeapon.BounceGun, SideWeapon.None, "혜성탄", "fz_constellation", "혜성 1발이 갈라지지 않고 적 사이를 6번 튕겨요. 뒤따르는 꼬리에 닿은 적도 피해를 받고, 튕길수록 꼬리가 길어져요", "cm_tail", "cm_bounce", "cm_impact"),
         // 2026-11-21 사용자 결정: 운석 합체 2개. 동작은 MeteorGun.cs
-        new FusionDef(SideWeapon.Meteor, SideWeapon.Sniper, "별의 낙인", "fz_brand", "저격총이 강한 적 3마리에 낙인을 찍고, 낙인 적마다 운석 3개가 따라 떨어져요. 피할 수 없고 폭발은 모두 치명타, 보스는 추가 피해", "bd_more", "bd_aim", "bd_chain"),
+        new FusionDef(SideWeapon.Meteor, SideWeapon.Sniper, "운석 낙인", "fz_brand", "운석이 계속 떨어지고, 4초마다 적이 가장 몰린 곳에 낙인을 찍어 큰 운석과 작은 운석 6개가 쏟아져요. 낙인 운석은 모두 치명타", "bd_more", "bd_aim", "bd_chain"),   // 2026-11-24 사용자: 별의 낙인 → 운석 낙인 (운석이 기본 공격, 무리에 낙인)
         new FusionDef(SideWeapon.Meteor, SideWeapon.StrLaser, "대충돌", "fz_impact", "운석은 계속 떨어지고, 5초마다 블랙홀이 적이 몰린 곳을 끌어모은 뒤 그 자리에 큰 운석이 떨어져요", "im_well", "im_more", "im_energy"),
     };
     public const int FzGuided = 0, FzSatLaser = 1, FzRailgun = 2, FzPlague = 3, FzSplitDbl = 4, FzMicro = 5, FzToxSat = 6, FzStarlight = 7, FzSingularity = 8, FzGravBomb = 9,
                      FzConstellation = 10, FzBrand = 11, FzImpact = 12;
 
+    // 개수 증강: 레벨마다 +1, 최대 레벨을 짧게 3 (사용자 규칙)
+    static AugmentDef Count(AugmentDef d) { d.maxLevel = 3; return d; }
+
     static AugmentDef F(int fusion, string id, string name, AugGrade grade, System.Func<int, string> d)
     {
         var f = Fusions[fusion];
-        var def = A(id, name, AugTag.Weapon, grade, L => $"[{f.name}] " + d(L), 0, f.a);
+        AugmentDef def = null;
+        def = A(id, name, AugTag.Weapon, grade, L => $"[{f.name}] " + d(L), 0, f.a);   // (2026-11-25 사용자: "합체 피해 +N%" 는 설명에 안 넣어요, 약한 증강도 있어야)
         def.fusion = fusion;
         return def;
     }
@@ -420,9 +576,10 @@ public static class AugmentDefs
             card.fusionCard = true;
             list.Add(card);
         }
-        list.Add(F(FzGuided, "gb_double", "이중 폭발", G, L => $"폭탄이 0.5초 뒤 더 크게 한 번 더 터져요\n(피해 {P(GbDouble(L))})"));
-        list.Add(F(FzGuided, "gb_missile", "미사일 추가", G, L => $"다른 적을 쫓는 폭탄 +{GbMissile(L)}발"));
-        list.Add(F(FzGuided, "gb_fleet", "폭격 편대", R, L => $"쏠 때마다 폭탄 {GbFleet(L)}발이\n서로 다른 적에게 동시에 날아가요"));
+        // 집중 포화 (2026-11-24 사용자: 유도 폭격 → 보스 전용 새 무기 "집중 포화" (A안))
+        list.Add(F(FzGuided, "fc_stack", "집중 강화", G, L => $"쌓임 최대 +{FcStack(L)}번\n(최대 피해 +{P(FcStack(L) * 0.05f)})"));
+        list.Add(Count(F(FzGuided, "fc_salvo", "집중 사격", G, L => $"표적에게 폭탄 +{FcSalvo(L)}발")));
+        list.Add(F(FzGuided, "fc_finale", "최후의 일격", R, L => $"최대까지 쌓이면 표적에 거대 폭발\n(폭탄 1발 × {FcFinale(L):0}배, 쌓임은 절반으로)"));
         list.Add(F(FzSatLaser, "sat_more", "위성 추가", G, L => $"레이저 드론 +{SatMore(L)}대"));
         list.Add(F(FzSatLaser, "sat_long", "레이저 연장", G, L => $"360 레이저 쏘는 시간 +{SatLong(L):0.#}초"));
         list.Add(F(FzSatLaser, "sat_focus", "궤도 일제 사격", R, L => $"모든 드론이 가장 강한 적 하나를 노려요\n(드론 피해 ×{SatFocus(L):0.#})"));
@@ -455,12 +612,46 @@ public static class AugmentDefs
         list.Add(F(FzConstellation, "cm_tail", "긴 꼬리", G, L => $"꼬리 길이·꼬리 피해 +{P(CmTail(L))}"));
         list.Add(F(FzConstellation, "cm_bounce", "궤도 연장", G, L => $"튕김 +{CmBounce(L)}번"));
         list.Add(F(FzConstellation, "cm_impact", "혜성 충돌", R, L => $"마지막 튕김 뒤 혜성이 떨어져 크게 터져요\n(1발 피해의 {P(CmImpact(L))}, 튕긴 적 1마리당 +10%)"));
-        list.Add(F(FzBrand, "bd_more", "연속 낙인", G, L => $"낙인을 찍는(인식하는) 적 +{BdMore(L)}"));
+        list.Add(F(FzBrand, "bd_more", "연속 낙인", G, L => $"낙인을 찍는 무리 +{BdMore(L)}곳"));
         list.Add(F(FzBrand, "bd_aim", "약점 조준", G, L => $"낙인 운석 치명 피해 +{P(BdAim(L))}"));
-        list.Add(F(FzBrand, "bd_chain", "처형 낙인", R, L => $"낙인 운석에 적이 죽으면 가까운 적에게\n낙인이 옮겨 운석이 또 떨어져요 (최대 {BdChain(L)}번)"));
+        list.Add(F(FzBrand, "bd_chain", "처형 낙인", R, L => $"큰 운석에 낙인 적이 죽으면 가까운 적에게\n낙인이 옮겨 운석이 또 떨어져요 (최대 {BdChain(L)}번)"));
         list.Add(F(FzImpact, "im_well", "강한 중력", G, L => $"블랙홀 범위 +{P(ImWell(L))}"));
         list.Add(F(FzImpact, "im_more", "소행성대", G, L => $"블랙홀마다 떨어지는 운석 +{ImMore(L)}"));
         list.Add(F(FzImpact, "im_energy", "충돌 에너지", R, L => $"블랙홀 자리에 떨어지는 큰 운석 피해 +{P(ImEnergy(L))}"));
+        // 합체 실버 증강 (2026-11-24 사용자: 합체 기술이 아니라 상시 공격·무기 자체를 키우는 실버). 합체한 뒤에만 나와요.
+        //  합체 위력·합체 증강 배율·종결 증강 조건(합체 증강 3개)에는 안 들어가요 (FusionDef.augs 밖, FusionSilvers)
+        list.Add(F(FzGuided, "gb_power", "폭약 증량", S, L => $"폭탄 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzGuided, "gb_rapid", "속사 폭격", S, L => $"폭탄 공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(Count(F(FzGuided, "fc_escort", "호위기 추가", S, L => $"호위 폭격기 +{L}대")));
+        list.Add(F(FzGuided, "fc_escort_power", "호위 화력", S, L => $"호위 폭격기 폭탄 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzGuided, "fc_keep", "조준 유지", S, L => $"표적이 바뀌어도 쌓임 {P(Mathf.Clamp01(FzSilverPct(L) * Tuning.Get("focus_keep_mul", 1.5f)))} 유지"));
+        list.Add(F(FzSatLaser, "sat_power", "위성 출력", S, L => $"위성 빔 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzRailgun, "rg_static", "정전기", S, L => $"주변 번개 피해 +{P(FzSilverPct(L))}\n번개 간격 -{P(1f - 1f / (1f + FzSilverPct(L)))}"));
+        list.Add(Count(F(FzRailgun, "rg_bolt", "번개 추가", S, L => $"주변 번개 +{RgBolts(L)}줄기")));
+        list.Add(F(FzPlague, "pb_reload", "독탄 장전", S, L => $"독탄 공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(Count(F(FzSplitDbl, "sd_extra", "추가 탄", S, L => $"쏠 때마다 탄 +{L}발")));
+        list.Add(F(FzMicro, "mc_fuel", "추진제", S, L => $"미사일 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzToxSat, "ts_rapid", "드론 속사", S, L => $"드론 공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzStarlight, "sl_power", "별빛 응축", S, L => $"별·빛살 피해 +{P(FzSilverPct(L))}"));
+        list.Add(Count(F(FzSingularity, "sg_twin", "연속 조준", S, L => $"보라 저격탄 +{L}발\n(다음으로 가까운 적에게)")));
+        list.Add(Count(F(FzGravBomb, "gv_cluster", "집속 폭격", S, L => $"일반 폭탄 +{L}발\n(다음으로 가까운 적에게)")));
+        list.Add(F(FzConstellation, "cm_power", "혜성 가속", S, L => $"혜성 피해 +{P(FzSilverPct(L))}"));
+        list.Add(Count(F(FzBrand, "bd_rain", "유성 추가", S, L => $"기본 운석 +{L}개")));
+        list.Add(Count(F(FzImpact, "im_rain", "유성 추가", S, L => $"기본 운석 +{L}개")));
+        // 둘째·셋째 실버 (2026-11-24 사용자: 합체마다 어울리는 실버를 더 (개수는 달라도 됨))
+        list.Add(F(FzSatLaser, "sat_cool", "냉각 장치", S, L => $"위성 빔이 최대 세기까지\n빨리 달아올라요 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzPlague, "pb_power", "맹독", S, L => $"독탄 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzSplitDbl, "sd_rapid", "연사 강화", S, L => $"공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzMicro, "mc_reload", "속사 장전", S, L => $"일제 사격 장전 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzToxSat, "ts_power", "독 탄두", S, L => $"드론 탄 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzStarlight, "sl_reload", "별 장전", S, L => $"별 떨어지는 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzSingularity, "sg_scope", "속사 조준경", S, L => $"보라 저격탄 공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzSingularity, "sg_power", "중력 탄두", S, L => $"보라 저격탄 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzGravBomb, "gv_support", "폭격 지원", S, L => $"일반 폭탄 공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzGravBomb, "gv_power", "대형 폭약", S, L => $"일반 폭탄 피해 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzConstellation, "cm_rapid", "혜성 장전", S, L => $"혜성 발사 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzBrand, "bd_reload", "유성 장전", S, L => $"기본 운석 공격 속도 +{P(FzSilverPct(L))}"));
+        list.Add(F(FzImpact, "im_reload", "유성 장전", S, L => $"기본 운석 공격 속도 +{P(FzSilverPct(L))}"));
         // 종결 증강 (합체마다 1개, 프리즘 ★1). 게이지가 차면(약 30초) 자동 발동, 그 무기가 맞힐 때 1% 확률로 바로 발동
         for(int i = 0; i < Fusions.Length; i++) {
             int f = i;
@@ -474,9 +665,9 @@ public static class AugmentDefs
 
     // 종결 증강 (Fusions 순서와 같아요)
     public static readonly string[] UltIds = { "ult_guided", "ult_satlaser", "ult_railgun", "ult_plague", "ult_splitdbl", "ult_micro", "ult_toxsat", "ult_polaris", "ult_singularity", "ult_gravbomb", "ult_constellation", "ult_brand", "ult_impact" };
-    public static readonly string[] UltNames = { "유도탄 세례", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "전탄 발사", "독의 그물", "북극성", "사건의 지평선", "중력 대폭격", "운명의 별자리", "천벌", "소행성 충돌" };
+    public static readonly string[] UltNames = { "일점 폭격", "궤도 포격", "천공", "역병의 비", "별똥별 폭풍", "전탄 발사", "독의 그물", "북극성", "사건의 지평선", "중력 대폭격", "운명의 별자리", "천벌", "소행성 충돌" };
     static readonly string[] UltDescs = {
-        "유도탄 수십 발이 사방으로 퍼졌다가 휘어져\n화면의 적 하나하나에게 꽂혀요",
+        "가장 강한 적 하나에 표적을 찍고 폭탄 30발이 퍼졌다가\n모두 그 적에게 꽂힌 뒤 거대 폭발",   // 2026-11-24 사용자: 집중 포화 종결
         "위성 6대가 화면 끝까지 닿는 레이저로 화면을 쓸고\n한 점에 모아 하얗게 대폭발",
         "레일건 4연사 뒤 우주선에서 사방으로 초전자포를 쏘고\n꿰뚫린 적 중 체력 30% 이하는 처형해요 (모두 치명타)",
         "먹구름이 몰려와 독비가 쏟아지고 모든 적이 느려져요\n비가 그치면 독에 걸린 적이 꽃처럼 한꺼번에 터져요",

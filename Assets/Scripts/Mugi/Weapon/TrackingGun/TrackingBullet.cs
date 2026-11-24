@@ -90,7 +90,11 @@ public class TrackingBullet : Bullet
     {
         life += Time.deltaTime;
         if(target == null || target._state == Enemy.EnemyState.dead || !target.gameObject.activeInHierarchy) {
-            if(lockOn) { target = PickAhead(); retargeted = true; }   // 록온 미사일: 앞쪽 적만 (없으면 곧게)
+            if(lockOn) {   // 록온 미사일: 앞쪽 적만 (없으면 곧게)
+                // 마이크로 미사일 (2026-11-23 사용자: 마이크로 미사일 나눠 쏘기): 노리던 적이 먼저 죽으면 아직 표식 없는 가장 가까운 적에게 (없으면 가장 가까운 적)
+                target = AugmentManager.Fused(AugmentDefs.FzMicro) && Tuning.Get("micro_spread", 0f) > 0f ? PickUnmarked() : PickAhead();
+                retargeted = true;
+            }
             else target = PickTarget();
         }
 
@@ -141,6 +145,13 @@ public class TrackingBullet : Bullet
     }
 
     // 록온 미사일 목표가 먼저 죽었을 때: 진행 방향 ±lockon_retarget_angle(70)도 안의 가장 가까운 적 (뒤로 홱 돌지 않게, 2026-11-21)
+    Enemy PickUnmarked()
+    {
+        var list = AugmentManager.NearestInRange(transform.position, 999);
+        foreach(var e in list) if(!LockOnMark.IsMarked(e)) return e;
+        return list.Count > 0 ? list[0] : null;
+    }
+
     Enemy PickAhead()
     {
         var list = AugmentManager.NearestInRange(transform.position, 999);
@@ -226,6 +237,8 @@ public class LockOnMark : MonoBehaviour
         marks[e] = m;
         m.Update();
     }
+
+    public static bool IsMarked(Enemy e) => e != null && marks.TryGetValue(e, out var m) && m != null;
 
     // 그 적을 노리던 미사일 하나가 끝났어요 (모두 끝나면 사라져요)
     public static void Release(Enemy e)
