@@ -103,12 +103,13 @@ public class EquipFrame : MonoBehaviour, IPointerClickHandler, IPointerExitHandl
         }
     }
 
+    // 2026-11-25 가방: 같은 장비도 한 칸씩이라 합성 개수 대신 잠재력 (무작위 값이 얼마나 잘 떴나, 0~100%). 그림은 UI 단계에서 다듬어요
     public void setSliderValue()
     {
-        Slider_Amount.maxValue = equipData.RequiredAmountForMerge;
-        Slider_Amount.value = equipData.AmountOfEquip;
-
-        Slider_Text.text = equipData.AmountOfEquip + "/" + Slider_Amount.maxValue;
+        float q = equipData.Quality01;
+        Slider_Amount.maxValue = 1f;
+        Slider_Amount.value = q;
+        Slider_Text.text = equipData.source != null ? $"잠재력 {q * 100f:0}%" : "";
     }
 
     public void OnPointerClick(PointerEventData eventData)

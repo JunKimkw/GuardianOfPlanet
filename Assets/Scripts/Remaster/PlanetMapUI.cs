@@ -131,7 +131,9 @@ public partial class RemasterUI
     {
         if(mapFont != null) return mapFont;
         try {
-            var src = Resources.Load<Font>("Fonts/MiwonDyn");
+            // 글꼴: 주아(Jua, OFL) — 2026-11-26 사용자 "제일 좋아 보이는 걸로". ui_font_jua 0 이면 예전 미원체 (다시 시작해야 바뀌어요)
+            var src = Tuning.Get("ui_font_jua", 1f) > 0f ? Resources.Load<Font>("Fonts/Jua") : null;
+            if(src == null) src = Resources.Load<Font>("Fonts/MiwonDyn");
             // 외곽선이 두꺼워서 여백(16)을 크게: 외곽선 0.25em 까지 (미리보기 가장 두꺼운 것 2px/15px = 0.13em)
             if(src != null) mapFont = TMP_FontAsset.CreateFontAsset(src, 64, 16, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 2048, 2048, AtlasPopulationMode.Dynamic, false);
             if(mapFont != null) {
@@ -143,16 +145,227 @@ public partial class RemasterUI
         if(mapFont == null) mapFont = font;
         return mapFont;
     }
+    // 버튼 글씨 (2026-11-26 사용자: 갈색 얇은 외곽선은 흐려 보여요 → 원래 게임 버튼처럼 흰 글씨 + 진한 회색 외곽선, 원래 굵기)
+    static float textOutlineMul = -1f;
+    static readonly Color BtnOutline = new Color32(0x1e, 0x1e, 0x24, 0xff);
+    // 원래 게임 버튼 글씨 (2026-11-26 사용자: "Lv.10 같은 글씨를 가격 1,188 이랑 똑같이") — 무기 줄 가격 버튼의 글자에서 글꼴·재질을 그대로
+    TMP_Text gameBtnRef;
+    TMP_Text GameBtnRef()
+    {
+        if(gameBtnRef != null) return gameBtnRef;
+        var wm = WeaponManager.instance;
+        if(wm == null) return null;
+        foreach(var shop in wm.Shops) {
+            if(shop == null) continue;
+            var pr = shop.transform.Find("GUI - Price");
+            var t = pr != null ? pr.GetComponentInChildren<TMP_Text>(true) : null;
+            if(t != null && t.font != null) { gameBtnRef = t; break; }
+        }
+        return gameBtnRef;
+    }
+    // 그 글꼴에 글자가 다 있으면 똑같이 (없는 글자가 있으면 미원체 그대로 — 네모로 깨지지 않게)
+    public void ApplyGameBtnFont(TMP_Text t)
+    {
+        if(Tuning.Get("ui_game_btn_font", 0f) <= 0f) return;   // 주아로 통일 (1 이면 원래 가격 버튼 글꼴을 빌려 써요)
+        var r = GameBtnRef();
+        if(t == null || r == null || string.IsNullOrEmpty(t.text)) return;
+        string plain = System.Text.RegularExpressions.Regex.Replace(t.text, "<[^>]+>", "").Replace("\n", "").Replace(" ", "");
+        if(!r.font.HasCharacters(plain)) return;
+        t.font = r.font;
+        t.fontSharedMaterial = r.fontSharedMaterial;
+        t.color = r.color;
+        t.fontStyle = r.fontStyle;
+        t.characterSpacing = r.characterSpacing;
+    }
+
+    // ---- 버튼·제목·숫자 글씨 (2026-11-26 사용자: "좀 맛있게, 너 입맛대로 이쁜 폰트로")
+    // 미리보기 previews/fonts2.png 의 C안: 통통한 베이글(Bagel Fat One, OFL) + 바탕색의 진한 색 테두리 + 같은 색 아래 그림자
+    // 설명 같은 작은 글씨는 주아 그대로 (베이글은 작으면 뭉개져요). ui_font_bagel 0 이면 버튼 글씨도 주아 (다시 시작해야 바뀌어요)
+    public static readonly Color OnBlue = new Color32(0x0b, 0x2a, 0x6e, 0xff);     // 파란 판 위
+    public static readonly Color OnYellow = new Color32(0x8a, 0x3a, 0x00, 0xff);   // 노란 버튼 위
+    public static readonly Color OnPurple = new Color32(0x3d, 0x15, 0x80, 0xff);   // 보라 버튼 위
+    public static readonly Color OnGreen = new Color32(0x0a, 0x5a, 0x1e, 0xff);    // 초록 알약 위
+    TMP_FontAsset dispFont;
+    bool dispTried;
+    TMP_FontAsset DispFont()
+    {
+        if(dispFont != null) return dispFont;
+        if(!dispTried) {
+            dispTried = true;
+            try {
+                var src = Tuning.Get("ui_font_bagel", 0f) > 0f ? Resources.Load<Font>("Fonts/BagelFatOne") : null;
+                if(src != null) dispFont = TMP_FontAsset.CreateFontAsset(src, 64, 16, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 2048, 2048, AtlasPopulationMode.Dynamic, false);
+                if(dispFont != null) {
+                    dispFont.name = "BagelMap";
+                    var mf = MapFont();
+                    if(mf != null && mf != dispFont) dispFont.fallbackFontAssetTable = new List<TMP_FontAsset> { mf };   // 없는 글자는 주아로
+                }
+            } catch(Exception e) { Debug.LogWarning("[UI] 베이글 글꼴 만들기 실패: " + e.Message); }
+        }
+        return dispFont != null ? dispFont : MapFont();
+    }
+    // 베이글은 주아보다 커 보여서 조금 작게
+    float DispSize(float size) => dispFont != null ? size * Tuning.Get("ui_bagel_scale", 0.92f) : size;
+    // 테두리 굵기(px) = 크기 × ui_btn_outline_em, 단 ui_btn_outline_min 보다 얇아지지 않게 (작은 글씨도 테두리가 보이게)
+    static float BtnOutlinePx(float size) => Mathf.Max(size * Tuning.Get("ui_btn_outline_em", 0.06f), Tuning.Get("ui_btn_outline_min", 0.85f));
+    TMP_FontAsset textFontOverride;
+    TextMeshProUGUI BtnText(Transform parent, string text, float cx, float cy, float size, TextAlignmentOptions align = TextAlignmentOptions.Center, float boxW = 0f, Color? edge = null)
+    {
+        var bt = PxText(parent, text, cx, cy, size, Color.white, 0f, null, align, boxW);
+        StyleBtnText(bt, size, edge ?? OnBlue);
+        return bt;
+    }
+    // 버튼 글씨 폭 (미리보기 px, 베이글 기준)
+    float MeasureBtn(string text, float size)
+    {
+        var f = DispFont();
+        if(f == null || f == MapFont()) return MeasureText(text, size);
+        MeasureText("", size);   // 재는 글자 만들기
+        var keep = measure.font; float ks = measure.fontSize;
+        measure.font = f; measure.fontSize = DispSize(size) * K;
+        float w = measure.GetPreferredValues(text).x / K;
+        measure.font = keep; measure.fontSize = ks;
+        return w;
+    }
+    // 이미 있는 글자를 버튼 글씨 모양으로 (글꼴·크기·테두리·그림자)
+    // 원래 게임 한글 글씨 (무기 줄 이름 "더블 건" = Minwon_Line_Black: 미원체 + 검은 테두리, 동적이라 모든 글자 OK)
+    TMP_Text gameKoRef;
+    TMP_Text GameKoRef()
+    {
+        if(gameKoRef != null) return gameKoRef;
+        var wm = WeaponManager.instance;
+        if(wm == null) return null;
+        foreach(var shop in wm.Shops) {
+            if(shop == null) continue;
+            var tn = shop.transform.Find("GUI - TraitName/TraitName");
+            var t = tn != null ? tn.GetComponent<TMP_Text>() : null;
+            if(t != null && t.font != null) { gameKoRef = t; break; }
+        }
+        return gameKoRef;
+    }
+    // 원래 한글 글꼴(Minwon_Line_Black)은 글자판이 가득 차서 새 글자(힐·끔·얻 …)를 못 넣을 때가 있어요 (2026-11-26 "한 줄만 글씨체가 달라요")
+    // → 같은 미원체 원본으로 내 글꼴을 따로 만들고(글자판 여러 장), 원래 재질(테두리·굵기)을 그대로 복사해 써요. 원래 글꼴 파일은 안 건드려요
+    TMP_FontAsset gameKoFont; Material gameKoMat; bool gameKoTried;
+    bool GameKo(out TMP_FontAsset f, out Material m)
+    {
+        f = null; m = null;
+        var r = GameKoRef();
+        if(r == null || r.font == null) return false;
+        if(!gameKoTried) {
+            gameKoTried = true;
+            try {
+                var src = r.font.sourceFontFile;
+                if(src != null) {
+                    int pad = Mathf.Max(1, r.font.atlasPadding);
+                    gameKoFont = TMP_FontAsset.CreateFontAsset(src, Mathf.Max(16, Mathf.RoundToInt(r.font.faceInfo.pointSize)), pad, r.font.atlasRenderMode, 1024, 1024, AtlasPopulationMode.Dynamic, true);
+                    if(gameKoFont != null) {
+                        gameKoFont.name = "MiwonGameUI";
+                        gameKoMat = new Material(r.fontSharedMaterial);
+                        gameKoMat.SetTexture(ShaderUtilities.ID_MainTex, gameKoFont.atlasTexture);
+                        gameKoMat.SetFloat(ShaderUtilities.ID_TextureWidth, gameKoFont.atlasWidth);
+                        gameKoMat.SetFloat(ShaderUtilities.ID_TextureHeight, gameKoFont.atlasHeight);
+                        gameKoMat.SetFloat(ShaderUtilities.ID_GradientScale, pad + 1);
+                        ShaderUtilities.UpdateShaderRatios(gameKoMat);
+                        gameKoFont.material = gameKoMat;
+                    }
+                }
+            } catch(Exception e) { Debug.LogWarning("[UI] 미원 글꼴 만들기 실패: " + e.Message); gameKoFont = null; }
+        }
+        if(gameKoFont != null) { f = gameKoFont; m = gameKoMat; }
+        else { f = r.font; m = r.fontSharedMaterial; }
+        return true;
+    }
+    // 버튼 글씨 = 원래 게임 글씨 그대로 (2026-11-26 사용자: 베이글은 더 이상해요 → 게임의 다른 글씨와 똑같이)
+    //   숫자·영문만(5,000 · Lv.10 · 30 / 5,000) = 가격 "1,188" 글꼴(Cairo_Line_Black), 한글이 섞이면 = 무기 이름 글꼴(Minwon_Line_Black)
+    //   ui_btn_game_font 0 이면 예전처럼 주아/베이글 + 색 테두리. 글자를 바꾼 뒤에도 다시 불러야 해요 (글자에 따라 글꼴을 골라서)
+    bool StyleGameFont(TMP_Text t, float size)
+    {
+        if(Tuning.Get("ui_btn_game_font", 1f) <= 0f || string.IsNullOrEmpty(t.text)) return false;
+        string plain = System.Text.RegularExpressions.Regex.Replace(t.text, "<[^>]+>", "").Replace("\n", "").Replace(" ", "");
+        var num = GameBtnRef();
+        bool useNum = num != null && num.font.HasCharacters(plain);
+        var r = useNum ? num : GameKoRef();
+        if(r == null) return false;
+        TMP_FontAsset kf = r.font; Material km = r.fontSharedMaterial;
+        if(!useNum && !GameKo(out kf, out km)) return false;
+        if(!useNum && !kf.HasCharacters(plain, out uint[] _, true, true)) return false;   // 없는 글자(↑ 등)가 있으면 네모 대신 주아로
+        t.font = kf;
+        t.fontSharedMaterial = km;
+        t.color = Color.white;
+        t.fontStyle = r.fontStyle;
+        t.characterSpacing = useNum ? r.characterSpacing : 0f;
+        t.fontSize = size * K * Tuning.Get(useNum ? "ui_game_num_scale" : "ui_game_ko_scale", 1f);
+        return true;
+    }
+    // 설명·제목 글씨도 원래 게임 한글 글꼴로 (2026-11-26 사용자: "여기 글씨들도 바꿔 줘")
+    //   outline true = 원래 검은 테두리 그대로, false = 같은 글꼴에 테두리만 끈 재질 (노란 카드 위 진한 글씨·작은 설명)
+    //   색·크기·위치는 그대로 두고 글꼴만 바꿔요. 없는 글자가 있으면 그대로 (네모로 깨지지 않게)
+    Material gamePlainMat;
+    readonly Dictionary<string, Material> gameEdgeMats = new Dictionary<string, Material>();
+    // edge = 테두리 색을 바꾼 재질 (노란 카드 위 = 진한 갈색 테두리). null 이면 원래 검은 테두리
+    public TMP_Text GameFont(TMP_Text t, bool outline, Color? edge = null)
+    {
+        if(t == null || Tuning.Get("ui_btn_game_font", 1f) <= 0f) return t;
+        if(!GameKo(out var kf, out var km)) return t;
+        string plain = System.Text.RegularExpressions.Regex.Replace(t.text ?? "", "<[^>]+>", "").Replace("\n", "").Replace(" ", "");
+        if(plain.Length > 0 && !kf.HasCharacters(plain, out uint[] _, true, true)) return t;
+        if(!outline && gamePlainMat == null) {
+            gamePlainMat = new Material(km);
+            gamePlainMat.DisableKeyword("OUTLINE_ON");
+            gamePlainMat.DisableKeyword("UNDERLAY_ON");
+            gamePlainMat.SetFloat("_OutlineWidth", 0f);
+            gamePlainMat.SetFloat("_FaceDilate", Tuning.Get("ui_game_plain_dilate", 0f));   // 0.1 은 답답해 보였어요 (2026-11-26)
+            ShaderUtilities.UpdateShaderRatios(gamePlainMat);
+        }
+        float size = t.fontSize;
+        t.font = kf;
+        Material mat = outline ? km : gamePlainMat;
+        if(outline && edge.HasValue) {
+            string key = ColorUtility.ToHtmlStringRGBA(edge.Value);
+            if(!gameEdgeMats.TryGetValue(key, out mat) || mat == null) {
+                mat = new Material(km);
+                mat.SetColor("_OutlineColor", edge.Value);
+                gameEdgeMats[key] = mat;
+            }
+        }
+        t.fontSharedMaterial = mat;
+        t.fontSize = size * Tuning.Get("ui_game_ko_scale", 1f);
+        t.characterSpacing = 0f;
+        return t;
+    }
+    void StyleBtnText(TMP_Text t, float size, Color edge)
+    {
+        if(t == null) return;
+        if(StyleGameFont(t, size)) return;
+        var f = DispFont();
+        t.font = f;
+        t.fontSize = DispSize(size) * K;
+        t.fontSharedMaterial = BtnTextMat(size, edge);
+        t.color = Color.white;
+    }
+    Material BtnTextMat(float size, Color edge)
+    {
+        textOutlineMul = Mathf.Max(0.1f, Tuning.Get("ui_btn_outline", 1f));
+        textFontOverride = DispFont();
+        try {
+            float ow = BtnOutlinePx(size);
+            return TextMat(edge, ow / size, true, ow * Tuning.Get("ui_btn_shadow", 1.5f) / size);
+        }
+        finally { textOutlineMul = -1f; textFontOverride = null; }
+    }
+
     Material TextMat(Color outline, float em, bool shadow, float shadowEm)
     {
-        string key = $"{ColorUtility.ToHtmlStringRGBA(outline)}_{em:0.000}_{shadow}_{shadowEm:0.000}";
+        bool btn = textOutlineMul > 0f;
+        float omul = btn ? textOutlineMul : Tuning.Get("planet_map_outline", 0.5f);
+        var f = textFontOverride != null ? textFontOverride : MapFont();
+        string key = $"{f.name}_{ColorUtility.ToHtmlStringRGBA(outline)}_{em:0.000}_{shadow}_{shadowEm:0.000}_{omul:0.00}_{btn}";
         if(mapMats.TryGetValue(key, out var m)) return m;
-        var f = MapFont();
         m = new Material(f.material);
         float pad = 16f, size = 64f, gs = pad + 1f;
         // (2026-11-25 사용자: 글씨가 너무 굵어) 외곽선을 planet_map_outline(0.5)배로, 아래 그림자는 끄기 (planet_map_text_shadow 0)
-        float w = Mathf.Clamp(em * size / pad * Tuning.Get("planet_map_outline", 0.5f), 0f, 0.66f);   // 외곽선 굵기 (안쪽 반은 글자를 덮지 않게 그만큼 글자를 부풀려요)
-        shadow = shadow && Tuning.Get("planet_map_text_shadow", 0f) > 0f;
+        float w = Mathf.Clamp(em * size / pad * omul, 0f, textOutlineMul > 0f ? 0.4f : 0.66f);   // 버튼 글씨는 0.4 까지 (작은 글씨 속이 비지 않게)   // 외곽선 굵기 (안쪽 반은 글자를 덮지 않게 그만큼 글자를 부풀려요)
+        shadow = shadow && (btn || Tuning.Get("planet_map_text_shadow", 0f) > 0f);   // 버튼 글씨는 늘 아래 그림자 (테두리와 같은 색)
         if(em > 0f) {
             m.EnableKeyword("OUTLINE_ON");
             m.SetColor("_OutlineColor", outline);
@@ -165,7 +378,7 @@ public partial class RemasterUI
         }
         if(shadow) {
             m.EnableKeyword("UNDERLAY_ON");
-            m.SetColor("_UnderlayColor", new Color(0, 0, 0, 0.35f));
+            m.SetColor("_UnderlayColor", btn ? outline : new Color(0, 0, 0, 0.35f));
             m.SetFloat("_UnderlayOffsetX", 0f);
             m.SetFloat("_UnderlayOffsetY", -Mathf.Clamp(shadowEm * size / gs, 0f, 1f));
             m.SetFloat("_UnderlayDilate", Mathf.Clamp(w, 0f, 1f));

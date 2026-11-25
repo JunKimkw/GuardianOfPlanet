@@ -308,7 +308,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         SetSliderValue();
 
         for(int i = 0; i < RandomEquip.Count; i++) {
-            RandomEquip[i].equipData.AmountOfEquip++;
+            RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
         for(int i = 0; i < resultEquipsData.Count; i++) {
             resultEquipsData[i].gameObject.SetActive(false);
@@ -318,8 +318,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i - 1].gameObject.SetActive(true);
             resultEquipsData[i - 1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = RandomEquip[gachaCount - i].equipData.AmountOfEquip;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = RandomEquip[gachaCount - i].equipData.AmountOfEquip + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
 
@@ -408,7 +408,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
 
         for(int i = 0; i < RandomEquip.Count; i++)
         {
-            RandomEquip[i].equipData.AmountOfEquip++;
+            RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
         for(int i = 0; i < resultEquipsData.Count; i++)
         {
@@ -420,8 +420,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i - 1].gameObject.SetActive(true);
             resultEquipsData[i - 1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = RandomEquip[gachaCount - i].equipData.AmountOfEquip;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = RandomEquip[gachaCount - i].equipData.AmountOfEquip + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
 
@@ -596,7 +596,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         SetSliderValue();
 
         for(int i = 0; i < RandomEquip.Count; i++) {
-            RandomEquip[i].equipData.AmountOfEquip++;
+            RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
         for(int i = 0; i < resultEquipsData.Count; i++) {
             resultEquipsData[i].gameObject.SetActive(false);
@@ -606,8 +606,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i - 1].gameObject.SetActive(true);
             resultEquipsData[i - 1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = RandomEquip[gachaCount - i].equipData.AmountOfEquip;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = RandomEquip[gachaCount - i].equipData.AmountOfEquip + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
 
@@ -652,6 +652,14 @@ public class GachaManager : MonoBehaviour, IDataPersistence
 
     public void gacha()
     {
+        // 가방이 가득 차면 장비 뽑기를 막아요 (다이아·뽑기권을 쓰기 전에). 강화석 뽑기는 괜찮아요 — 2026-11-25
+        if(currentGacha.gacha != GachaData.GachaType.UpgradeStone && currentGacha.gacha != GachaData.GachaType.UpgradeStonex10) {
+            int need = currentGacha.gacha == GachaData.GachaType.Normalx10 || currentGacha.gacha == GachaData.GachaType.Specialx10 ? 10 : 1;
+            if(!EquipBag.HasRoom(need)) {
+                if(AugmentManager.Instance != null) AugmentManager.Instance.UI.Toast($"가방이 가득 찼어요 ({EquipBag.Count}/{EquipBag.Size})\n분해하거나 합성해서 자리를 만들어요", new Color(1f, 0.6f, 0.5f));
+                return;
+            }
+        }
         if(currentGacha.gacha == GachaData.GachaType.Normal) {
             if(NormalGachaTicket > 0) {
                 NormalGachaTicket--;
@@ -809,7 +817,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         }
 
         for(int i = 0; i < RandomEquip.Count; i++) {
-            RandomEquip[i].equipData.AmountOfEquip++;
+            RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
 
         for(int i = 0; i < resultEquipsData.Count; i++) {
@@ -820,8 +828,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i-1].gameObject.SetActive(true);
             resultEquipsData[i-1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = RandomEquip[gachaCount - i].equipData.AmountOfEquip;
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = RandomEquip[gachaCount - i].equipData.AmountOfEquip + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
         SetSliderValue();
@@ -858,7 +866,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         }
 
         for(int i = 0; i < RandomEquip.Count; i++) {
-            RandomEquip[i].equipData.AmountOfEquip++;
+            RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
         for(int i = 0; i < resultEquipsData.Count; i++) {
             resultEquipsData[i].gameObject.SetActive(false);
@@ -868,8 +876,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i-1].gameObject.SetActive(true);
             resultEquipsData[i-1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = RandomEquip[gachaCount - i].equipData.AmountOfEquip;
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = RandomEquip[gachaCount - i].equipData.AmountOfEquip + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
         }
         SetSliderValue();
     }
@@ -1226,7 +1234,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             EquipResult_Name.text = RandomEquip[gachaCount].equipData.EquipName;
             EquipResult_Grade.text = RandomEquip[gachaCount].equipData.gradeText;
             EquipAmountSlider.maxValue = RandomEquip[gachaCount].equipData.RequiredAmountForMerge;
-            EquipAmountSlider.value = RandomEquip[gachaCount].equipData.AmountOfEquip;
+            EquipAmountSlider.value = EquipBag.CountOf(RandomEquip[gachaCount].equipData);
             EquipAmountSlider_Text.text = EquipAmountSlider.value + "/" + EquipAmountSlider.maxValue;
         } else {
             StartCoroutine(showResultOfGacha());

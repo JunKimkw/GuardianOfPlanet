@@ -68,7 +68,9 @@ public abstract class Bullet : MonoBehaviour
     protected bool Hit(GameObject target, long damage, float critDamage)
     {
         if(target.TryGetComponent(out Enemy enemy)) {
-            enemy.OnHit(damage, isStunning, isCritical, critDamage, Armor.Pen(TraitType), AugmentDefs.SideOf(TraitType));
+            WeaponJob.MainHitContext = TraitType == TraitsData.WeaponType.MainWeapon;   // 기본총은 SideWeapon 이 없어서 (전직)
+            try { enemy.OnHit(damage, isStunning, isCritical, critDamage, Armor.Pen(TraitType), AugmentDefs.SideOf(TraitType)); }
+            finally { WeaponJob.MainHitContext = false; }
             return true;
         }
         if(target.TryGetComponent(out Dummy dummy)) {

@@ -22,7 +22,7 @@ public class ResultCardData : MonoBehaviour
         EquipBorder.color = data.Border.color;
 
         if(New != null)
-            New.SetActive(EquipManager.Instance.All_Equips.Find(x => x == data).equipData.AmountOfEquip <= 1);
+            New.SetActive(EquipBag.CountOf(data.equipData) <= 1);
     }
 
     public void SetCardData(UpgradeStone data, int n)

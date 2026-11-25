@@ -602,7 +602,7 @@ public partial class RemasterUI : MonoBehaviour
     }
     void Update()
     {
-        if(mgr != null && mgr.Loaded) UpdatePlanetMap();   // 행성 지도 (A안, PlanetMapUI.cs)
+        if(mgr != null && mgr.Loaded) { UpdatePlanetMap(); UpdateWeaponJob(); }   // 무기 전직 (WeaponJobUI.cs)   // 행성 지도 (A안, PlanetMapUI.cs)
         hudTimer -= Time.unscaledDeltaTime;
         if(hudTimer > 0) return;
         hudTimer = 0.25f;
@@ -1544,7 +1544,7 @@ public partial class RemasterUI : MonoBehaviour
         Btn(p, "보스\n소환", small, new Vector2(0, -840), BRed, () => mgr.DebugSpawnBoss(), 26);
         Btn(p, $"속도\nx{GameManager.DisplaySpeed:0.#}", small, new Vector2(185, -840), BYellow, () => { DevTools.CycleSpeed(); BuildDebugAugments(p, close); }, 26);
         Btn(p, DevTools.DpsOn ? "DPS 기록\n켜짐" : "DPS 기록\n꺼짐", small, new Vector2(370, -840), DevTools.DpsOn ? BGreen : BGray, () => { DevTools.ToggleDps(); BuildDebugAugments(p, close); }, 26);
-        Label(p, "F7 게임 속도 · F12 스크린샷 · F2 +20스테이지 · Home 1스테이지 · F9 골드 +10억 · F5 원정 준비", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
+        Label(p, "F7 게임 속도 · F12 스크린샷 · F2 +20스테이지 · Home 1스테이지 · F9 골드 +10억 · Insert 부품 +100 · F5 원정 준비", new Vector2(900, 40), new Vector2(0, -896), 24, TextDim);
     }
     #endregion
 

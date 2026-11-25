@@ -28,18 +28,24 @@ public class MeteorShop : WeaponShopBase
 
     void Awake() => instance = this;
 
+    // 패시브 (2026-11-26 밸런스: 피해 % 는 모든 무기가 같은 길 × passive_k_meteor, tools/passive_balance.js)
+    protected override string PassiveKey => "meteor";
+    protected override float PassiveKDefault => 0.61f;
+    protected override string[] PassiveDescs => new[] { "피해 +{d10}", "한 번에 떨어지는 운석 1개 더", "레벨마다 피해 +{per}", "장전 시간 25% 감소", "운석 범위 30% 증가", "떨어진 자리가 불타요", "피해 +{d750}" };
     protected override void ApplyPassives(int lv)
     {
         var w = weapon;
         if(w == null) return;
-        w.ExtraDamagePercent = 0;
-        if(Passive(0, 10)) w.ExtraDamage = 10;
+        w.ExtraDamage = 0;
+        float d = 0f;
+        if(Passive(0, 10)) d += PvLv10;
         if(Passive(1, 50)) w.ExtraMeteor = true;
-        if(Passive(2, 100)) w.ExtraDamagePercent += PerLevelFrom100(lv, 0.012f);
+        if(Passive(2, 100)) d += PerLevelFrom100(lv, PvPerLv);
         if(Passive(3, 200)) w.ExtraAttackSpeedScale = 0.25f;
         if(Passive(4, 300)) w.BigRadius = true;
         if(Passive(5, 500)) w.Burning = true;
-        if(Passive(6, 750)) w.ExtraDamagePercent += 4f;
+        if(Passive(6, 750)) d += PvLv750;
+        w.ExtraDamagePercent = d * PK;
     }
 
     // src(튕김총 칸)를 복제해서 운석 칸을 만들어요.
@@ -75,7 +81,7 @@ public class MeteorShop : WeaponShopBase
         for(int i = 0; i < m.passiveObjects.Count && i < PassiveTexts.Length; i++) {
             var p = m.passiveObjects[i];
             if(p == null) continue;
-            p.passiveExplain = PassiveTexts[i];
+            p.passiveExplain = m.PassiveText(i);
             if(p.PassiveCover != null) p.PassiveCover.SetActive(true);
         }
         // 칸 안의 무기 이름 글자 바꾸기 (튕김총 → 운석)

@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -181,14 +182,14 @@ public class MergeManager : MonoBehaviour
     {
         if(gameObject.activeSelf && !isMerging) {
             //Button
-            MergeButton.interactable = GameManager.GetMoney() >= MergePrice && MergingEquip.equipData.AmountOfEquip >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
+            MergeButton.interactable = GameManager.GetMoney() >= MergePrice && EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
 
             stoneAmount_Text.text = UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount.ToString() + "/" + mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
-            equipAmount_Text.text = MergingEquip.equipData.AmountOfEquip + "/" + MergingEquip.equipData.RequiredAmountForMerge;
+            equipAmount_Text.text = EquipBag.MergeCount(MergingEquip.equipData) + "/" + MergingEquip.equipData.RequiredAmountForMerge;
             MergePriceText.text = GameManager.MoneyString(MergePrice);
             RequiredGoldPrice.text = GameManager.MoneyStringForGamemanager(GameManager.instance.money) + "/" + GameManager.MoneyString(MergePrice);
 
-            if(MergingEquip.equipData.AmountOfEquip >= MergingEquip.equipData.RequiredAmountForMerge)
+            if(EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge)
                 equipAmount_Text.color = new Color(0, 0.8396226f, 0.06517614f);
             else
                 equipAmount_Text.color = new Color(0.8490566f, 0, 0.05251745f);
@@ -205,15 +206,21 @@ public class MergeManager : MonoBehaviour
         }
     }
 
+    EquipFrame mergeSelfPending;
+
     public void MergeEquipment()
     {
         isMerging = true;
         MergeButton.interactable = false;
         GameManager.SetMoney(-MergePrice);
-        MergingEquip.equipData.AmountOfEquip -= MergingEquip.equipData.RequiredAmountForMerge;
-        MergingEquip.equipData.Level = 0;
+        // 2026-11-25 가방: 같은 장비 N개를 써요 (장착 안 한 것 · 강화 낮은 것 · 무작위 값 낮은 것부터, 고른 장비는 맨 마지막)
+        //  고른 장비까지 쓰면 연출이 끝난 뒤에 빼고 결과 장비를 골라 둬요 (연출 중에 사라지면 오류)
+        mergeSelfPending = null;
+        foreach(var f in EquipBag.MergeMaterials(MergingEquip.equipData, MergingEquip).Take(MergingEquip.equipData.RequiredAmountForMerge).ToList()) {
+            if(f == MergingEquip) mergeSelfPending = f; else EquipBag.Remove(f);
+        }
         UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount -= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
-        ResultEquip = EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade + 1, MergingEquip.equipData.TypeOfEquip);
+        ResultEquip = EquipBag.Grant(EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade + 1, MergingEquip.equipData.TypeOfEquip));   // 새 장비 (무작위 값)
 
         for(int i = 0; i < ResultTab_Stats.Count; i++) {
             ResultTab_Stats[i].gameObject.SetActive(false);
@@ -241,7 +248,6 @@ public class MergeManager : MonoBehaviour
 
         ResultEquip.equipData.setFinalOptionStats();
 
-        ResultEquip.equipData.AmountOfEquip++;
         StartCoroutine(MergingEffect());
     }
     public void MergingEffectUIs(bool Real)
@@ -279,8 +285,13 @@ public class MergeManager : MonoBehaviour
 
         isMerging = false;
         setResultTabUI();
+        if(mergeSelfPending != null) {   // 고른 장비도 재료로 썼으면 이제 빼고 결과 장비를 골라요
+            EquipBag.Remove(mergeSelfPending);
+            mergeSelfPending = null;
+            EquipManager.Instance.EquipClicked(ResultEquip);
+        }
         OpenMergeTab();
-        MergeButton.interactable = GameManager.GetMoney() >= MergePrice && MergingEquip.equipData.AmountOfEquip >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
+        MergeButton.interactable = GameManager.GetMoney() >= MergePrice && EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
         UIChange();
     }
 
@@ -374,13 +385,13 @@ public class MergeManager : MonoBehaviour
 
         //Slider
         ResultItemAmountSlider.maxValue = RandomEquip.equipData.RequiredAmountForMerge;
-        ResultItemAmountSlider.value = RandomEquip.equipData.AmountOfEquip;
-        ResultSlider_Text.text = RandomEquip.equipData.AmountOfEquip + "/" + RandomEquip.equipData.RequiredAmountForMerge;
+        ResultItemAmountSlider.value = EquipBag.CountOf(RandomEquip.equipData);
+        ResultSlider_Text.text = EquipBag.CountOf(RandomEquip.equipData) + "/" + RandomEquip.equipData.RequiredAmountForMerge;
     }
 
     public void checkIfRewardStone()
     {
-        if(RandomEquip.equipData.AmountOfEquip > 1) {
+        if(EquipBag.CountOf(RandomEquip.equipData) > 1) {
             StoneRewardTab.SetActive(true);
             for(int i = 0; i < stone_Obj.Length; i++) {
                 stone_Obj[i].SetActive(false);

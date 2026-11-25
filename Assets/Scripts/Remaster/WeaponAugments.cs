@@ -142,8 +142,8 @@ public partial class AugmentManager
         }
         OnAugmentsChanged();
         if(announce) {
-            string swap = absorb ? $"\n{AugmentDefs.WeaponName(f.b)}도 합쳐졌어요. 빈 칸에 넣을 새 무기를 골라요"
-                        : via == f.b && !RawEquipped(f.a) ? $"\n{AugmentDefs.WeaponName(f.b)} 자리에 {AugmentDefs.WeaponName(f.a)}이(가) 들어와요" : "";
+            string swap = absorb ? $"\n{AugmentDefs.WeaponName(f.b)}도 합체됨. 빈 칸에 넣을 새 무기 선택"
+                        : via == f.b && !RawEquipped(f.a) ? $"\n{AugmentDefs.WeaponName(f.b)} 자리에 {AugmentDefs.WeaponName(f.a)} 배치" : "";
             ui.Toast($"무기 합체! {AugmentDefs.FusionPair(f)}\n= {f.name} (위력 ×{AugmentDefs.FusionPower:0}){swap}", AugmentDefs.GradeColor(AugGrade.Prism), true);
         }
         if(absorb) AbsorbFusionB(f.b, announce);

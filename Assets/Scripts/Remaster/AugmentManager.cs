@@ -309,6 +309,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(loadoutCheckTimer <= 0f) {
             loadoutCheckTimer = 0.5f;
             EnsureLoadout();
+            if(EffectsActive && pauseCount == 0) ApplyJobStart();   // 전직 '시작 증강' (무기가 판에 들어오면)
             if(EffectsActive && pauseCount == 0 && !pullShowing && planetSnap != null) TryPlanetLevelUp();   // 행성 한 판 (PlanetRun.cs)
             else if(EffectsActive && pauseCount == 0 && !pullShowing) {
                 ResumeEmptyFusionSlot();   // 흡수된 B 칸이 비어 있으면 다시 고르게
@@ -579,6 +580,32 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         return list;
     }
 
+    // ── 무기 전직 '시작 증강' (2026-11-26, WeaponJob) ──
+    //  무기가 이번 판에 들어오면 고른 전용 증강을 그 레벨까지 (이미 더 높으면 그대로). 기본총은 시작 뽑기 +N / 리롤 +2N (판이 비어 있을 때만)
+    readonly HashSet<int> jobGranted = new HashSet<int>();
+    void ApplyJobStart()
+    {
+        for(int i = 0; i < WeaponJob.WeaponCount; i++) {
+            if(jobGranted.Contains(i)) continue;
+            var w = (TraitsData.WeaponType)i;
+            int pick = WeaponJob.Active(w, 1);
+            if(pick < 0) continue;
+            int n = WeaponJob.StartCount(WeaponJob.Level(w));
+            if(w == TraitsData.WeaponType.MainWeapon) {
+                jobGranted.Add(i);
+                if(order.Count > 0) continue;   // 이어 하는 판(행성 다음 맵 등)엔 다시 안 줘요
+                if(pick == 0) QueuePull(n); else rerollBag += n * 2;
+                continue;
+            }
+            var side = AugmentDefs.SideOf(w);
+            if(!IsEquipped(side)) continue;
+            jobGranted.Add(i);
+            var def = AugmentDefs.Get(WeaponJob.StartAugId(w, pick));
+            if(def == null) continue;
+            while(Level(def.id) < Mathf.Min(n, def.maxLevel)) Apply(def, false);
+        }
+    }
+
     void Apply(AugmentDef def, bool announce)
     {
         int before = Level(def.id);
@@ -755,7 +782,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         int l = tree[node];
         switch(node) {
             case 0: return $"골드 확률 +{l * 2}%p, 프리즘 확률 +{l * 0.4f:0.#}%p";
-            case 1: return l == 0 ? "원정 시작 시 최고 기록의 일부를 건너뛰어요" : $"최고 기록의 {l * 10}%부터 출발 (건너뛴 만큼 증강 지급)";
+            case 1: return l == 0 ? "원정 시작 시 최고 기록의 일부 건너뛰기" : $"최고 기록의 {l * 10}%부터 출발 (건너뛴 만큼 증강 지급)";
             case 2: return l == 0 ? "원정 시작 시 증강 1개를 들고 출발" : $"{(l == 1 ? "실버" : l == 2 ? "골드" : "프리즘")} 이상 증강 1개를 들고 출발";
             case 3: return $"원정 피해 ×{StarPowerMultiplier:0.##} (레벨마다 ×{RemasterBalance.StarPowerPerLevel:0.##})";
             case 4: return $"원정마다 리롤 +{Mathf.Max(1, l)}회로 출발";
@@ -783,6 +810,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         loadoutLeft = loadoutRight = SideWeapon.None;   // 기본총 하나로 출발 (2026-11-25), 무기는 정한 스테이지에 골라요
         ResetRoulette();
         ResetEffectState();
+        jobGranted.Clear();   // 전직 시작 증강 (새 원정)
         OnAugmentsChanged();
     }
 
@@ -869,6 +897,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     #region 저장
     public void LoadData(GameData data)
     {
+        WeaponJob.Load(data);   // 무기 전직 (2026-11-26). 특성(TraitsManager)보다 늦게 불러와요 → 예전 특성 광석 돌려주기
         if(data.expeditionVersion < 1) {
             // 예전 세이브(또는 새 게임): 원정 상태를 깨끗하게 초기화
             ResetExpeditionState();
@@ -918,6 +947,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
 
     public void SaveData(GameData data)
     {
+        WeaponJob.Save(data);
         if(!loaded) return;
         data.expeditionVersion = 1;
         if(planetSnap != null) CopyExpeditionFields(planetSnap, data);   // 행성 한 판 중: 원정 상태는 들어갈 때 보관한 그대로 (PlanetRun.cs)
@@ -1057,6 +1087,11 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(Input.GetKeyDown(KeyCode.F9)) {
             GameManager.Enemy_Dead_Money_UP(1000000000L);
             ui.Toast("[개발] 골드 +10억", Color.white);
+        }
+        // Insert: 부품(우주석) +100 (행성 버프 확인용, 2026-11-25)
+        if(Input.GetKeyDown(KeyCode.Insert)) {
+            GameManager.SetParts(100);
+            ui.Toast("[개발] 부품 +100", Color.white);
         }
         // ` 키(숫자 1 왼쪽): 증강 테스트 창. F10은 녹화 프로그램 단축키와 겹쳐서 바꿨어요. 화면의 [테스트] 버튼도 같아요
         if(Input.GetKeyDown(KeyCode.BackQuote)) ui.ShowDebugAugments();

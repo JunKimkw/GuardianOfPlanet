@@ -13,16 +13,22 @@ public class PoisonShop : WeaponShopBase
 
     void Awake() => instance = this;
 
+    // 패시브 (2026-11-26 밸런스: 피해 % 는 모든 무기가 같은 길 × passive_k_poison, tools/passive_balance.js)
+    protected override string PassiveKey => "poison";
+    protected override float PassiveKDefault => 0.33f;
+    protected override string[] PassiveDescs => new[] { "피해 +{d10}", "독탄 1개 더 (3 → 4)", "레벨마다 피해 +{per}", "독 피해 간격 절반", "독 구역 30% 커져요", "독도 치명타가 터져요", "피해 +{d750}" };
     protected override void ApplyPassives(int lv)
     {
         var w = weapon;
-        w.ExtraDamagePercent = 0;
-        if(Passive(0, 10)) w.ExtraDamage = 25;
+        w.ExtraDamage = 0;
+        float d = 0f;
+        if(Passive(0, 10)) d += PvLv10;
         if(Passive(1, 50)) w.extraBullet = true;
-        if(Passive(2, 100)) w.ExtraDamagePercent += PerLevelFrom100(lv, 0.005f);
+        if(Passive(2, 100)) d += PerLevelFrom100(lv, PvPerLv);
         if(Passive(3, 200)) w.extraHit = true;
         if(Passive(4, 300)) w.extraSizeOfPoisonArea = true;
         if(Passive(5, 500)) w.Poison_canCrit = true;
-        if(Passive(6, 750)) w.ExtraDamagePercent += 2.5f;
+        if(Passive(6, 750)) d += PvLv750;
+        w.ExtraDamagePercent = d * PK;
     }
 }

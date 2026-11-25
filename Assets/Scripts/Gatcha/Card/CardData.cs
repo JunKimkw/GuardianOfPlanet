@@ -31,8 +31,8 @@ public class CardData : MonoBehaviour
         EquipGrade.text = data.equipData.gradeText;
     //    EquipBorder.color = data.Border.color;
 //        EquipGrade.color = data.Border.color;
-        newText.SetActive(EquipManager.Instance.All_Equips.Find(x => x == data).equipData.AmountOfEquip <= 1);
-        StartCoroutine(StartFading(EquipManager.Instance.All_Equips.Find(x => x == data).equipData.AmountOfEquip > 1));
+        newText.SetActive(EquipBag.CountOf(data.equipData) <= 1);   // 처음 얻은 장비 (2026-11-25 가방)
+        StartCoroutine(StartFading(EquipBag.CountOf(data.equipData) > 1));
     }
 
     public void Skip()

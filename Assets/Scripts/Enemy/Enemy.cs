@@ -197,8 +197,12 @@ public partial class Enemy : MonoBehaviour
 
     // keepScale: 죽는 연출 동안은 크기를 그대로 (2026-11-25 사용자: 죽고 사라질 때 갑자기 커져요 — 작게·크게 바꾼 적이 죽는 순간 원래 크기로 돌아갔어요)
     //  크기는 연출이 끝나고 풀로 돌아갈 때 되돌려요 (EnemyDeathEffect)
+    // 무기 전직 (2026-11-26, WeaponJob): 연타 쌓임 · 마지막으로 때린 무기 (처치 골드·경험치)
+    [System.NonSerialized] public int jobComboWeapon = -1, jobComboStacks, lastHitWeapon = -1;
+
     public void SetEnemyToDefault(bool keepScale = false)
     {
+        jobComboWeapon = -1; jobComboStacks = 0; lastHitWeapon = -1;
         DebugFrozen = false;
         EnemyHealth = initialValue.EnemyHealth;
         Enemy_EXP = initialValue.Enemy_EXP;
@@ -264,11 +268,16 @@ public partial class Enemy : MonoBehaviour
         // 증강: 치명타 다시 굴리기 + 받는 피해 배율 (독, 부식, 얼음 깨기)
         var aug = AugmentManager.Instance;
         double augMul = aug != null ? aug.BeforeHit(this, ref Critical, ref CritDamage) : 1;
+        // 무기 전직 (2026-11-26): 그 무기의 전직 레벨·고른 칸 (치명·치명 피해·관통을 바꾸고 피해 배율)
+        int jobWeapon = WeaponJob.WeaponIndexOf(src);
+        double jobMul = jobWeapon >= 0 ? WeaponJob.OnHit(this, jobWeapon, ref Critical, ref CritDamage, ref armorPen) : 1.0;
+        if(jobWeapon >= 0) lastHitWeapon = jobWeapon;
 
         // 기본 피해(구간 배율 전) → 증강 효과(분열 등)에 넘겨요. 실제로 깎이는 피해는 구간 배율을 곱한 값
         long baseDamage = Critical ? (long)(DealtDamage * (2 + (double)CritDamage)) : DealtDamage;
         if(augMul != 1) baseDamage = WeaponBase.ClampDamage(baseDamage * augMul);
         if(DamageTakenMul != 1f) baseDamage = (long)(baseDamage * (double)DamageTakenMul);
+        if(jobMul != 1.0) baseDamage = WeaponBase.ClampDamage(baseDamage * jobMul);
         // 환생 트리 "보스 사냥꾼"
         if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && aug != null)
             baseDamage = (long)(baseDamage * (double)aug.BossDamageMul);

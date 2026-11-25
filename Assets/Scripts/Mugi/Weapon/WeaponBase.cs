@@ -39,7 +39,8 @@ public abstract class WeaponBase : MonoBehaviour
     public virtual void DonShoot() { }
 
     // ---- 공통 계산
-    protected float Trait(TraitsData.TraitsType t) => TraitsManager.instance.GetStats(TraitType, t);
+    protected float Trait(TraitsData.TraitsType t) => TraitsManager.instance.GetStats(TraitType, t) + (t == TraitsData.TraitsType.AttackSpeed ? WeaponJob.AttackSpeed(TraitType) : 0f);   // 전직 '속사형' (2026-11-26)
+    public TraitsData.WeaponType JobType => TraitType;
 
     // (1 + 패시브 % + 특성 %)
     public float DamageMultiplier => 1f + ExtraDamagePercent + Trait(TraitsData.TraitsType.DamagePercent);

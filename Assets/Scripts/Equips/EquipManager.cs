@@ -96,11 +96,12 @@ public class EquipManager : MonoBehaviour, IDataPersistence
 
     private void Update()
     {
+#if UNITY_EDITOR
+        // 개발용 x: 장비마다 하나 더 (2026-11-25 가방: 예전엔 출시 빌드에서도 켜져 있었어요)
         if(Input.GetKeyDown("x")) {
-            foreach(EquipFrame e in All_Equips) {
-                e.equipData.AmountOfEquip++;
-            }
+            foreach(EquipFrame e in All_Equips.ToArray()) EquipBag.Grant(e);
         }
+#endif
 
         ChangeEquipsUI();
     }
@@ -110,30 +111,44 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     {
         //반지
         for(int i = 0; i < Sorting_Ring.allItems.Count; i++) {
-            CreateEquip(Sorting_Ring.allItems[i]);
+            CreateCatalog(Sorting_Ring.allItems[i]);
         }
 
         //목걸이
         for(int i = 0; i < Sorting_Necklace.allItems.Count; i++) {
-            CreateEquip(Sorting_Necklace.allItems[i]);
+            CreateCatalog(Sorting_Necklace.allItems[i]);
         }
 
         //책
         for(int i = 0; i < Sorting_Book.allItems.Count; i++) {
-            CreateEquip(Sorting_Book.allItems[i]);
+            CreateCatalog(Sorting_Book.allItems[i]);
         }
 
         //장신구
         for(int i = 0; i < Sorting_Accessory.allItems.Count; i++) {
-            CreateEquip(Sorting_Accessory.allItems[i]);
+            CreateCatalog(Sorting_Accessory.allItems[i]);
         }
 
         //장신구
         for(int i = 0; i < Sorting_Relics.allItems.Count; i++) {
-            CreateEquip(Sorting_Relics.allItems[i]);
+            CreateCatalog(Sorting_Relics.allItems[i]);
         }
     }
-    public void CreateEquip(Equips equip)
+    // 도감 칸 (뽑기·합성 미리보기용, 가방엔 안 나와요) — 2026-11-25 가방
+    public EquipFrame CreateCatalog(Equips equip)
+    {
+        EquipFrame e = Instantiate(equipFrame_pfb, EquipBag.Holder);
+        e.equipData = equip;
+        equip.setEquipInfo();
+        int t = equip.TypeOfEquip == Equips.Type.Ring ? 0 : equip.TypeOfEquip == Equips.Type.Necklace ? 1 : equip.TypeOfEquip == Equips.Type.Relics ? 2 : equip.TypeOfEquip == Equips.Type.Accessory ? 3 : 4;
+        e.setEquipFrameUI(equip, EquipType_Sprites[t]);
+        e.name = "[도감] " + equip.EquipName + equip.Grade;
+        EquipBag.Catalog.Add(e);
+        return e;
+    }
+
+    // 가방 칸 하나 (장비 하나) — EquipBag.Create 가 불러요
+    public EquipFrame CreateEquip(Equips equip)
     {
         EquipFrame e = Instantiate(equipFrame_pfb);
         e.equipData = equip;
@@ -162,6 +177,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
         All_Equips.Add(e);
         e.transform.localScale = new Vector3(0.95f, 0.95f, 0.95f);
         e.name = e.equipData.EquipName + e.equipData.Grade;
+        return e;
     }
 
     public void setEquipAvailablilty()
@@ -282,7 +298,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             unEquipButton.SetActive(SelectedEquip == EquipingManager.Instance.Ring.equipment || SelectedEquip == EquipingManager.Instance.Necklace.equipment || SelectedEquip == EquipingManager.Instance.Book.equipment || SelectedEquip == EquipingManager.Instance.Accessory.equipment || SelectedEquip == EquipingManager.Instance.Relics.equipment);
             EquipButton.SetActive(!(SelectedEquip == EquipingManager.Instance.Ring.equipment || SelectedEquip == EquipingManager.Instance.Necklace.equipment || SelectedEquip == EquipingManager.Instance.Book.equipment || SelectedEquip == EquipingManager.Instance.Accessory.equipment || SelectedEquip == EquipingManager.Instance.Relics.equipment));
             UpgradeButton.SetActive(SelectedEquip.equipData.Level < 20);
-            JinhwaButton.SetActive(SelectedEquip.equipData.AmountOfEquip >= SelectedEquip.equipData.RequiredAmountForMerge && SelectedEquip.equipData.Grade != Equips.MaterialClass.Ancient);
+            JinhwaButton.SetActive(EquipBag.MergeCount(SelectedEquip.equipData) >= SelectedEquip.equipData.RequiredAmountForMerge && SelectedEquip.equipData.Grade != Equips.MaterialClass.Ancient);
             EquipDismantle.Refresh(JinhwaButton, SelectedEquip);   // 분해 (2026-11-25)
             ChangeStarSetting(SelectedEquip.equipData.Level);
             setEquipInfoGUI();
@@ -467,21 +483,21 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     //Add Methods
     public void addMergeEquip(EquipFrame data)
     {
-        data.equipData.AmountOfEquip++;
+        EquipBag.Grant(data);
     }
 
     public int getEquipNumber(EquipFrame data)
     {
-        return All_Equips.Find(x => x.equipData.id == data.equipData.id).equipData.AmountOfEquip;
+        return EquipBag.CountOf(data.equipData);
     }
 
     //Get Methods
     public EquipFrame getRandomItem_Grade(Equips.MaterialClass materialClass, Equips.Type EquipType)
     {
         List<EquipFrame> RandomList = new List<EquipFrame>();
-        for(int i = 0; i < All_Equips.Count; i++) {
-            if(All_Equips[i].equipData.Grade == materialClass && All_Equips[i].equipData.TypeOfEquip == EquipType) {
-                RandomList.Add(All_Equips[i]);
+        for(int i = 0; i < EquipBag.Catalog.Count; i++) {   // 도감에서 골라요 (2026-11-25 가방)
+            if(EquipBag.Catalog[i].equipData.Grade == materialClass && EquipBag.Catalog[i].equipData.TypeOfEquip == EquipType) {
+                RandomList.Add(EquipBag.Catalog[i]);
             }
         }
         int randomIndex = Random.Range(0, RandomList.Count);
@@ -492,7 +508,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     {
         int sum = 0;
         for(int i = 0; i < All_Equips.Count; i++) {
-            if(All_Equips[i].equipData.TypeOfEquip == data && All_Equips[i].equipData.AmountOfEquip > 0)
+            if(All_Equips[i].equipData.TypeOfEquip == data && All_Equips.FindIndex(x => x.equipData.id == All_Equips[i].equipData.id) == i)   // 같은 장비 여러 개는 한 번만 (2026-11-25 가방)
                 sum++;
         }
         return sum;
@@ -733,55 +749,22 @@ public class EquipManager : MonoBehaviour, IDataPersistence
 
     public void addEquipByID(string id)
     {
-        foreach(EquipFrame e in All_Equips) {
-            if(e.equipData.id == id) {
-                e.equipData.AmountOfEquip++;
-            }
-        }
+        // 2026-11-25 가방: 도감에서 찾아 장비 하나 넣기
+        var c = EquipBag.Catalog.Find(x => x.equipData.id == id);
+        if(c != null) EquipBag.Grant(c);
     }
 
     //Data Save
     public void LoadData(GameData data)
     {
-        for(int i = 0; i < All_Equips.Count; i++) {
-            data.Equip_Amount.TryGetValue(All_Equips[i].equipData.id, out int amount);
-            All_Equips[i].equipData.AmountOfEquip = amount;
-            if(amount >= 1) {
-                All_Equips[i].equipData.setEquipInfo();
-            }
-        }
-
-        //레벨
-        for(int i = 0; i < All_Equips.Count; i++) {
-            data.Equip_Level.TryGetValue(All_Equips[i].equipData.id, out int level);
-            All_Equips[i].equipData.Level = level;
-        }
-
-        for(int i = 0; i < All_Equips.Count; i++) {
-            data.Equip_IsEquiped.TryGetValue(All_Equips[i].equipData.id, out bool value);
-            if(value) {
-                EquipingManager.Instance.SetEquipingItem(All_Equips[i]);
-                All_Equips[i].isEquiped = true;
-            }
-        }
-
-        //스탯
-        for(int i = 0; i < All_Equips.Count; i++) {
-            for(int j = 0; j < 20; j++) {
-                data.Equip_UpgradeIndex.TryGetValue(All_Equips[i].equipData.id + "UpgradeIndex" + j, out string value);
-                All_Equips[i].equipData.UpgradeIndex[j] = value;
-            }
-
-            All_Equips[i].equipData.setExtraOptionStats();
-            All_Equips[i].equipData.setFinalOptionStats();
-        }
-
+        // 장비 가방 (2026-11-25): 장비 하나씩. 예전 저장은 종류별 개수에서 만들어요
+        EquipBag.Load(data);
         for(int i = 0; i < Equip_Sets.Count; i++) {
             for(int j = 0; j < Equip_Sets[i].equipSet.Count; j++) {
                 data.Equip_SetData.TryGetValue("setofthedatas" + i + j, out string EquipID);
 
                 if(EquipID != "null") {
-                    Equip_Sets[i].equipSet[j] = All_Equips.Find(x => x.equipData.id == EquipID);
+                    Equip_Sets[i].equipSet[j] = EquipBag.Find(EquipID);   // 새 저장은 장비 번호(uid), 예전 저장은 종류 id
                 }
             }
         }
@@ -793,38 +776,8 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     }
     public void SaveData(GameData data)
     {
-        //레벨
-        for(int i = 0; i < All_Equips.Count; i++) {
-            if(data.Equip_Level.ContainsKey(All_Equips[i].equipData.id))
-                data.Equip_Level.Remove(All_Equips[i].equipData.id);
-
-            data.Equip_Level.Add(All_Equips[i].equipData.id, All_Equips[i].equipData.Level);
-        }
-        for(int i = 0; i < All_Equips.Count; i++) {
-            if(data.Equip_Amount.ContainsKey(All_Equips[i].equipData.id))
-                data.Equip_Amount.Remove(All_Equips[i].equipData.id);
-
-            data.Equip_Amount.Add(All_Equips[i].equipData.id, All_Equips[i].equipData.AmountOfEquip);
-        }
-
-        //장착했는지
-        for(int i = 0; i < All_Equips.Count; i++) {
-            if(data.Equip_IsEquiped.ContainsKey(All_Equips[i].equipData.id))
-                data.Equip_IsEquiped.Remove(All_Equips[i].equipData.id);
-
-            data.Equip_IsEquiped.Add(All_Equips[i].equipData.id, All_Equips[i].isEquiped);
-        }
-
-        //스탯
-        for(int i = 0; i < All_Equips.Count; i++) {
-            for(int j = 0; j < 20; j++) {
-                if(data.Equip_UpgradeIndex.ContainsKey(All_Equips[i].equipData.id + "UpgradeIndex" + j))
-                    data.Equip_UpgradeIndex.Remove(All_Equips[i].equipData.id + "UpgradeIndex" + j);
-
-                data.Equip_UpgradeIndex.Add(All_Equips[i].equipData.id + "UpgradeIndex" + j, All_Equips[i].equipData.UpgradeIndex[j]);
-            }
-        }
-
+        // 장비 가방 (2026-11-25). 예전 종류별 기록(Equip_Amount 등)은 건드리지 않아요 (equipItems 가 있으면 안 읽어요)
+        EquipBag.Save(data);
         //Set 
         for(int i = 0; i < Equip_Sets.Count; i++) {
             for(int j = 0; j < Equip_Sets[i].equipSet.Count; j++) {
@@ -832,7 +785,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
                     data.Equip_SetData.Remove("setofthedatas" + i + j);
 
                 if(Equip_Sets[i].equipSet[j] != null) {
-                    data.Equip_SetData.Add("setofthedatas" + i + j, Equip_Sets[i].equipSet[j].equipData.id);
+                    data.Equip_SetData.Add("setofthedatas" + i + j, Equip_Sets[i].equipSet[j].equipData.uid ?? Equip_Sets[i].equipSet[j].equipData.id);
                 } else {
                     data.Equip_SetData.Add("setofthedatas" + i + j, "null");
                 }

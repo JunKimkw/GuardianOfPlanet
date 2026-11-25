@@ -12,16 +12,22 @@ public class BounceGunShop : WeaponShopBase
 
     void Awake() => Instance = this;
 
+    // 패시브 (2026-11-26 밸런스: 피해 % 는 모든 무기가 같은 길 × passive_k_bounce, tools/passive_balance.js)
+    protected override string PassiveKey => "bounce";
+    protected override float PassiveKDefault => 0.41f;
+    protected override string[] PassiveDescs => new[] { "피해 +{d10}", "총알 1개 더", "레벨마다 피해 +{per}", "장전 시간 25% 감소", "튕기는 횟수 +1", "튕겨도 약해지지 않아요", "피해 +{d750}" };
     protected override void ApplyPassives(int lv)
     {
         var w = weapon;
-        w.ExtraDamagePercent = 0;
-        if(Passive(0, 10)) w.ExtraDamage = 30;
+        w.ExtraDamage = 0;
+        float d = 0f;
+        if(Passive(0, 10)) d += PvLv10;
         if(Passive(1, 50)) w.ExtraBullet = true;
-        if(Passive(2, 100)) w.ExtraDamagePercent += PerLevelFrom100(lv, 0.01f);
+        if(Passive(2, 100)) d += PerLevelFrom100(lv, PvPerLv);
         if(Passive(3, 200)) w.ExtraAttackSpeedScale = 0.25f;
         if(Passive(4, 300)) w.ExtraBounce = true;
         if(Passive(5, 500)) w.NoDamageReduce = true;
-        if(Passive(6, 750)) w.ExtraDamagePercent += 3.75f;
+        if(Passive(6, 750)) d += PvLv750;
+        w.ExtraDamagePercent = d * PK;
     }
 }

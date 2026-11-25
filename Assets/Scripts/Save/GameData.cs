@@ -242,6 +242,8 @@ public class GameData
     public List<int> abyssClearKeys, abyssClearVals;   // 심연 맵마다 깬 횟수 (반복 보상 줄이기)
     public List<int> abyssConquered;     // 심연 정복한 행성 (그 행성 무기 피해 +20% 영구)
     public List<int> parallelBonus;      // 첫 완주 보너스를 받은 평행 행성   // 행성마다 모은 증강·무기·레벨 (2026-11-25, PlanetRun.cs)
+    public List<EquipItemSave> equipItems;   // 장비 가방 (2026-11-25, 장비 하나씩). null = 예전 저장 → EquipBag.Load 가 종류별 개수에서 만들어요
+    public List<int> jobLevels, jobPicks;   // 무기 전직 (2026-11-26, WeaponJob). null = 예전 저장 → 특성 광석을 돌려줘요
     public List<int> clearedGates;      // 처음 이긴 신의 관문 번호 (스테이지/50). null = 아직 기록 없음(예전 세이브)
 
     //Default values

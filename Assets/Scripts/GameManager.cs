@@ -274,12 +274,12 @@ public class GameManager : MonoBehaviour, IDataPersistence
 
     public static int GetTotalExpOfEnemy(Enemy enemy)
     {
-        return (int)((enemy.Enemy_EXP + EquipingManager.Instance.ExtraEXPByNumber_Equip) * (1 + Player.GetStatsByType(Upgrade_StatsPrefab.StatsType.ExtraEXP)));
+        return (int)((enemy.Enemy_EXP + EquipingManager.Instance.ExtraEXPByNumber_Equip) * (1 + Player.GetStatsByType(Upgrade_StatsPrefab.StatsType.ExtraEXP)) * WeaponJob.KillExpMul(enemy.lastHitWeapon));   // 전직 '경험치'
     }
 
     public static long GetTotalGoldOfEnemy(Enemy enemy)
     {
-        return (long)((enemy.enemy_Money + EquipingManager.Instance.ExtraGoldByNumber_Equip) * (1 + Player.GetStatsByType(Upgrade_StatsPrefab.StatsType.ExtraMoney)));
+        return (long)((enemy.enemy_Money + EquipingManager.Instance.ExtraGoldByNumber_Equip) * (1 + Player.GetStatsByType(Upgrade_StatsPrefab.StatsType.ExtraMoney)) * WeaponJob.KillGoldMul(enemy.lastHitWeapon));   // 전직 '골드'
     }
 
     public static int GetDiamond()

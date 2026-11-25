@@ -783,3 +783,65 @@ planet_buff_tower_cut_max = 0.3
 star_power_per_level = 1.25
 star_power_max = 99
 trait_dmg_scale = 1
+# 장비 가방 (2026-11-25): 같은 장비도 한 칸씩, 능력치마다 무작위 ×min~×max (평균 mid 가 등급 사다리). 가득 차면 장비 뽑기 막기
+equip_bag_size = 100
+equip_roll_min = 1
+equip_roll_max = 2
+equip_roll_mid = 1.5
+# 분해: 강화석 = per + 강화 레벨 × per_level
+equip_dismantle_per_level = 1
+# 무기 전직 (2026-11-26, Remaster/WeaponJob.cs · WeaponJobUI.cs). 전직 Lv 1당 값 (최대 20). 값은 성장 예산표에서 다시
+job_ui_on = 0
+job_dmg_per = 0.05
+job_rapid_as = 0.03
+job_heavy_dmg = 0.05
+job_aug_step = 7
+job_crit_cc = 1
+job_steady_dmg = 0.03
+job_combo_max = 0.04
+job_first_dmg = 0.08
+job_first_hp = 0.9
+job_gold = 0.03
+job_exp = 0.03
+job_pen = 0.03
+job_cdmg = 0.1
+# 비용 = 예전 특성 가격표 (1천 ~ 5조 광석) × 이것. 칸 바꾸기 = 그 레벨 가격 × swap
+job_cost_mul = 1
+job_swap_mul = 0.25
+wj_text_scale = 0.75
+wj_pick_scale = 0.85
+ui_btn_outline = 1
+ui_btn_outline_em = 0.06
+ui_btn_outline_min = 0.85
+# 버튼 글씨 베이글 (2026-11-26): 1 베이글 / 0 주아 (다시 시작), 크기 배율, 아래 그림자 = 테두리 × 배율
+ui_font_bagel = 0
+ui_bagel_scale = 0.92
+ui_btn_shadow = 1.5
+# 버튼 글씨 = 원래 게임 글씨 (숫자 = 가격 1,188 글꼴, 한글 = 무기 이름 글꼴). 0 이면 주아 + 색 테두리
+ui_btn_game_font = 1
+ui_game_num_scale = 1
+ui_game_ko_scale = 1
+# 테두리 없는 원래 한글 글꼴의 굵기 (0 = 원래, 높을수록 굵게)
+ui_game_plain_dilate = 0
+ui_font_jua = 1
+ui_game_btn_font = 0
+
+# ---- 무기 패시브 밸런스 (2026-11-26, tools/passive_balance.js)
+# 피해 % 는 모든 무기가 같은 길: Lv10 · Lv50 · Lv100부터 레벨마다 · 그 밖의 피해 칸 · Lv750
+passive_lv10 = 0.2
+passive_lv50 = 0.5
+passive_per_lv = 0.01
+passive_mid = 0.5
+passive_lv750 = 3
+# 무기마다 피해 % 전체에 곱하는 값 (효과 패시브가 센 무기일수록 작아요. 기본총 = 1)
+passive_k_main = 1
+passive_k_double = 0.34
+passive_k_bomber = 0.66
+passive_k_track = 0.67
+passive_k_poison = 0.33
+passive_k_drone = 0.65
+passive_k_laser = 0.32
+passive_k_blackhole = 0.69
+passive_k_sniper = 0.21
+passive_k_bounce = 0.41
+passive_k_meteor = 0.61

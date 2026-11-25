@@ -27,7 +27,31 @@ public class Equips : MonoBehaviour
     public EquipsOption FinalOption;
     // 새 기본 능력치 (2026-11-25 장비 다시 맞추기). 프리팹 baseOption 은 그대로 두고 EquipBalance 가 계산해요
     [System.NonSerialized] options balancedBase;
-    public options BaseStats => balancedBase ??= EquipBalance.Of(this);
+    public options BaseStats { get { if(balancedBase == null) { balancedBase = EquipBalance.Of(this); ApplyRolls(balancedBase); } return balancedBase; } }
+
+    // 가방 (2026-11-25, Remaster/EquipBag.cs): 가진 장비 하나하나는 이 프리팹의 복사본이에요
+    [System.NonSerialized] public Equips source;    // 복사본이면 원본 프리팹 (도감 칸은 null)
+    [System.NonSerialized] public string uid;       // 장비 하나의 번호
+    [System.NonSerialized] public float[] rolls;    // 능력치마다 무작위 ×1.0~×2.0 (없으면 ×1.5 = 평균)
+    public float RollOf(int k) => rolls != null && k < rolls.Length ? rolls[k] : Tuning.Get("equip_roll_mid", 1.5f);
+    // 평균이 등급 사다리와 같게 ÷ 1.5
+    void ApplyRolls(options o)
+    {
+        float mid = Mathf.Max(0.01f, Tuning.Get("equip_roll_mid", 1.5f));
+        o.damage = (int)(o.damage * RollOf(0) / mid); o.damagePercent *= RollOf(1) / mid; o.AttackSpeed *= RollOf(2) / mid;
+        o.BulletSpeed *= RollOf(3) / mid; o.CritChance *= RollOf(4) / mid; o.CritDamage *= RollOf(5) / mid;
+        o.StunPercent *= RollOf(6) / mid; o.ExtraEXP *= RollOf(7) / mid; o.ExtraMoney *= RollOf(8) / mid;
+    }
+    // 무작위 값이 얼마나 좋은가 0 (모두 ×1.0) ~ 1 (모두 ×2.0). 있는 능력치만
+    public float Quality01 {
+        get {
+            var b = BaseStats; float s = 0; int n = 0;
+            float[] v = { b.damage, b.damagePercent, b.AttackSpeed, b.BulletSpeed, b.CritChance, b.CritDamage, b.StunPercent, b.ExtraEXP, b.ExtraMoney };
+            float lo = Tuning.Get("equip_roll_min", 1f), hi = Tuning.Get("equip_roll_max", 2f);
+            for(int k = 0; k < v.Length; k++) if(v[k] != 0) { s += Mathf.InverseLerp(lo, hi, RollOf(k)); n++; }
+            return n > 0 ? s / n : 0.5f;
+        }
+    }
 
     public enum MaterialClass {Ancient = 5, Legendary = 4, Unique = 3, Epic = 2, Rare = 1, Normal = 0}
     [Header("장비 등급")]

@@ -75,6 +75,7 @@ public partial class AugmentManager
     // 행성 한 판 시작. map: 그 행성 안의 맵 번호 (0 = x-1)
     public void BeginPlanetRun(int planet, int map, int enemiesToKill)
     {
+        jobGranted.Clear();   // 전직 시작 증강 (행성 판)
         if(!loaded) return;
         // 같은 행성의 다음 맵·다시 하기는 이어 가요 (2026-11-25 사용자: 맵마다 초기화하지 말고 유지 → 2-8쯤엔 합체까지)
         bool abyss = StageManager.instance != null && StageManager.instance.AbyssMode;

@@ -130,4 +130,32 @@ public abstract class WeaponShopBase : MonoBehaviour
 
     // 레벨 100부터 레벨마다 쌓이는 % 보너스
     protected static float PerLevelFrom100(int lv, float perLevel) => lv >= 100 ? (lv - 99) * perLevel : 0f;
+
+    // ---- 패시브 밸런스 (2026-11-26 사용자: "패시브는 너 추천대로 다 적용")
+    // 피해 % 는 모든 무기가 같은 길: Lv10 +20% · Lv50 +50% · Lv100부터 레벨마다 +1% · 그 밖의 피해 칸 +50% · Lv750 +300%
+    // (그 칸이 탄 추가 같은 효과인 무기는 효과). 효과가 센 무기일수록 피해 % 전체에 passive_k_<무기> 를 곱해서
+    // Lv.750 에서 (1 + 피해 %) × 효과 배율이 기본총과 같게 맞췄어요 (계산 = tools/passive_balance.js, 효과 배율은 어림값)
+    // 예전: 기본총 Lv.750 +1000%, 무기마다 Lv.750 종합 배율이 최대 5.3배 차이 → 지금 1.0배
+    protected static float PvLv10 => Tuning.Get("passive_lv10", 0.2f);
+    protected static float PvLv50 => Tuning.Get("passive_lv50", 0.5f);
+    protected static float PvPerLv => Tuning.Get("passive_per_lv", 0.01f);
+    protected static float PvMid => Tuning.Get("passive_mid", 0.5f);
+    protected static float PvLv750 => Tuning.Get("passive_lv750", 3f);
+    protected abstract string PassiveKey { get; }
+    protected abstract float PassiveKDefault { get; }
+    protected float PK => Tuning.Get("passive_k_" + PassiveKey, PassiveKDefault);
+
+    // 패시브 설명 (패시브 알약을 눌렀을 때 창에 나와요). {d10} {d50} {per} {mid} {d750} = 지금 숫자로 바꿔요 (k 곱한 값)
+    protected virtual string[] PassiveDescs => null;
+    public static readonly int[] PassiveLevels = { 10, 50, 100, 200, 300, 500, 750 };
+    public string PassiveText(int i)
+    {
+        var a = PassiveDescs;
+        string s = a != null && i >= 0 && i < a.Length ? a[i] : null;
+        if(s == null) return passiveObjects != null && i < passiveObjects.Count && passiveObjects[i] != null ? passiveObjects[i].passiveExplain : "";
+        return s.Replace("{d10}", Pct(PvLv10)).Replace("{d50}", Pct(PvLv50)).Replace("{per}", Pct(PvPerLv)).Replace("{mid}", Pct(PvMid)).Replace("{d750}", Pct(PvLv750));
+    }
+    string Pct(float v) { float p = v * PK * 100f; return (p >= 10f ? p.ToString("0") : p.ToString("0.#")) + "%"; }
+    // 이 패시브가 피해 % 칸인지 (창에서 아이콘 고르기)
+    public bool PassiveIsDamage(int i) { var a = PassiveDescs; return a != null && i < a.Length && a[i].Contains("{"); }
 }

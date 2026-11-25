@@ -56,21 +56,18 @@ public class TraitsManager : MonoBehaviour, IDataPersistence
             }
         }
 
+        // 2026-11-26 무기 전직: 특성 대신 "고를 칸이 있거나 전직 Lv 을 올릴 수 있으면" 느낌표
         ExclamationMark.SetActive(false);
-        for(int i = 0; i < TraitsData.Count; i++)
-        {
-            if(TraitsData[i].Trait_Level != 20)
-            {
-                if(GameManager.GetOre() >= TraitsData[i].totalPrice[TraitsData[i].Trait_Level])
-                {
-                    ExclamationMark.SetActive(true);
-                    break;
-                }
-            }
+        for(int i = 0; i < WeaponJob.WeaponCount; i++) {
+            var w = (global::TraitsData.WeaponType)i;
+            long c = WeaponJob.LevelUpCost(w);
+            if(WeaponJob.OpenUnpicked(w) > 0 || (c >= 0 && GameManager.GetOre() >= c)) { ExclamationMark.SetActive(true); break; }
         }
     }
     public void Upgrade(TraitsData data)
     {
+        return;   // 2026-11-26: 특성은 무기 전직으로 바뀌었어요 (WeaponJob). 옛 화면 버튼이 눌려도 아무것도 안 해요
+#pragma warning disable CS0162
         if(GameManager.GetOre() >= data.totalPrice[data.Trait_Level]) {
             GameManager.SetOre(-data.totalPrice[data.Trait_Level]);
             //Can Buy
@@ -79,6 +76,7 @@ public class TraitsManager : MonoBehaviour, IDataPersistence
 
             SoundManager.Instance.Invoke("playCoinSFX", SoundManager.Instance.click.length);
         }
+#pragma warning restore CS0162
     }
 
     public void LoadData(GameData data)

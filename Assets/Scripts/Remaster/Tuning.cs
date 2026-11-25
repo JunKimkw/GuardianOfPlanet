@@ -16,7 +16,9 @@ public static class Tuning
 
     static void Refresh()
     {
-        float now = Time.realtimeSinceStartup;
+        // 에디터 시계 (2026-11-26): 플레이 시작 때 코드를 다시 불러오지 않는 설정(Reload Domain 꺼짐)이라 nextCheck 가 지난 플레이 값으로 남아요.
+        //  Time.realtimeSinceStartup 은 플레이마다 0부터라 한참 동안 다시 안 읽었어요 → 에디터가 켜진 뒤로 계속 가는 시계로
+        float now = (float)UnityEditor.EditorApplication.timeSinceStartup;
         if(now < nextCheck) return;
         nextCheck = now + 1f;
         try {

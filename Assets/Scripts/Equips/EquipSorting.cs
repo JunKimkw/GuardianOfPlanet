@@ -37,29 +37,14 @@ public class EquipSorting : MonoBehaviour
         SortOrder();
     }
 
+    // 가방 정렬 (2026-11-25): 등급 높은 순 → 같은 장비끼리 → 강화 높은 순 → 무작위 값 좋은 순
     public void SortOrder()
     {
-        var sortedList = Have_Items.OrderByDescending(x => x.equipData.id).ToList();
-        Have_Items = sortedList.OrderByDescending(x => x.equipData.AmountOfEquip).ToList();
-        Have_Items = Have_Items.OrderByDescending(x => (int)x.equipData.Grade).ToList();
-
-        List<EquipFrame> Ancient = setListbyGrade(Equips.MaterialClass.Ancient);
-        List<EquipFrame> Legendary = setListbyGrade(Equips.MaterialClass.Legendary);
-        List<EquipFrame> Unique = setListbyGrade(Equips.MaterialClass.Unique);
-        List<EquipFrame> Epic = setListbyGrade(Equips.MaterialClass.Epic);
-        List<EquipFrame> Rare = setListbyGrade(Equips.MaterialClass.Rare);
-        List<EquipFrame> Normal = setListbyGrade(Equips.MaterialClass.Normal);
-        Have_Items.Clear();
-        Have_Items.AddRange(Ancient);
-        Have_Items.AddRange(Legendary);
-        Have_Items.AddRange(Unique);
-        Have_Items.AddRange(Epic);
-        Have_Items.AddRange(Rare);
-        Have_Items.AddRange(Normal);
-
-        
-        for(int i = 0; i < sortedList.Count; i++) {
-            Have_Items[i].gameObject.transform.SetSiblingIndex(i);
+        Have_Items = Have_Items.Where(x => x != null && x.equipData != null)
+            .OrderByDescending(x => (int)x.equipData.Grade).ThenBy(x => x.equipData.id)
+            .ThenByDescending(x => x.equipData.Level).ThenByDescending(x => x.equipData.Quality01).ToList();
+        for(int i = 0; i < Have_Items.Count; i++) {
+            if(Have_Items[i].transform.GetSiblingIndex() != i) Have_Items[i].transform.SetSiblingIndex(i);
         }
     }
 

@@ -166,6 +166,12 @@ public class WeaponManager : MonoBehaviour, IDataPersistence
         bool any = false;
         for(int i = 0; i < Weapons.Count && !any; i++)
             any = Shops[i] != null && Shops[i].IsUnlocked && money >= Shops[i].getTotalMoney(Weapons[i].UpgradeLevel, 1);
+        // 2026-11-26: 특성 버튼을 없애고 강화 창에서 전직까지 → 고를 칸이 있거나 전직 Lv 을 올릴 수 있어도 느낌표
+        for(int i = 0; i < WeaponJob.WeaponCount && !any; i++) {
+            var w = (TraitsData.WeaponType)i;
+            long c = WeaponJob.LevelUpCost(w);
+            any = WeaponJob.OpenUnpicked(w) > 0 || (c >= 0 && GameManager.GetOre() >= c);
+        }
         ExclamationMark.SetActive(any);
     }
 
