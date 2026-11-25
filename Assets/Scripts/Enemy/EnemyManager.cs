@@ -103,6 +103,8 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         Enemy enemy = go.GetComponent<Enemy>();
         enemy._typeofEnemy = type;
         enemy.transform.position = RandomLocation(side);
+        enemy.spawnPos = enemy.transform.position;
+        enemy.spawnTime = Time.time;
         enemy.gameObject.SetActive(true);
         return enemy;
     }
@@ -331,7 +333,7 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         if(type != Enemy.typeofEnemy.LabMonster)
             Instance.totalKilledEnemy++;
 
-        enemy.SetEnemyToDefault();
+        enemy.SetEnemyToDefault(true);   // 사라지는 동안 크기는 그대로
         enemy.EnemyDeath();
         Instance.enemyData.Remove(enemy);
         Instance.bossData.Remove(enemy);
@@ -357,8 +359,13 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         switch(enemy._typeofEnemy) {
             case Enemy.typeofEnemy.normal:
             case Enemy.typeofEnemy.boss:
+                // (2026-11-25 버그: "처치 0, 나온 적 0" 인데 실패) 행성 전투 중일 때만 져요. 전투 전·끝난 뒤 남은 적이 닿은 건 무시
+                if(!StageManager.instance.PlanetBattle) {
+                    Debug.Log($"[행성] 전투 밖에서 적이 우주선에 닿아서 무시했어요 (나온 자리 {enemy.spawnPos}, {Time.time - enemy.spawnTime:0.0}초 전)");
+                    break;
+                }
                 MoneyPopup.Create(enemy.transform.position, (-enemy.enemy_Money / 5) + 1, 2.5f);
-                StageManager.instance.Died();
+                StageManager.instance.DiedBy(enemy);
                 break;
             case Enemy.typeofEnemy.InfiniteStage:
             case Enemy.typeofEnemy.InfiniteStageBoss:

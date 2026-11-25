@@ -34,7 +34,6 @@ public class GameData
 
     //추가 스탯
     public float Attack_Damage;
-    public float Attack_Damage_Percent;
     public float Attack_Speed;
     public float Attack_Bullet_Speed;
     public float StunPower;
@@ -265,7 +264,6 @@ public class GameData
 
         //추가 스탯
         Attack_Damage = 10;
-        Attack_Damage_Percent = 0;
         Attack_Speed = 0;
         Attack_Bullet_Speed = 0;
         StunPower = 0;

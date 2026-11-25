@@ -344,31 +344,31 @@ public class MergeManager : MonoBehaviour
         nameofEquip.text = RandomEquip.equipData.EquipName;
         ResultTab_EquipData.SetEquipment(RandomEquip);
 
-        if(RandomEquip.equipData.baseOption.option.damage != 0) {
+        if(RandomEquip.equipData.FinalOption.option.damage != 0) {
             ResultTab_Stats[0].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = RandomEquip.equipData.FinalOption.option.damage.ToString("#.##");
         }
-        if(RandomEquip.equipData.baseOption.option.damagePercent != 0) {
+        if(RandomEquip.equipData.FinalOption.option.damagePercent != 0) {
             ResultTab_Stats[1].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.damagePercent * 100).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.CritChance != 0) {
+        if(RandomEquip.equipData.FinalOption.option.CritChance != 0) {
             ResultTab_Stats[2].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.CritChance).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.CritDamage != 0) {
+        if(RandomEquip.equipData.FinalOption.option.CritDamage != 0) {
             ResultTab_Stats[3].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.CritDamage * 100).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.AttackSpeed != 0) {
+        if(RandomEquip.equipData.FinalOption.option.AttackSpeed != 0) {
             ResultTab_Stats[4].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.AttackSpeed * 100).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.BulletSpeed != 0) {
+        if(RandomEquip.equipData.FinalOption.option.BulletSpeed != 0) {
             ResultTab_Stats[5].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.BulletSpeed * 100).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.StunPercent != 0) {
+        if(RandomEquip.equipData.FinalOption.option.StunPercent != 0) {
             ResultTab_Stats[6].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.StunPercent).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.ExtraMoney != 0) {
+        if(RandomEquip.equipData.FinalOption.option.ExtraMoney != 0) {
             ResultTab_Stats[7].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.ExtraMoney * 100).ToString("#.##") + "%";
         }
-        if(RandomEquip.equipData.baseOption.option.ExtraEXP != 0) {
+        if(RandomEquip.equipData.FinalOption.option.ExtraEXP != 0) {
             ResultTab_Stats[8].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip.equipData.FinalOption.option.ExtraEXP * 100).ToString("#.##") + "%";
         }
 

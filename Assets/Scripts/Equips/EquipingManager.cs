@@ -178,6 +178,8 @@ public class EquipingManager : MonoBehaviour
             ExtraEXP_Equip += Book.equipment.equipData.FinalOption.option.ExtraEXP;
             ExtraGold_Equip += Book.equipment.equipData.FinalOption.option.ExtraMoney;
         }
+        // 세트 효과 (2026-11-25, Remaster/EquipSets.cs)
+        EquipSets.Apply(this, Ring, Necklace, Accessory, Relics, Book);
     }
 
 }

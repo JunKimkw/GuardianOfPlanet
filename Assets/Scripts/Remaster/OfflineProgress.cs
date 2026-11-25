@@ -92,12 +92,16 @@ public class OfflineProgress : MonoBehaviour
         Stamp();
         if(away < MinAwaySeconds || dpsEstimate <= 0) return;
 
-        var result = Simulate(InfiniteStage.Instance.CurrentStage, Math.Min(away, RemasterBalance.OfflineCapHours * 3600.0) * GameManager.SpeedBase, dpsEstimate, InfiniteStage.Instance.playerHealth);
+        var result = Simulate(InfiniteStage.Instance.CurrentStage, Math.Min(away, (RemasterBalance.OfflineCapHours + PlanetBuffManager.OfflineExtraHours) * 3600.0) * GameManager.SpeedBase, dpsEstimate, InfiniteStage.Instance.playerHealth);
         if(result.cleared <= 0) {
             AugmentManager.Instance.UI.Toast($"자리를 비운 동안 {StopReason(result)}", new Color(0.8f, 0.85f, 1f));
             return;
         }
 
+        // 행성 버프 '오프라인 보상' (2026-11-25)
+        double ob = 1.0 + PlanetBuffManager.OfflineBonus;
+        result.gold = (long)Math.Min(long.MaxValue / 2, result.gold * ob);
+        result.exp = (long)Math.Min(long.MaxValue / 2, result.exp * ob);
         GameManager.Enemy_Dead_Money_UP(result.gold);
         Player.instance.PlayerEXPUP(result.exp);
         AugmentManager.Instance.AddOfflineKills(result.kills, result.bosses);

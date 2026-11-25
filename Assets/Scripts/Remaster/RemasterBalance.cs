@@ -77,7 +77,9 @@ public static class RemasterBalance
     }
 
     // ---- 환생 트리 "별의 가호"
-    public const float StarPowerPerLevel = 1.25f;
+    // 별의 가호 (2026-11-25 사용자 승인 '1': 끝없이 ×1.25 면 다른 성장을 다 덮어요 → 레벨당 배율·최대 레벨을 tuning 으로. 값은 성장 예산표에서 정해요)
+    public static float StarPowerPerLevel => Tuning.Get("star_power_per_level", 1.25f);
+    public static int StarPowerMax => Mathf.Max(0, Tuning.GetInt("star_power_max", 99));
     public static int StarPowerCost(int level) => Mathf.FloorToInt(4f * Mathf.Pow(1.3f, level));
 
     // ---- 증강 뽑는 스테이지: 1~50은 5마다, 51~200은 10마다, 201부터 25마다 (판이 길어져도 넘치지 않게)
@@ -130,7 +132,7 @@ public static class Armor
         RemasterBalance.EnemyHp(stage) * ExpeditionZones.HpMul(stage) * Ratio(stage) * (boss ? Tuning.Get("armor_boss_mul", 3f) : 1f);
 
     // 장비·증강 관통력이 들어올 자리 (지금은 0)
-    public static float PlayerPen => 0f;
+    public static float PlayerPen => EquipBalance.Pen;   // 장비 '방어 관통' + 능력치 (2026-11-25)
 
     public static float Pen(TraitsData.WeaponType w)
     {

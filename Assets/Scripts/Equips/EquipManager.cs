@@ -84,6 +84,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
         GradeText.gameObject.SetActive(false);
         LevelText.gameObject.SetActive(false);
         EquipNameText.gameObject.SetActive(false);
+        EquipSets.Hide();
         Type.gameObject.SetActive(false);
         foreach(GameObject g in equipStats_obj) {
             g.SetActive(false);
@@ -282,6 +283,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             EquipButton.SetActive(!(SelectedEquip == EquipingManager.Instance.Ring.equipment || SelectedEquip == EquipingManager.Instance.Necklace.equipment || SelectedEquip == EquipingManager.Instance.Book.equipment || SelectedEquip == EquipingManager.Instance.Accessory.equipment || SelectedEquip == EquipingManager.Instance.Relics.equipment));
             UpgradeButton.SetActive(SelectedEquip.equipData.Level < 20);
             JinhwaButton.SetActive(SelectedEquip.equipData.AmountOfEquip >= SelectedEquip.equipData.RequiredAmountForMerge && SelectedEquip.equipData.Grade != Equips.MaterialClass.Ancient);
+            EquipDismantle.Refresh(JinhwaButton, SelectedEquip);   // 분해 (2026-11-25)
             ChangeStarSetting(SelectedEquip.equipData.Level);
             setEquipInfoGUI();
         }
@@ -304,39 +306,39 @@ public class EquipManager : MonoBehaviour, IDataPersistence
         }
 
         if(SelectedEquip != null) {
-            if(SelectedEquip.equipData.baseOption.option.damage != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.damage != 0) {
                 equipStats_obj[0].SetActive(true);
                 equipStats_obj[0].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = SelectedEquip.equipData.FinalOption.option.damage.ToString("#.##");
             }
-            if(SelectedEquip.equipData.baseOption.option.damagePercent != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.damagePercent != 0) {
                 equipStats_obj[1].SetActive(true);
                 equipStats_obj[1].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.damagePercent * 100).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.CritChance != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.CritChance != 0) {
                 equipStats_obj[2].SetActive(true);
                 equipStats_obj[2].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.CritChance).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.CritDamage != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.CritDamage != 0) {
                 equipStats_obj[3].SetActive(true);
                 equipStats_obj[3].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.CritDamage * 100).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.AttackSpeed != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.AttackSpeed != 0) {
                 equipStats_obj[4].SetActive(true);
                 equipStats_obj[4].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.AttackSpeed * 100).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.BulletSpeed != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.BulletSpeed != 0) {
                 equipStats_obj[5].SetActive(true);
                 equipStats_obj[5].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.BulletSpeed * 100).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.StunPercent != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.StunPercent != 0) {
                 equipStats_obj[6].SetActive(true);
                 equipStats_obj[6].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.StunPercent).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.ExtraMoney != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.ExtraMoney != 0) {
                 equipStats_obj[7].SetActive(true);
                 equipStats_obj[7].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.ExtraMoney * 100).ToString("#.##") + "%";
             }
-            if(SelectedEquip.equipData.baseOption.option.ExtraEXP != 0) {
+            if(SelectedEquip.equipData.FinalOption.option.ExtraEXP != 0) {
                 equipStats_obj[8].SetActive(true);
                 equipStats_obj[8].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (SelectedEquip.equipData.FinalOption.option.ExtraEXP * 100).ToString("#.##") + "%";
             }
@@ -355,12 +357,14 @@ public class EquipManager : MonoBehaviour, IDataPersistence
         GradeText.gameObject.SetActive(false);
         LevelText.gameObject.SetActive(false);
         EquipNameText.gameObject.SetActive(false);
+        EquipSets.Hide();
         Type.gameObject.SetActive(false);
         Border.gameObject.SetActive(false);
         EquipButton.SetActive(false);
         unEquipButton.SetActive(false);
         UpgradeButton.SetActive(false);
         JinhwaButton.SetActive(false);
+        EquipDismantle.Hide();
     }
 
     public void EquipClicked(EquipFrame data)
@@ -389,6 +393,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
         GradeText.text = data.equipData.gradeText;
         GradeText.color = data.Background_BG.color;
         EquipNameText.text = data.equipData.EquipName;
+        EquipSets.ShowUnder(EquipNameText, data.equipData);   // 세트 한 줄 (2026-11-25)
         EquipImage.sprite = data.equipData.Sprite_Equip;
         setEquipStatsUI();
 

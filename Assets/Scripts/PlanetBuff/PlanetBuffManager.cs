@@ -86,6 +86,18 @@ public class PlanetBuffManager : MonoBehaviour, IDataPersistence
         SoundManager.Instance.Invoke("playBuffSFX", SoundManager.Instance.click.length);
     }
 
+    // 경제 버프 (2026-11-25, PlanetBuff.MaxOf 참고)
+    static float V(PlanetBuff.BuffType t) => instance != null ? instance.getValue(t) : 0f;
+    public static float OfflineBonus => V(PlanetBuff.BuffType.DamageIncrease);
+    public static float OfflineExtraHours => V(PlanetBuff.BuffType.AttackSpeedIncrease);
+    public static float DustBonus => V(PlanetBuff.BuffType.CritDamageIncrease);
+    public static float OreBonus => V(PlanetBuff.BuffType.StunIncrease);
+    public static float StoneBonus => V(PlanetBuff.BuffType.CritChanceIncrease);
+    public static float TowerTimeCut => Mathf.Clamp(V(PlanetBuff.BuffType.BulletSpeedIncrease), 0f, 0.9f);
+    public static long Ore(long n) => n <= 0 ? n : (long)System.Math.Round(n * (1.0 + OreBonus));
+    // 작은 수도 의미 있게: 소수점 몫은 확률로
+    public static int Stones(int n) { if(n <= 0) return n; float f = n * (1f + StoneBonus); int k = Mathf.FloorToInt(f); return k + (Random.value < f - k ? 1 : 0); }
+
     public float getValue(PlanetBuff.BuffType type)
     {
         for(int i = 0; i < Buffs.Length; i++) {

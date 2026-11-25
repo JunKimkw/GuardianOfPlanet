@@ -309,6 +309,15 @@ public partial class AugmentManager
         planetMapEnded = false;
         planetGap = Mathf.Max(Tuning.Get("planet_lv_first_min", 10f), enemiesToKill * Tuning.Get("planet_lv_first_ratio", 0.15f));
         planetNextAt = planetGap;
+        // (2026-11-25 사용자: 처음 레벨업은 한두 마리만 잡아도 바로 → 새 무기 카드) 행성을 처음부터 할 때(Lv.0) 첫 레벨업은 planet_first_lv_kills(2)마리
+        //  그다음 간격은 원래 첫 간격 그대로 (planetQuickGap 에 맡겨 둬요)
+        planetQuickGap = 0f;
+        float quick = Tuning.Get("planet_first_lv_kills", 2f);
+        if(planetLevel == 0 && quick > 0f && quick < planetGap) {
+            planetQuickGap = planetGap;
+            planetGap = quick;
+            planetNextAt = quick;
+        }
         ui.RefreshHUD();
     }
 
@@ -331,9 +340,16 @@ public partial class AugmentManager
     {
         if(planetSnap == null || planetMapEnded) return;
         planetKills += Mathf.Max(1, Mathf.RoundToInt(planetGap * Tuning.Get("planet_horde_bonus", 0.6f)));
+        AdvancePlanetLevels();
+    }
+
+    float planetQuickGap;   // 첫 레벨업을 빨리 줄 때 원래 첫 간격 (2026-11-25)
+    void AdvancePlanetLevels()
+    {
         while(planetKills >= planetNextAt) {
             planetPendingLevels++;
-            planetGap *= Mathf.Max(1f, Tuning.Get("planet_lv_growth", 1.25f));
+            if(planetQuickGap > 0f) { planetGap = planetQuickGap; planetQuickGap = 0f; }   // 빠른 첫 레벨업 뒤엔 원래 첫 간격
+            else planetGap *= Mathf.Max(1f, Tuning.Get("planet_lv_growth", 1.25f));
             planetNextAt += planetGap;
         }
     }
@@ -343,11 +359,7 @@ public partial class AugmentManager
     {
         if(planetSnap == null) return;
         planetKills++;
-        while(planetKills >= planetNextAt) {
-            planetPendingLevels++;
-            planetGap *= Mathf.Max(1f, Tuning.Get("planet_lv_growth", 1.25f));
-            planetNextAt += planetGap;
-        }
+        AdvancePlanetLevels();
     }
 
     // 맵이 끝나면(클리어·실패) 남은 레벨업은 버려요 (2026-11-25 사용자: 마지막 적 처치가 증강 선택과 겹치면 증강 선택은 안 뜨게)

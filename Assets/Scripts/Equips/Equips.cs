@@ -25,6 +25,9 @@ public class Equips : MonoBehaviour
     public EquipsOption extraOption;
     [HideInInspector]
     public EquipsOption FinalOption;
+    // 새 기본 능력치 (2026-11-25 장비 다시 맞추기). 프리팹 baseOption 은 그대로 두고 EquipBalance 가 계산해요
+    [System.NonSerialized] options balancedBase;
+    public options BaseStats => balancedBase ??= EquipBalance.Of(this);
 
     public enum MaterialClass {Ancient = 5, Legendary = 4, Unique = 3, Epic = 2, Rare = 1, Normal = 0}
     [Header("장비 등급")]
@@ -254,23 +257,23 @@ public class Equips : MonoBehaviour
     public void setFinalOptionStats()
     {
         //데미지
-        FinalOption.option.damage = baseOption.option.damage + extraOption.option.damage;
+        FinalOption.option.damage = BaseStats.damage + extraOption.option.damage;
         //데미지 퍼센트
-        FinalOption.option.damagePercent = baseOption.option.damagePercent + extraOption.option.damagePercent;
+        FinalOption.option.damagePercent = BaseStats.damagePercent + extraOption.option.damagePercent;
         //공격속도
-        FinalOption.option.AttackSpeed = baseOption.option.AttackSpeed + extraOption.option.AttackSpeed;
+        FinalOption.option.AttackSpeed = BaseStats.AttackSpeed + extraOption.option.AttackSpeed;
         //총알속도
-        FinalOption.option.BulletSpeed = baseOption.option.BulletSpeed + extraOption.option.BulletSpeed;
+        FinalOption.option.BulletSpeed = BaseStats.BulletSpeed + extraOption.option.BulletSpeed;
         //치명타 확률
-        FinalOption.option.CritChance = baseOption.option.CritChance + extraOption.option.CritChance;
+        FinalOption.option.CritChance = BaseStats.CritChance + extraOption.option.CritChance;
         //치명타 데미지
-        FinalOption.option.CritDamage = baseOption.option.CritDamage + extraOption.option.CritDamage;
+        FinalOption.option.CritDamage = BaseStats.CritDamage + extraOption.option.CritDamage;
         //스턴확률
-        FinalOption.option.StunPercent = baseOption.option.StunPercent + extraOption.option.StunPercent;
+        FinalOption.option.StunPercent = BaseStats.StunPercent + extraOption.option.StunPercent;
         //추가 %경험치
-        FinalOption.option.ExtraEXP = baseOption.option.ExtraEXP + extraOption.option.ExtraEXP;
+        FinalOption.option.ExtraEXP = BaseStats.ExtraEXP + extraOption.option.ExtraEXP;
         //추가 %골드
-        FinalOption.option.ExtraMoney = baseOption.option.ExtraMoney + extraOption.option.ExtraMoney;
+        FinalOption.option.ExtraMoney = BaseStats.ExtraMoney + extraOption.option.ExtraMoney;
     }
 
     public string plusOrminus(float n)
@@ -330,15 +333,15 @@ public class Equips : MonoBehaviour
         extraOption.option.ExtraEXP = 0;
 
         int count = 0;
-        if(baseOption.option.damage != 0) count++;
-        if(baseOption.option.damagePercent != 0) count++;
-        if(baseOption.option.AttackSpeed != 0) count++;
-        if(baseOption.option.BulletSpeed != 0) count++;
-        if(baseOption.option.CritChance != 0) count++;
-        if(baseOption.option.CritDamage != 0) count++;
-        if(baseOption.option.StunPercent != 0) count++;
-        if(baseOption.option.ExtraEXP != 0) count++;
-        if(baseOption.option.ExtraMoney != 0) count++;
+        if(BaseStats.damage != 0) count++;
+        if(BaseStats.damagePercent != 0) count++;
+        if(BaseStats.AttackSpeed != 0) count++;
+        if(BaseStats.BulletSpeed != 0) count++;
+        if(BaseStats.CritChance != 0) count++;
+        if(BaseStats.CritDamage != 0) count++;
+        if(BaseStats.StunPercent != 0) count++;
+        if(BaseStats.ExtraEXP != 0) count++;
+        if(BaseStats.ExtraMoney != 0) count++;
 
         int number = 0;
 
@@ -349,67 +352,67 @@ public class Equips : MonoBehaviour
                 for(int j = count - 1; j >= 0; j--) {
 
                     int indexCount = 0;
-                    if(baseOption.option.damage != 0) {
+                    if(BaseStats.damage != 0) {
                         if(indexCount == j) {
-                            extraOption.option.damage += (int)((baseOption.option.damage + extraOption.option.damage) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.Damage, this, i)[number % 10]);                                            
+                            extraOption.option.damage += (int)((BaseStats.damage + extraOption.option.damage) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.Damage, this, i)[number % 10]);                                            
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.damagePercent != 0) {
+                    if(BaseStats.damagePercent != 0) {
                         if(indexCount == j) {
-                            extraOption.option.damagePercent += (baseOption.option.damagePercent + extraOption.option.damagePercent) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.DamagePercent, this, i)[number % 10];
+                            extraOption.option.damagePercent += (BaseStats.damagePercent + extraOption.option.damagePercent) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.DamagePercent, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.AttackSpeed != 0) {
+                    if(BaseStats.AttackSpeed != 0) {
                         if(indexCount == j) {
-                            extraOption.option.AttackSpeed += (baseOption.option.AttackSpeed + extraOption.option.AttackSpeed) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.AttackSpeed, this, i)[number % 10];
+                            extraOption.option.AttackSpeed += (BaseStats.AttackSpeed + extraOption.option.AttackSpeed) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.AttackSpeed, this, i)[number % 10];
                             
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.BulletSpeed != 0) {
+                    if(BaseStats.BulletSpeed != 0) {
                         if(indexCount == j) {
-                            extraOption.option.BulletSpeed += (baseOption.option.BulletSpeed + extraOption.option.BulletSpeed) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.BulletSpeed, this, i)[number % 10];
+                            extraOption.option.BulletSpeed += (BaseStats.BulletSpeed + extraOption.option.BulletSpeed) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.BulletSpeed, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.CritChance != 0) {
+                    if(BaseStats.CritChance != 0) {
                         if(indexCount == j) {
-                            extraOption.option.CritChance += (baseOption.option.CritChance + extraOption.option.CritChance) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.CritChance, this, i)[number % 10];
+                            extraOption.option.CritChance += (BaseStats.CritChance + extraOption.option.CritChance) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.CritChance, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.CritDamage != 0) {
+                    if(BaseStats.CritDamage != 0) {
                         if(indexCount == j) {
-                            extraOption.option.CritDamage += (baseOption.option.CritDamage + extraOption.option.CritDamage) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.CritDamage, this, i)[number % 10];
+                            extraOption.option.CritDamage += (BaseStats.CritDamage + extraOption.option.CritDamage) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.CritDamage, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.StunPercent != 0) {
+                    if(BaseStats.StunPercent != 0) {
                         if(indexCount == j) {
-                            extraOption.option.StunPercent += (baseOption.option.StunPercent + extraOption.option.StunPercent) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.StunPercent, this, i)[number % 10];
+                            extraOption.option.StunPercent += (BaseStats.StunPercent + extraOption.option.StunPercent) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.StunPercent, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.ExtraMoney != 0) {
+                    if(BaseStats.ExtraMoney != 0) {
                         if(indexCount == j) {
-                            extraOption.option.ExtraMoney += (baseOption.option.ExtraMoney + extraOption.option.ExtraMoney) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.ExtraMoney, this, i)[number % 10];
+                            extraOption.option.ExtraMoney += (BaseStats.ExtraMoney + extraOption.option.ExtraMoney) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.ExtraMoney, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;
                     }
-                    if(baseOption.option.ExtraEXP != 0) {
+                    if(BaseStats.ExtraEXP != 0) {
                         if(indexCount == j) {
 
-                            extraOption.option.ExtraEXP += (baseOption.option.ExtraEXP + extraOption.option.ExtraEXP) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.ExtraEXP, this, i)[number % 10];
+                            extraOption.option.ExtraEXP += (BaseStats.ExtraEXP + extraOption.option.ExtraEXP) * EquipManager.Instance.upgradeManager.getStatsPrefab(Upgrade_StatsPrefab.StatsType.ExtraEXP, this, i)[number % 10];
                             number /= 10;
                         }
                         indexCount++;

@@ -69,74 +69,50 @@ public class PlanetBuff : MonoBehaviour
         }
     }
 
+    // 행성 버프 = 경제·편의만 (2026-11-25 사용자 승인 '2'. 설계서 v3 '신의 버프'). 저장 순서 때문에 이름은 그대로, 뜻만 바꿨어요
+    //  골드·경험치: 그대로 (씬 MaxValue)
+    //  옛 '총 데미지'   → 오프라인 보상 +%         옛 '공격 속도' → 오프라인 최대 시간 +시간
+    //  옛 '치명타 데미지' → 환생 별의 먼지 +%      옛 '스턴'     → 광석 획득 +%
+    //  옛 '치명타 확률' → 강화석 획득 +%          옛 '총알 속도' → 탐험 시간 단축 %
+    public float MaxOf()
+    {
+        switch(buffType) {
+            case BuffType.DamageIncrease: return Tuning.Get("planet_buff_offline_max", 1f);
+            case BuffType.AttackSpeedIncrease: return Tuning.Get("planet_buff_offline_hours_max", 6f);
+            case BuffType.CritDamageIncrease: return Tuning.Get("planet_buff_dust_max", 0.5f);
+            case BuffType.StunIncrease: return Tuning.Get("planet_buff_ore_max", 1f);
+            case BuffType.CritChanceIncrease: return Tuning.Get("planet_buff_stone_max", 0.5f);
+            case BuffType.BulletSpeedIncrease: return Tuning.Get("planet_buff_tower_cut_max", 0.3f);
+            default: return MaxValue;
+        }
+    }
+
+    public string Describe()
+    {
+        string v = (value * 100).ToString("0.#");
+        switch(buffType) {
+            case BuffType.GoldIncrease: return "획득 골드 " + v + "% 증가";
+            case BuffType.EXPIncrease: return "획득 경험치 " + v + "% 증가";
+            case BuffType.DamageIncrease: return "오프라인 보상 " + v + "% 증가";
+            case BuffType.AttackSpeedIncrease: return "오프라인 최대 시간 +" + value.ToString("0.#") + "시간";
+            case BuffType.CritDamageIncrease: return "환생 별의 먼지 " + v + "% 증가";
+            case BuffType.StunIncrease: return "광석 획득 " + v + "% 증가";
+            case BuffType.CritChanceIncrease: return "강화석 획득 " + v + "% 증가";
+            case BuffType.BulletSpeedIncrease: return "탐험 시간 " + v + "% 단축";
+        }
+        return "";
+    }
+
     public void ChangeShopSetting()
     {
-        if(Level < 10) {
-            value = MaxValue / 10.0f * Level;
-            switch(buffType) {
-                case BuffType.GoldIncrease:
-                    BuffInfo.text = "획득 골드 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.EXPIncrease:
-                    BuffInfo.text = "획득 경험치 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.DamageIncrease:
-                    BuffInfo.text = "총 데미지 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.CritChanceIncrease:
-                    BuffInfo.text = "치명타 확률 " + value + "% 증가";
-                    break;
-                case BuffType.CritDamageIncrease:
-                    BuffInfo.text = "치명타 데미지 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.StunIncrease:
-                    BuffInfo.text = "스턴 확률 " + value + "% 증가";
-                    break;
-                case BuffType.AttackSpeedIncrease:
-                    BuffInfo.text = "공격 속도 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.BulletSpeedIncrease:
-                    BuffInfo.text = "총알 속도 " + value * 100 + "% 증가";
-                    break;
-            }
-            priceText.gameObject.SetActive(true);
-            priceImage.SetActive(true);
-            maxText.SetActive(false);
-            priceText.text = getBuffPriceParts().ToString();
-            BuyButton.interactable = true;
-        } else {
-            value = MaxValue / 10.0f * Level;
-            switch(buffType) {
-                case BuffType.GoldIncrease:
-                    BuffInfo.text = "획득 골드 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.EXPIncrease:
-                    BuffInfo.text = "획득 경험치 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.DamageIncrease:
-                    BuffInfo.text = "총 데미지 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.CritChanceIncrease:
-                    BuffInfo.text = "치명타 확률 " + value + "% 증가";
-                    break;
-                case BuffType.CritDamageIncrease:
-                    BuffInfo.text = "치명타 데미지 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.StunIncrease:
-                    BuffInfo.text = "스턴 확률 " + value + "% 증가";
-                    break;
-                case BuffType.AttackSpeedIncrease:
-                    BuffInfo.text = "공격 속도 " + value * 100 + "% 증가";
-                    break;
-                case BuffType.BulletSpeedIncrease:
-                    BuffInfo.text = "총알 속도 " + value * 100 + "% 증가";
-                    break;
-            }
-            priceText.gameObject.SetActive(false);
-            priceImage.SetActive(false);
-            maxText.SetActive(true);
-            BuyButton.interactable = false;
-        }
+        value = MaxOf() / 10.0f * Level;
+        BuffInfo.text = Describe();
+        bool max = Level >= 10;
+        priceText.gameObject.SetActive(!max);
+        priceImage.SetActive(!max);
+        maxText.SetActive(max);
+        if(!max) priceText.text = getBuffPriceParts().ToString();
+        BuyButton.interactable = !max;
 
 
         //Star

@@ -62,8 +62,30 @@ public class StageManager : MonoBehaviour
     {
         if(Tuning.Get("planet_use_data_count", 0f) > 0f) return currentStage.SpawnSpeed[i] / SpawnSpeedup;
         int types = Mathf.Max(1, currentStage.enemiesPrefab.Length);
-        float seconds = Tuning.Get("planet_map_seconds", 45f) + PlanetMapIndex * Tuning.Get("planet_map_seconds_step", 6f);
+        float seconds = MapSecondsOf(PlanetMapIndex, CurrentDim);
         return Mathf.Max(0.05f, seconds * types / Mathf.Max(1, EnemyTarget) * PlanetDimension.RuleSpawn(CurrentRules));   // 규칙 '광란': 더 빨리
+    }
+
+    // ---- 행성 첫 맵들은 쉽게 (2026-11-25 사용자: "3-1 을 하는데 애들이 한 방에 죽는데 너무 몰려와서 잡을 수가 없어. 일반 차원 x-1·x-2 는 좀 쉽게")
+    //  첫 맵은 레벨 0에 행성 무기 하나라 화력이 적어요 → 적 수는 그대로(레벨업 횟수 그대로), 더 천천히 나오고 대군은 덜
+    //  일반 차원만: x-1 나오는 시간 × planet_easy_time_1(1.6), 대군 planet_easy_horde_1(0)번 / x-2 × planet_easy_time_2(1.3), 대군 planet_easy_horde_2(1)번
+    public static float MapSecondsOf(int m, int dim)
+    {
+        float sec = Tuning.Get("planet_map_seconds", 45f) + m * Tuning.Get("planet_map_seconds_step", 6f);
+        if(dim == PlanetDimension.Normal) {
+            if(m == 0) sec *= Mathf.Max(1f, Tuning.Get("planet_easy_time_1", 1.6f));
+            else if(m == 1) sec *= Mathf.Max(1f, Tuning.Get("planet_easy_time_2", 1.3f));
+        }
+        return sec;
+    }
+    public static int HordeCountOf(int m, int dim)
+    {
+        int n = Mathf.Max(0, Tuning.GetInt("planet_horde_count", 2));
+        if(dim == PlanetDimension.Normal) {
+            if(m == 0) n = Mathf.Min(n, Mathf.Max(0, Tuning.GetInt("planet_easy_horde_1", 0)));
+            else if(m == 1) n = Mathf.Min(n, Mathf.Max(0, Tuning.GetInt("planet_easy_horde_2", 1)));
+        }
+        return n;
     }
 
     // ---- 차원 (2026-11-25, PlanetDimension.cs): 평행 = 15~28번 행성, 심연 = 다 깬 평행 행성에서 고르면 (행성 지도 화면이 정해 줘요)
@@ -260,7 +282,7 @@ public class StageManager : MonoBehaviour
     int HordeSize => Mathf.Clamp(Mathf.RoundToInt(EnemyTarget * Tuning.Get("planet_horde_share", 0.2f)), Tuning.GetInt("planet_horde_min", 10), Tuning.GetInt("planet_horde_max", 60));
     void TryHorde()
     {
-        int count = Mathf.Max(0, Tuning.GetInt("planet_horde_count", 2));
+        int count = HordeCountOf(PlanetMapIndex, CurrentDim);   // 첫 맵들은 대군이 덜 (2026-11-25)
         if(hordeDone >= count || currentStage == null || currentStage.enemiesPrefab.Length == 0) return;
         // 진행률은 일반 적만으로 세요 (2026-11-25 버그: 대군 몫을 미리 떼어 두면 60마리 맵에선 두 번째 대군이 바로 이어 나왔어요)
         int normalTotal = Mathf.Max(1, EnemyTarget - count * HordeSize);
@@ -339,6 +361,7 @@ public class StageManager : MonoBehaviour
 
     public void StartSpawningEnemy()
     {
+        battleStartTime = Time.time;
         InBattle = true;
         SpawningEnemy = true;
         for(int i = 0; i < currentStage.enemiesPrefab.Length; i++) {
@@ -408,9 +431,18 @@ public class StageManager : MonoBehaviour
 
         //Load GameSpeed and Auto
         GameManager.instance.loadGameSpeedandAuto();
+        // (2026-11-25 3-1 원인) 수동 조준이면 기본총이 적이 아니라 손가락(마우스) 쪽으로 쏴서 폭격기만 잡았어요 → 행성은 자동 조준으로 시작 (planet_force_auto 1)
+        if(Tuning.Get("planet_force_auto", 1f) > 0f) WeaponManager.instance.shootType = WeaponManager.ShootType.AutoShoot;
 
         //Stop Infinite Stage
         InfiniteStage.Instance.PauseInfiniteStage();
+
+        // 남아 있던 적을 치워요 (2026-11-25: 전투 전에 남은 적이 닿아 지는 일)
+        if(EnemyManager.Instance != null) {
+            int left = EnemyManager.Instance.enemyData.Count + EnemyManager.Instance.bossData.Count;
+            if(left > 0) Debug.Log($"[행성] 들어갈 때 남아 있던 적 {left}마리를 치웠어요");
+            EnemyManager.Instance.removeAllEnemies();
+        }
 
         //Default the values
         KilledEnemy = 0;
@@ -499,6 +531,20 @@ public class StageManager : MonoBehaviour
         SoundManager.Instance.musicSource.Stop();
         SoundManager.Instance.playVictory();
     }
+
+    // 실패 진단 (2026-11-25 사용자: 3-1 을 못 깨요 — 시뮬레이션으론 쉬운데 실제론 11~17마리만 잡혀서 원인 찾기)
+    public void DiedBy(Enemy who)
+    {
+        if(who != null) {
+            int alive = 0, inRange = 0;
+            if(EnemyManager.Instance != null) foreach(var e in EnemyManager.Instance.enemyData) if(e != null && e.gameObject.activeInHierarchy) { alive++; if(e.IsInRange) inRange++; }
+            var ship = WeaponManager.instance != null && WeaponManager.instance.mainWeapon != null ? WeaponManager.instance.mainWeapon.transform.position : Vector3.zero;
+            float trip = Time.time - who.spawnTime;
+            Debug.Log($"[행성 진단] 전투 {Time.time - battleStartTime:0.0}초째, 화면의 적 {alive}마리(사거리 안 {inRange}), 닿은 적: 종류 {who._typeofEnemy}, 나온 자리 {who.spawnPos} → 우주선 {ship}, {trip:0.0}초 걸림 (속도 {who.enemyMovingSpeed:0.00}, 평균 {Vector3.Distance(who.spawnPos, ship) / Mathf.Max(0.01f, trip):0.00}칸/초), 게임 속도 {Time.timeScale:0.##}");
+        }
+        Died();
+    }
+    float battleStartTime;
 
     public void Died()
     {

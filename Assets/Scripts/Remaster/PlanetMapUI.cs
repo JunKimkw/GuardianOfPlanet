@@ -428,6 +428,13 @@ public partial class RemasterUI
     void BuildTop(int dim)
     {
         Clear(mapTop);
+        ResBar(mapTop);
+        BuildDimTabs(dim);
+    }
+
+    // 재화 3칸 (left 10, top 10, 높이 30, 사이 6)
+    void ResBar(Transform parent)
+    {
         float x = 10f;
         var stone = UpgradeStoneManager.instance != null ? UpgradeStoneManager.instance.getStone(UpgradeStone.TypeOfStone.Normal) : null;
         var res = new List<(string icon, float size, string text)> {
@@ -438,11 +445,15 @@ public partial class RemasterUI
         foreach(var r in res) {
             float tw = MeasureText(r.text, 15f);
             float w = 2f + 3f + 24f + 4f + tw + 10f + 2f;   // 테두리·안쪽 여백·아이콘·사이·글자
-            Plate(mapTop, "res", x, 10f, w, 30f, 1f);
-            PxIcon(mapTop, r.icon, x + 2f + 3f + 12f, 25f, r.size);
-            PxText(mapTop, r.text, x + 2f + 3f + 24f + 4f, 25f, 15f, Color.white, 0f, null, TextAlignmentOptions.Left);
+            Plate(parent, "res", x, 10f, w, 30f, 1f);
+            PxIcon(parent, r.icon, x + 2f + 3f + 12f, 25f, r.size);
+            PxText(parent, r.text, x + 2f + 3f + 24f + 4f, 25f, 15f, Color.white, 0f, null, TextAlignmentOptions.Left);
             x += w + 6f;
         }
+    }
+
+    void BuildDimTabs(int dim)
+    {
         string[] names = { "일반", "평행", "심연" };
         string[] keys = { "normal", "parallel", "abyss" };
         for(int d = 0; d < 3; d++) {
@@ -475,7 +486,7 @@ public partial class RemasterUI
 
     // 아래 메뉴: 미리보기와 같은 아이콘 5개 (상점 · 장비 · 모험 · 함선 · 설정). 가운데 '모험'이 튀어나와요
     //  누르면 지도를 닫고 옛날 로비의 그 버튼을 눌러 줘요 (모험 = 지도 닫기)
-    void BuildNav(int dim)
+    void BuildNav(int dim, string navKeyOverride = null)
     {
         Clear(mapNav);
         var navBg = Plate(mapNav, "nav_bg", 0f, 0f, 360f, NavH, 0f);
@@ -488,7 +499,7 @@ public partial class RemasterUI
             ("ItemIcon_Battle", Old("Upgrade Space Ship")), ("ItemIcon_Gear", menu != null ? menu.GetComponent<Button>() : null),
         };
         float[] cx = { 34.2f, 102.6f, 180f, 257.4f, 325.8f };
-        string navKey = dim == PlanetDimension.Abyss ? "red" : dim == PlanetDimension.Parallel ? "purple" : "blue";
+        string navKey = navKeyOverride ?? (dim == PlanetDimension.Abyss ? "red" : dim == PlanetDimension.Parallel ? "purple" : "blue");
         for(int i = 0; i < items.Length; i++) {
             var it = items[i];
             if(i == 2) {
@@ -957,8 +968,10 @@ public partial class RemasterUI
     void CloseSheet()
     {
         if(sheetLayer == null) return;
+        bool wasOpen = sheetLayer.gameObject.activeSelf;
         Clear(sheetLayer);
         sheetLayer.gameObject.SetActive(false);
+        if(wasOpen && mapNav != null && mapDim >= 0) BuildNav(mapDim);
     }
 
     void OpenSheet(int dim, int p, int map = -1)
@@ -968,6 +981,7 @@ public partial class RemasterUI
         BuildSheet();
     }
 
+    // (2026-11-25 사용자: C안 틀·홀로그램 등 여러 번 바꿔 봤는데 '그냥 원래 A안으로') 커밋 6ff9480e 의 A안 행성 창으로 되돌렸어요
     void BuildSheet()
     {
         Clear(sheetLayer);
@@ -1048,38 +1062,32 @@ public partial class RemasterUI
         }
         for(int i = 0; i < maps.Length && i < 8; i++) MapNode(s, dim, p, i, m, ox, oy, maps[i]);
 
-        // 고른 맵 정보 (left 16, top 262, 328×164, 안쪽 여백 12/14)
+        // 고른 맵 정보 = C안 '만날 적 | 보상' 두 칸 (2026-11-25 사용자: A안 창은 그대로, 이 부분만 C안으로)
+        //  자리는 예전 정보 판 그대로 (left 16, top 262, 328 × 164) → 160 × 164 두 칸, 사이 8
         var st = maps[m];
-        Plate(s, "info", 16f, 262f, 328f, 164f, 0f);
-        float ix = 16f + 2f + 14f, iy = 262f + 2f + 12f;
-        PxText(s, st.StageName, ix, iy + 14f, 24f, Color.white, 2f, Navy, TextAlignmentOptions.Left);
-        float afterName = ix + MeasureText(st.StageName, 24f) + 8f;
-        if(st.bossPrefab.Length > 0) Chip(s, "chip_red", null, "보스 맵", afterName, iy + 2f);
-        var rules = PlanetDimension.Rules(p, m, dim);
-        string right = rules.Count > 0 ? PlanetDimension.RulesShort(rules) : $"약 {Mathf.RoundToInt(Tuning.Get("planet_map_seconds", 45f) + m * Tuning.Get("planet_map_seconds_step", 6f))}초";
-        PxText(s, right, 16f + 328f - 2f - 14f, iy + 14f, 12f, Hex("#9fb4ff"), 0f, null, TextAlignmentOptions.Right);
-        float c1x = ix, c2x = ix + 143f + 10f, r1 = iy + 29f + 10f + 11f, r2 = r1 + 22f + 8f;
+        float py = 262f, lx0 = 16f, rx0 = 16f + 160f + 8f;
+        Plate(s, "info", lx0, py, 160f, 164f, 0f);   // (사용자: 홀로그램 창 말고) A안 둥근 정보 판
+        PxText(s, "만날 적", lx0 + 14f, py + 18f, 13f, Hex("#ff9b9b"), 0f, null, TextAlignmentOptions.Left);
         int enemies = StageManager.EnemyTargetOf(planet, st, dim);
-        Kv(s, "ItemIcon_Battle", 22f, "출현 적 ", enemies.ToString(), c1x, r1);
-        Kv(s, "PictoIcon_Fire", 20f, "대군 웨이브 ", $"{Tuning.GetInt("planet_horde_count", 2)}번", c2x, r1);
-        Kv(s, "PictoIcon_Boss", 22f, "보스 ", st.bossPrefab.Length > 0 ? $"{st.bossPrefab.Length}마리" : "없음", c1x, r2);
-        int stars = Mathf.Clamp(1 + m / 2 + dim, 1, 5);
-        Kv(s, "ItemIcon_Damage", 22f, "난이도 ", "<color=#FFD23F>" + new string('★', stars) + new string('☆', 5 - stars) + "</color>", c2x, r2);
-        var div = PxBox("Divider", s, ix, r2 + 11f + 10f, 328f - 4f - 28f, 2f).gameObject.AddComponent<Image>();
-        div.color = new Color(1, 1, 1, 0.08f); div.raycastTarget = false;
-        float rr = r2 + 11f + 10f + 2f + 10f + 12f;
-        sm.RewardOf(p, m, dim, out long gold, out int stone, out int dia, out bool first);
-        float rx = ix;
-        PxText(s, "보상", rx, rr, 13f, Hex("#9fb4ff"), 0f, null, TextAlignmentOptions.Left);
-        rx += MeasureText("보상", 13f) + 12f;
-        rx = Reward(s, "ItemIcon_Money_Coin", 24f, GameManager.instance != null ? GameManager.instance.MoneyStringForInfiniteStage(gold) : gold.ToString(), rx, rr, null) + 12f;
-        rx = Reward(s, null, 22f, stone.ToString(), rx, rr, StoneSprite(st.stonePrice)) + 12f;
-        rx = Reward(s, "ItemIcon_Gem_Diamond_Purple", 24f, first ? dia.ToString() : "받음", rx, rr, null) + 2f;
-        if(first) {
-            float cw = MeasureText("첫 클리어", 10f) + 18f + 3f;
-            Plate(s, "chip_purple", rx, rr - 9f, cw, 18f, 1f);
-            PxText(s, "첫 클리어", rx + cw / 2f, rr, 10f, Color.white);
+        Kv(s, "ItemIcon_Battle", 20f, "출현 적 ", enemies.ToString(), lx0 + 12f, py + 44f);
+        Kv(s, "PictoIcon_Fire", 18f, "대군 ", $"{StageManager.HordeCountOf(m, dim)}번", lx0 + 12f, py + 70f);
+        Kv(s, "PictoIcon_Boss", 20f, "보스 ", st.bossPrefab.Length > 0 ? $"{st.bossPrefab.Length}마리" : "없음", lx0 + 12f, py + 96f);
+        var rules = PlanetDimension.Rules(p, m, dim);
+        if(rules.Count > 0) Kv(s, "PictoIcon_Fire", 18f, "규칙 ", PlanetDimension.RulesShort(rules) + (dim == PlanetDimension.Abyss ? " · 정예" : ""), lx0 + 12f, py + 122f);
+        else Kv(s, "ItemIcon_Damage", 20f, "시간 ", $"약 {Mathf.RoundToInt(StageManager.MapSecondsOf(m, dim))}초", lx0 + 12f, py + 122f);
+        var bossSprite = st.bossPrefab.Length > 0 ? BossSprite(st.bossPrefab[0]) : null;
+        if(bossSprite != null) {   // 보스 얼굴 (C안처럼 오른쪽 아래, 그림자 동그라미는 빼요)
+            Halo(s, lx0 + 160f - 8f - 24f, py + 164f - 8f - 24f, 80f, new Color(1f, 0.24f, 0.24f, 0.55f));
+            var bi = PxBox("Boss", s, lx0 + 160f - 8f - 48f, py + 164f - 8f - 48f, 48f, 48f).gameObject.AddComponent<Image>();
+            bi.sprite = bossSprite; bi.preserveAspect = true; bi.raycastTarget = false;
         }
+        Plate(s, "info", rx0, py, 160f, 164f, 0f);
+        PxText(s, "보상", rx0 + 14f, py + 18f, 13f, Hex("#ffd23f"), 0f, null, TextAlignmentOptions.Left);
+        sm.RewardOf(p, m, dim, out long gold, out int stone, out int dia, out bool first);
+        Reward(s, "ItemIcon_Money_Coin", 22f, GameManager.instance != null ? GameManager.instance.MoneyStringForInfiniteStage(gold) : gold.ToString(), rx0 + 12f, py + 44f, null);
+        Reward(s, null, 20f, stone.ToString(), rx0 + 12f, py + 70f, StoneSprite(st.stonePrice));
+        float drx = Reward(s, "ItemIcon_Gem_Diamond_Purple", 22f, first ? dia.ToString() : "받음", rx0 + 12f, py + 96f, null);
+        if(first) PxText(s, "첫 클리어", drx + 4f, py + 97f, 11f, Hex("#c9a6ff"), 0f, null, TextAlignmentOptions.Left);
 
         // 저장된 증강 (left 16, top 434): 책 26 + 글자 14 + '보기' 64×32
         var run = mgr.PlanetRunOf(p, abyss);
@@ -1104,6 +1112,21 @@ public partial class RemasterUI
         var gb = go.gameObject.AddComponent<Button>();
         gb.onClick.AddListener(() => Launch(dim, p, m));
         gb.interactable = MapOpen(dim, p, m);
+    }
+
+    // 보스 그림: 그림자(흰 동그라미 'Circle')는 빼고 가장 큰 몸통 그림 (2026-11-25: 흰 동그라미가 나왔어요)
+    static Sprite BossSprite(Enemy prefab)
+    {
+        if(prefab == null) return null;
+        Sprite best = null;
+        float area = 0f;
+        foreach(var r in prefab.GetComponentsInChildren<SpriteRenderer>(true)) {
+            if(r == null || r.sprite == null || r.name == "Shadow" || r.sprite.name == "Circle") continue;
+            var b = r.sprite.bounds.size;
+            float a = b.x * b.y * Mathf.Abs(r.transform.lossyScale.x * r.transform.lossyScale.y);
+            if(a > area) { area = a; best = r.sprite; }
+        }
+        return best;
     }
 
     static Vector2 MapNodePx(int i, float ox, float oy)

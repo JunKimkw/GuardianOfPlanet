@@ -30,7 +30,7 @@ public class TraitsData : MonoBehaviour
 
     public Button priceButton;
 
-    public long[] totalPrice = { 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000, 500000000, 1000000000, 500000000, 10000000000, 50000000000, 100000000000, 500000000000, 1000000000000, 5000000000000 };
+    public long[] totalPrice = { 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000, 500000000, 1000000000, 5000000000, 10000000000, 50000000000, 100000000000, 500000000000, 1000000000000, 5000000000000 };
 
     private void Start()
     {
@@ -56,20 +56,23 @@ public class TraitsData : MonoBehaviour
     public void SetTraitData()
     {
         if(Trait_Level >= 20) {
-            TraitsDataText.text = traitShopName.Replace("@", string.Format("{0:0.###}%", TraitIncreaseAmount * Trait_Level * 100));
+            TraitsDataText.text = traitShopName.Replace("@", string.Format("{0:0.###}%", Amount * Trait_Level * 100));
             PriceText.text = "MAX";
             TraitsLevelText.text = "MAX";
             priceButton.interactable = false;
         } else {
-            TraitsDataText.text = traitShopName.Replace("@", string.Format("{0:0.###}%", TraitIncreaseAmount * Trait_Level * 100));
+            TraitsDataText.text = traitShopName.Replace("@", string.Format("{0:0.###}%", Amount * Trait_Level * 100));
             PriceText.text = GameManager.MoneyString(totalPrice[Trait_Level]);
             TraitsLevelText.text = "Lv." + Trait_Level;
             priceButton.interactable = true;
         }
     }
 
+    // 특성 피해% 크기 (2026-11-25 사용자 승인 '3': 무기마다 +400% 는 너무 커요. 성장 예산표에서 trait_dmg_scale 로 줄여요. 나중에 무기 전직으로 바뀌어요)
+    float Amount => TraitIncreaseAmount * (Trait_Type == TraitsType.DamagePercent ? Tuning.Get("trait_dmg_scale", 1f) : 1f);
+
     public float getTraitStat()
     {
-        return Trait_Level * TraitIncreaseAmount;
+        return Trait_Level * Amount;
     }
 }

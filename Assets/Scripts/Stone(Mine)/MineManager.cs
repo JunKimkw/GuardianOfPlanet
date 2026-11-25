@@ -171,7 +171,7 @@ public class MineManager : MonoBehaviour, IDataPersistence
         if(extraOrePerTouch) {
             float random = Random.Range(0.0f, 101.0f);
             if(random <= 2.5f) {
-                GameManager.SetOre(clickPower + 500);
+                GameManager.SetOre(PlanetBuffManager.Ore(clickPower + 500));
                 MaterialPopUp.Create(new Vector3(Camera.main.ScreenToWorldPoint(Input.mousePosition).x, Camera.main.ScreenToWorldPoint(Input.mousePosition).y, 0), MatSprite, clickPower + 500);
                 return;
             }
@@ -186,7 +186,7 @@ public class MineManager : MonoBehaviour, IDataPersistence
             }
         }
 
-        GameManager.SetOre(clickPower);
+        GameManager.SetOre(PlanetBuffManager.Ore(clickPower));
         MaterialPopUp.Create(new Vector3(Camera.main.ScreenToWorldPoint(Input.mousePosition).x, Camera.main.ScreenToWorldPoint(Input.mousePosition).y, 0), MatSprite, clickPower);
 
     }

@@ -1709,11 +1709,11 @@ public partial class RemasterUI : MonoBehaviour
             float y = contentH / 2 - rowH / 2 - i * step;
             var row = Row(content, new Vector2(900, rowH), new Vector2(0, y), "Node");
             int lv = mgr.TreeLevel(node);
-            bool max = lv >= AugmentManager.TreeMax[node];
+            bool max = lv >= AugmentManager.TreeMaxOf(node);
             bool star = node == AugmentManager.StarPowerNode;
             bool open = mgr.TreeUnlocked(node);
             int br = AugmentManager.TreeBranch[node];
-            string lvText = star ? $"Lv.{lv}" : $"Lv.{lv}/{AugmentManager.TreeMax[node]}";
+            string lvText = star && AugmentManager.TreeMaxOf(node) >= 99 ? $"Lv.{lv}" : $"Lv.{lv}/{AugmentManager.TreeMaxOf(node)}";
             IconTile(row.transform, branchIcons[br], 96, new Vector2(-366, 0), !open ? new Color(0.35f, 0.35f, 0.4f) : max || star ? TextGold : new Color(0.55f, 0.6f, 0.9f));
             Label(row.transform, $"<color=#9FB4FF>[{AugmentManager.BranchNames[br]}]</color> {AugmentManager.TreeNames[node]}  <color=#FFD54A>{lvText}</color>", new Vector2(450, 54), new Vector2(-55, 34), 30, Color.white, FontStyles.Bold);
             string desc = open ? mgr.TreeDesc(node) : $"먼저 '{AugmentManager.TreeNames[AugmentManager.TreeRequires[node]]}'를 찍어야 열려요";

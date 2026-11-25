@@ -28,6 +28,8 @@ public partial class Enemy : MonoBehaviour
     public PoolObjectTypeDungeon typeDungeonPool;
     public typeofEnemy _typeofEnemy;
     public Vector3 pos => transform.position;
+    [System.NonSerialized] public Vector3 spawnPos;   // 나온 자리 (행성 실패 진단, 2026-11-25)
+    [System.NonSerialized] public float spawnTime;
     public float enemyMovingSpeed;
     public EnemyState _state;
 
@@ -159,9 +161,15 @@ public partial class Enemy : MonoBehaviour
             //  (2026-11-25 사용자: 화력이 세면 적이 화면에 나오자마자 죽어서 쓸어 담는 느낌이 안 나요 → 적이 안쪽까지 걸어 들어오게)
             if(IsInRange && _typeofEnemy == typeofEnemy.normal && StageManager.instance != null && StageManager.instance.isInStage) {
                 var cam = GameManager.instance.mainCamera;
-                // (2026-11-25) 가로 반폭 0.85(약 3.7칸)는 적을 잡을 거리가 짧아 너무 위험해서 → 세로 반높이 × 0.6 (약 5.7칸)
-                //  양옆에서 오는 적은 화면에 들어오자마자, 위아래에서 오는 적은 화면 안쪽까지 걸어 들어와서 쏘기 시작해요
-                IsInRange = distance <= cam.orthographicSize * Tuning.Get("planet_attack_range", 0.6f);
+                // (2026-11-25 사용자 A안) 원(세로 반높이 × 0.6) 대신 화면 가장자리에서 planet_attack_inset(1.2칸) 안쪽에 들어오면 쏴요.
+                //  세로 화면이라 원이면 위아래 적만 약 3.8칸을 아무도 안 쏘는 채로 걸어왔어요 → 이제 어느 방향이든 들어와서 같은 거리만 걸으면 잡혀요
+                //  planet_attack_inset 을 0 이하로 하면 예전 원 (planet_attack_range)
+                float inset = Tuning.Get("planet_attack_inset", 1.2f);
+                if(inset > 0f) {
+                    Vector3 d = transform.position - cam.transform.position;
+                    float hh = cam.orthographicSize, hw = hh * cam.aspect;
+                    IsInRange = Mathf.Abs(d.x) <= hw - inset && Mathf.Abs(d.y) <= hh - inset;
+                } else IsInRange = distance <= cam.orthographicSize * Tuning.Get("planet_attack_range", 0.6f);
             }
         }
         if(Healthbar != null) {
@@ -187,7 +195,9 @@ public partial class Enemy : MonoBehaviour
         }
     }
 
-    public void SetEnemyToDefault()
+    // keepScale: 죽는 연출 동안은 크기를 그대로 (2026-11-25 사용자: 죽고 사라질 때 갑자기 커져요 — 작게·크게 바꾼 적이 죽는 순간 원래 크기로 돌아갔어요)
+    //  크기는 연출이 끝나고 풀로 돌아갈 때 되돌려요 (EnemyDeathEffect)
+    public void SetEnemyToDefault(bool keepScale = false)
     {
         DebugFrozen = false;
         EnemyHealth = initialValue.EnemyHealth;
@@ -197,7 +207,7 @@ public partial class Enemy : MonoBehaviour
         enemyMovingSpeed = initialValue.initialSpeed;
         distance = 0;
         baseTint = Color.white;
-        if(baseScaleSaved) transform.localScale = baseScale;
+        if(baseScaleSaved && !keepScale) transform.localScale = baseScale;
         DamageTakenMul = 1f;
         Armor = 0;
         NumberScale = 1;
@@ -262,6 +272,8 @@ public partial class Enemy : MonoBehaviour
         // 환생 트리 "보스 사냥꾼"
         if(_typeofEnemy == typeofEnemy.InfiniteStageBoss && aug != null)
             baseDamage = (long)(baseDamage * (double)aug.BossDamageMul);
+        // 장비·능력치 '보스 피해' (2026-11-25): 보스·관문 보스에게만
+        if(IsBoss) { double bm = EquipBalance.BossMul; if(bm != 1.0) baseDamage = WeaponBase.ClampDamage(baseDamage * bm); }
         // 합체 보스 추가 피해 (2026-11-24 사용자: 합체 보스 추가 피해 배율): 합체 무기가 보스를 때릴 때만
         if(src != SideWeapon.None && IsBoss) { double fb = AugmentManager.FusionBossMul(src); if(fb != 1.0) baseDamage = WeaponBase.ClampDamage(baseDamage * fb); }
         // 방어력 (2026-11-20): 치명타·배율을 다 곱한 뒤에 깎아요 → 큰 한 방일수록 덜 깎여요. 최소 1
@@ -353,6 +365,7 @@ public partial class Enemy : MonoBehaviour
         }
         if(this == null) return;
         if(isLast) {
+            if(baseScaleSaved) transform.localScale = baseScale;   // 연출이 끝난 뒤 원래 크기로
             if(_typeofEnemy == typeofEnemy.Dungeon || _typeofEnemy == typeofEnemy.DungeonBoss) {
                 ObjectPoolDungeon.Instance.CoolObject(gameObject, typeDungeonPool);
             } else {

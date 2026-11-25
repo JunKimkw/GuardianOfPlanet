@@ -131,13 +131,13 @@ public class TowerManager : MonoBehaviour, IDataPersistence
                 StoneFrames[i].GetComponentInChildren<TextMeshProUGUI>().text = data.stoneAmount.ToString();
             }
         }
-        var ts = TimeSpan.FromSeconds(data.TimeForTravel);
+        var ts = TimeSpan.FromSeconds(data.TimeForTravel * (1f - PlanetBuffManager.TowerTimeCut));
         TravelTimeText.text = string.Format("{0:#0}시간 {1:00}분", (int)ts.TotalHours, ts.Minutes);
     }
 
     public void Travel()
     {
-        TimeForAdventure = selectedTower.TimeForTravel;
+        TimeForAdventure = selectedTower.TimeForTravel * (1f - PlanetBuffManager.TowerTimeCut);   // 행성 버프 '탐험 시간 단축'
         lastTravelTower = Towers.IndexOf(selectedTower);
 
         canvasGroup.interactable = true;
@@ -190,7 +190,7 @@ public class TowerManager : MonoBehaviour, IDataPersistence
         }
 
         //SetDefault
-        TimeForAdventure = selectedTower.TimeForTravel;
+        TimeForAdventure = selectedTower.TimeForTravel * (1f - PlanetBuffManager.TowerTimeCut);   // 행성 버프 '탐험 시간 단축'
 
         RewardTab.SetActive(true);
     }
@@ -210,7 +210,7 @@ public class TowerManager : MonoBehaviour, IDataPersistence
         }
 
         //SetDefault
-        TimeForAdventure = selectedTower.TimeForTravel;
+        TimeForAdventure = selectedTower.TimeForTravel * (1f - PlanetBuffManager.TowerTimeCut);   // 행성 버프 '탐험 시간 단축'
 
         RewardTab.SetActive(true);
     }

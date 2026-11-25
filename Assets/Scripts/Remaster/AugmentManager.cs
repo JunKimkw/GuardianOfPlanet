@@ -30,7 +30,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     public bool TreeUnlocked(int node) => TreeRequires[node] < 0 || T(TreeRequires[node]) > 0;
     public float BossDamageMul => 1f + 0.1f * T(10);
     // 별의 가호: 원정 피해 ×1.15 / 레벨 (환생할수록 확실히 강해지는 축)
-    public float StarPowerMultiplier => Mathf.Pow(RemasterBalance.StarPowerPerLevel, tree.Length > StarPowerNode ? tree[StarPowerNode] : 0);
+    // 최대 레벨을 넘게 찍어 둔 예전 저장은 효과만 최대까지 (레벨은 그대로 둬요)
+    public float StarPowerMultiplier => Mathf.Pow(RemasterBalance.StarPowerPerLevel, Mathf.Min(RemasterBalance.StarPowerMax, tree.Length > StarPowerNode ? tree[StarPowerNode] : 0));
+    public static int TreeMaxOf(int node) => node == StarPowerNode ? Mathf.Min(TreeMax[node], RemasterBalance.StarPowerMax) : TreeMax[node];
 
     RemasterUI ui;
     bool loaded;
@@ -473,7 +475,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(planetSnap != null) {   // 행성: 추가 무기 카드(두 번째 칸이 비었을 때 25%) → 무기 증강 60% · 능력치 카드 40%
             treasure = false;
             // 받을 무기가 없으면 안 나와요. 자유 선택 행성에서 아직 무기가 없으면 카드 3장 모두 무기 카드 (첫 레벨업)
-            planetWantExtra = AnyExtraWeapon() && (loadoutLeft == SideWeapon.None || UnityEngine.Random.value < Tuning.Get("planet_extra_weapon_chance", 0.25f));
+            //  (2026-11-25 사용자: 처음 레벨업은 한두 마리만 잡아도 바로, 새 무기를 얻게) 그 행성의 첫 레벨업(Lv.1)도 카드 3장 모두 새 무기
+            bool firstLevel = planetLevel <= 1 && Tuning.Get("planet_first_weapon_card", 1f) > 0f;
+            planetWantExtra = AnyExtraWeapon() && (loadoutLeft == SideWeapon.None || firstLevel || UnityEngine.Random.value < Tuning.Get("planet_extra_weapon_chance", 0.25f));
             planetWantWeapon = UnityEngine.Random.value < Tuning.Get("planet_weapon_card_chance", 0.6f);
         }
         var def = Pick(treasure, grade);
@@ -727,6 +731,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             int c = Level("collector");
             if(c > 0) g = (long)(g * (1f + AugmentDefs.CollectorBonus(c)));
             if(T(7) > 0) g = (long)(g * (1f + 0.1f * T(7)));   // 환생 트리 "먼지 수집"
+            g = (long)(g * (1.0 + PlanetBuffManager.DustBonus));   // 행성 버프 '별의 먼지' (2026-11-25)
             return g;
         }
     }
@@ -736,7 +741,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     public bool UpgradeTree(int node)
     {
         if(!TreeUnlocked(node)) return false;
-        if(tree[node] >= TreeMax[node]) return false;
+        if(tree[node] >= TreeMaxOf(node)) return false;
         int cost = TreeCost(node);
         if(stardust < cost) return false;
         stardust -= cost;

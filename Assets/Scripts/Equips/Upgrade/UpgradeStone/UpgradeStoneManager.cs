@@ -25,6 +25,7 @@ public class UpgradeStoneManager : MonoBehaviour, IDataPersistence
 
     public void addStone(UpgradeStone us, int n) 
     {
+        n = PlanetBuffManager.Stones(n);   // 행성 버프 '강화석 획득' (얻을 때만, 2026-11-25)
         for(int i = 0; i < stonesData.Count; i++) {
             if(us.stoneGrade == stonesData[i].stoneGrade) {
                 stonesData[i].StoneAmount += n;
@@ -35,6 +36,7 @@ public class UpgradeStoneManager : MonoBehaviour, IDataPersistence
 
     public void addStone(UpgradeStone.TypeOfStone type, int n)
     {
+        n = PlanetBuffManager.Stones(n);
         for(int i = 0; i < stonesData.Count; i++) {
             if(type == stonesData[i].stoneGrade) {
                 stonesData[i].StoneAmount += n;

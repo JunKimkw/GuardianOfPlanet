@@ -28,7 +28,6 @@ public class Player : MonoBehaviour, IDataPersistence
 
     [Header("총 공격력 증가")]
     [Space(5)]
-    public float Attack_Damage_Percent;
 
     [Header("공격속도 0 ~ 1 (%로 감소)")]
     [Range(0, 1)]
@@ -118,7 +117,7 @@ public class Player : MonoBehaviour, IDataPersistence
 
 
         // 전투력은 영구 성장 기준 (원정 증강의 일시 보너스는 제외)
-        TotalDamagePower = (long)((BaseAttack_Damage * 5) + (FinalAttack_SpeedPercent * 20) + (FinalAttack_Bullet_SpeedPercent * 10) + (FinalStunPower * 15) + (FinalCriticalChance * 15) + (FinalCriticalDamage * 50) + (WeaponManager.instance.getTotalWeaponLevel() * 10));
+        TotalDamagePower = (long)((BaseAttack_Damage * 5 * EquipBalance.DamageMul) + (FinalAttack_SpeedPercent * 20) + (FinalAttack_Bullet_SpeedPercent * 10) + (FinalStunPower * 15) + (FinalCriticalChance * 15) + (FinalCriticalDamage * 50) + (WeaponManager.instance.getTotalWeaponLevel() * 10));
 
         // 리더보드 전송은 값이 바뀌었을 때만, 최소 30초 간격으로 (요청 폭주 방지)
         if(TotalDamagePower != lastSentDamagePower && Time.unscaledTime >= nextLeaderboardSendTime) {
@@ -239,13 +238,15 @@ public class Player : MonoBehaviour, IDataPersistence
     {
         //Final Damage
         float augmentDamage = AugmentManager.Instance != null ? AugmentManager.Instance.DamageMultiplier : 1f;
-        BaseAttack_Damage = (long)((EquipingManager.Instance.Attack_Damage_Equip + Attack_Damage) * (1 + EquipingManager.Instance.Attack_DamagePercent_Equip + Attack_Damage_Percent + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.DamageIncrease) + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Damage)));
+        // 장비 공격력%는 여기 말고 최종 피해에 곱해요 (2026-11-25 장비 다시 맞추기, EquipBalance.DamageMul → WeaponBase.HitDamage). 장비 깡공은 공격력%로 합쳐져서 0
+        BaseAttack_Damage = (long)((EquipingManager.Instance.Attack_Damage_Equip + Attack_Damage) * (1 + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Damage)));
         FinalAttack_Damage = (long)(BaseAttack_Damage * (double)augmentDamage);
-        FinalAttack_SpeedPercent = (Attack_Speed + EquipingManager.Instance.Attack_Speed_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Attack_Speed)) * (1 + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.AttackSpeedIncrease));
-        FinalAttack_Bullet_SpeedPercent = (Attack_Bullet_Speed + EquipingManager.Instance.Bullet_Speed_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Attack_Bullet_Speed)) * (1 + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.BulletSpeedIncrease));
-        FinalStunPower = StunPower + EquipingManager.Instance.StunPower_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.StunPercent) + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.StunIncrease);
-        FinalCriticalChance = CriticalChance + EquipingManager.Instance.Critical_Chance_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.CritChance) + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.CritChanceIncrease);
-        FinalCriticalDamage = CriticalDamage + EquipingManager.Instance.Critical_Damage_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.CritDamage) + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.CritDamageIncrease);
+        FinalAttack_SpeedPercent = (Attack_Speed + EquipingManager.Instance.Attack_Speed_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.Attack_Speed));
+        // 장비·능력치의 탄속·기절은 2026-11-25 부터 '방어 관통'·'보스 피해'예요 (EquipBalance.Pen / BossMul). 여기선 빼요
+        FinalAttack_Bullet_SpeedPercent = Attack_Bullet_Speed;
+        FinalStunPower = StunPower;   // 행성 버프는 2026-11-25 부터 경제만
+        FinalCriticalChance = CriticalChance + EquipingManager.Instance.Critical_Chance_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.CritChance);
+        FinalCriticalDamage = CriticalDamage + EquipingManager.Instance.Critical_Damage_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.CritDamage);
         FinalExtraEXP = ExtraEXP + EquipingManager.Instance.ExtraEXP_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.ExtraEXP) + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.EXPIncrease);
         FinalExtraGold = ExtraGold + EquipingManager.Instance.ExtraGold_Equip + StatsManager.instance.getStatAmount(StatsData.TypeofStat.ExtraMoney) + PlanetBuffManager.instance.getValue(PlanetBuff.BuffType.GoldIncrease);
 
@@ -258,7 +259,10 @@ public class Player : MonoBehaviour, IDataPersistence
         if(FinalCriticalDamage < 0) FinalCriticalDamage = 0;
         if(FinalExtraEXP < 0) FinalExtraEXP = 0;
         if(FinalExtraGold < 0) FinalExtraGold = 0;
-        if(FinalAttack_Bullet_SpeedPercent > 4) FinalAttack_Bullet_SpeedPercent = 4;      
+        if(FinalAttack_Bullet_SpeedPercent > 4) FinalAttack_Bullet_SpeedPercent = 4;
+        // 공속 최대 (2026-11-25): 1 에 가까우면 재장전 시간이 0 이 돼요. 0.75 = 발사 속도 최대 4배
+        float asCap = Tuning.Get("player_as_cap", 0.75f);
+        if(FinalAttack_SpeedPercent > asCap) FinalAttack_SpeedPercent = asCap;      
     }
 
     public void PlayerEXPUP(long exp)
@@ -372,7 +376,6 @@ public class Player : MonoBehaviour, IDataPersistence
 
         //추가 스탯
         this.Attack_Damage = data.Attack_Damage;
-        this.Attack_Damage_Percent = data.Attack_Damage_Percent;
         this.Attack_Speed = data.Attack_Speed;
         this.Attack_Bullet_Speed = data.Attack_Bullet_Speed;
         this.StunPower = data.StunPower;
@@ -395,7 +398,6 @@ public class Player : MonoBehaviour, IDataPersistence
 
         //추가 스탯
         data.Attack_Damage = this.Attack_Damage;
-        data.Attack_Damage_Percent = this.Attack_Damage_Percent;
         data.Attack_Speed = this.Attack_Speed;
         data.Attack_Bullet_Speed = this.Attack_Bullet_Speed;
         data.StunPower = this.StunPower;

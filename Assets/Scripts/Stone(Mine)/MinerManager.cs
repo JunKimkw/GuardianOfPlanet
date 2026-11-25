@@ -66,7 +66,7 @@ public class MinerManager : MonoBehaviour, IDataPersistence
         timer += Time.unscaledDeltaTime;
         if(timer >= 1) {
             timer = 0;
-            GameManager.SetOre(GetTotalOreSec());
+            GameManager.SetOre(PlanetBuffManager.Ore(GetTotalOreSec()));
         }
     }
 

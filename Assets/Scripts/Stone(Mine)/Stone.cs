@@ -90,7 +90,7 @@ public class Stone : MonoBehaviour
         if(StoneHealth - Damage > 0)
             SetHealth(Damage);
         else {
-            GameManager.SetOre((long)(StoneValue * (1 + MineManager.instance.ExtraRailOre)));
+            GameManager.SetOre(PlanetBuffManager.Ore((long)(StoneValue * (1 + MineManager.instance.ExtraRailOre))));
             MineManager.instance.getStoneParts();
             ObjectPoolStone.Instance.CoolObject(this.gameObject, type);
             StoneHealth = MaxHealth;

@@ -1240,39 +1240,39 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         }
 
         if(RandomEquip[gachaCount] != null) {
-            if(RandomEquip[gachaCount].equipData.baseOption.option.damage != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.damage != 0) {
                 Equip_Stats[0].SetActive(true);
                 Equip_Stats[0].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = RandomEquip[gachaCount].equipData.FinalOption.option.damage.ToString("#.##");
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.damagePercent != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.damagePercent != 0) {
                 Equip_Stats[1].SetActive(true);
                 Equip_Stats[1].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.damagePercent * 100).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.CritChance != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.CritChance != 0) {
                 Equip_Stats[2].SetActive(true);
                 Equip_Stats[2].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.CritChance).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.CritDamage != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.CritDamage != 0) {
                 Equip_Stats[3].SetActive(true);
                 Equip_Stats[3].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.CritDamage * 100).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.AttackSpeed != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.AttackSpeed != 0) {
                 Equip_Stats[4].SetActive(true);
                 Equip_Stats[4].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.AttackSpeed * 100).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.BulletSpeed != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.BulletSpeed != 0) {
                 Equip_Stats[5].SetActive(true);
                 Equip_Stats[5].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.BulletSpeed * 100).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.StunPercent != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.StunPercent != 0) {
                 Equip_Stats[6].SetActive(true);
                 Equip_Stats[6].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.StunPercent).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.ExtraMoney != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.ExtraMoney != 0) {
                 Equip_Stats[7].SetActive(true);
                 Equip_Stats[7].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.ExtraMoney * 100).ToString("#.##") + "%";
             }
-            if(RandomEquip[gachaCount].equipData.baseOption.option.ExtraEXP != 0) {
+            if(RandomEquip[gachaCount].equipData.FinalOption.option.ExtraEXP != 0) {
                 Equip_Stats[8].SetActive(true);
                 Equip_Stats[8].transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = (RandomEquip[gachaCount].equipData.FinalOption.option.ExtraEXP * 100).ToString("#.##") + "%";
             }
