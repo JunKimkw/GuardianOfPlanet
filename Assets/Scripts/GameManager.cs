@@ -53,8 +53,14 @@ public class GameManager : MonoBehaviour, IDataPersistence
     // 게임 속도 바탕 (2026-11-25 사용자: "1배는 너무 느려, 기본을 1.5배로 하고 표시는 1배로")
     //  실제 Time.timeScale = 표시 배속 × game_speed_base(1.5). 속도 버튼 x1 · x1.5 · x2 는 표시 배속이에요 (실제 1.5 · 2.25 · 3)
     public static float SpeedBase => Mathf.Max(0.1f, Tuning.Get("game_speed_base", 1.5f));
-    public static float DisplaySpeed => Time.timeScale / SpeedBase;
-    public static void SetDisplaySpeed(float d) => Time.timeScale = d * SpeedBase;
+    // (2026-11-25 버그: 증강 카드가 떠 있을 때 속도를 바꾸면, 카드를 고른 뒤 멈추기 전 속도로 돌아갔어요)
+    //  증강 창 때문에 멈춰 있으면 지금 속도 = 되돌아갈 속도, 바꾸면 되돌아갈 속도만 바꿔요 (멈춤은 그대로)
+    public static float DisplaySpeed => (AugmentManager.Instance != null && AugmentManager.Instance.UIPaused ? AugmentManager.Instance.PausedScale : Time.timeScale) / SpeedBase;
+    public static void SetDisplaySpeed(float d)
+    {
+        if(AugmentManager.Instance != null && AugmentManager.Instance.UIPaused) { AugmentManager.Instance.PausedScale = d * SpeedBase; return; }
+        Time.timeScale = d * SpeedBase;
+    }
 
     private void Awake()
     {
@@ -332,7 +338,7 @@ public class GameManager : MonoBehaviour, IDataPersistence
         else
             SetDisplaySpeed(1f);
 
-        instance.saveGameSpeedandAuto(Time.timeScale, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
+        instance.saveGameSpeedandAuto(DisplaySpeed * SpeedBase, WeaponManager.instance.shootType == WeaponManager.ShootType.AutoShoot);
     }
 
 

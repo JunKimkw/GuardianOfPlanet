@@ -18,6 +18,7 @@ public class PlanetRunSave
     public List<float> stackVals = new List<float>();
     public int left = -1, right = -1;
     public string fusionSlots;
+    public bool abyss;        // 심연 차원의 저장 (2026-11-25)
 }
 
 [Serializable]
@@ -70,6 +71,7 @@ public class GameData
     //스테이지 처치수
     public SerializableDictionary<string, bool> Stage_Cleared;
     public SerializableDictionary<string, bool> Planet_Cleared;
+    public SerializableDictionary<string, int> Stage_ClearedTime;   // 맵을 깬 횟수 (반복 보상 줄이기, 2026-11-25: 예전엔 저장 안 돼서 껐다 켜면 0)
 
     //장비
     public SerializableDictionary<string, int> Equip_Amount;
@@ -236,7 +238,11 @@ public class GameData
     public int rebirthCount;
     public long pendingMigrationStardust;
     public int expPendingStartStage;   // 환생 후 출발 대기 중이면 출발 스테이지 (0 = 없음)
-    public List<PlanetRunSave> planetRuns;   // 행성마다 모은 증강·무기·레벨 (2026-11-25, PlanetRun.cs)
+    public List<PlanetRunSave> planetRuns;
+    public List<int> abyssCleared;       // 깬 심연 맵 (행성 × 1000 + 맵) (2026-11-25 차원)
+    public List<int> abyssClearKeys, abyssClearVals;   // 심연 맵마다 깬 횟수 (반복 보상 줄이기)
+    public List<int> abyssConquered;     // 심연 정복한 행성 (그 행성 무기 피해 +20% 영구)
+    public List<int> parallelBonus;      // 첫 완주 보너스를 받은 평행 행성   // 행성마다 모은 증강·무기·레벨 (2026-11-25, PlanetRun.cs)
     public List<int> clearedGates;      // 처음 이긴 신의 관문 번호 (스테이지/50). null = 아직 기록 없음(예전 세이브)
 
     //Default values
@@ -288,6 +294,7 @@ public class GameData
         //스테이지 처치 수
         Stage_Cleared = new SerializableDictionary<string, bool>();
         Planet_Cleared = new SerializableDictionary<string, bool>();
+        Stage_ClearedTime = new SerializableDictionary<string, int>();
 
         //장비
         Equip_Amount = new SerializableDictionary<string, int>();

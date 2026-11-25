@@ -46,7 +46,7 @@ public abstract class WeaponBase : MonoBehaviour
 
     // 한 발 피해 = (플레이어 공격력 + (기본 + 추가) × 배율) × 무기 비율. long 이라 후반(수십억 이상)에도 넘치지 않아요.
     // 증강: 무기 합체 위력(×3~×5)과 무기 전용 증강 보너스 (AugmentManager.WeaponPower)
-    public long HitDamage => ClampDamage((Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier) * Ratio(Side) * AugmentManager.WeaponPower(Side) * AugmentManager.RouletteDamage(this is MainWeapon) * AugmentManager.PlanetCardDamage);   // 기본총 룰렛 (기본총 전용, 다른 무기는 rl_share 만큼 = 지금 0)
+    public long HitDamage => ClampDamage((Player.instance.FinalAttack_Damage + (double)(BaseDamage + ExtraDamage) * DamageMultiplier) * Ratio(Side) * AugmentManager.WeaponPower(Side) * AugmentManager.RouletteDamage(this is MainWeapon) * AugmentManager.PlanetCardDamage * AugmentManager.AbyssWeaponMul(Side));   // 심연 정복 영구 피해 (2026-11-25)   // 기본총 룰렛 (기본총 전용, 다른 무기는 rl_share 만큼 = 지금 0)
 
     // 무기 비율 (2026-11-22 사용자 결정, "공격력 반영 비율"): 1발 전체에 곱해요.
     //  측정(연습장 측정 모드)에서 1발이 거의 플레이어 공격력이라 무기 계수가 묻혀서, DPS 가 "1초에 몇 번 맞히나"로만 갈렸어요

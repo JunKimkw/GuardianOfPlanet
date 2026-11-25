@@ -76,7 +76,8 @@ public class GateBossAbilities : MonoBehaviour
             case Pattern.Summon:
                 // 그 구간의 졸개 3마리 소환
                 var stage = InfiniteStage.Instance;
-                if(stage != null && stage.enemyPrefab.Length > 0) {
+                if(StageManager.instance != null && StageManager.instance.PlanetBattle) StageManager.instance.PlanetSummon(3);   // 행성 (2026-11-25 차원)
+                else if(stage != null && stage.enemyPrefab.Length > 0) {
                     var prefab = stage.enemyPrefab[Mathf.Clamp(stage.CurrentEnemyIndex[0], 0, stage.enemyPrefab.Length - 1)];
                     for(int i = 0; i < 3; i++) EnemyManager.Instance.createInfiniteEnemy(prefab, stage.EnemyScale);
                 }

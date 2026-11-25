@@ -119,10 +119,30 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
         int stage = sm.PlanetEquivStage;
         if(stage <= 0) return;
         float variety = 0.9f + 0.2f * (((int)prefab.typePool & 0xff) / 255f);   // 적 종류마다 ±10% (원정과 같게)
-        double hp = boss ? RemasterBalance.BossHp(stage) : RemasterBalance.EnemyHp(stage) * variety;
+        // 보스 = 일반 적 1마리 × max(8, 맵 적 수 × planet_boss_hp_share(0.3)) (2026-11-25 사용자: 보스가 일반 몬스터처럼 사라져요 → 더 강하게)
+        //  예전엔 × 8 (원정 보스와 같게) 이라 60~300마리를 쓸어 담는 화력에 한순간이었어요
+        double hp = boss ? RemasterBalance.EnemyHp(stage) * System.Math.Max(RemasterBalance.BossMul, sm.PlanetEnemyTarget * (double)Tuning.Get("planet_boss_hp_share", 0.3f)) : RemasterBalance.EnemyHp(stage) * variety;
         e.NumberScale = RemasterBalance.NumberScale(stage);
-        e.EnemyHealth = hp * ExpeditionZones.HpMul(stage) * e.NumberScale * Tuning.Get(boss ? "planet_boss_hp_mul" : "planet_hp_mul", 1f) * sm.PlanetMapHpMul;   // 뒤쪽 맵일수록 단단하게
+        // (2026-11-25 차원) 원정 규칙(그 스테이지 번호의 원정 차원) 대신 행성 차원 규칙을 써요 (PlanetDimension)
+        int dim = sm.CurrentDim;
+        var rules = sm.CurrentRules;
+        e.EnemyHealth = hp * PlanetDimension.HpMul(dim, Mathf.Max(0, sm.PlanetIndex)) * PlanetDimension.RuleHp(rules) * e.NumberScale * Tuning.Get(boss ? "planet_boss_hp_mul" : "planet_hp_mul", 1f) * sm.PlanetMapHpMul * sm.PlanetEarlyHpMul;   // 뒤쪽 맵일수록 단단하게, 앞쪽 행성은 쉽게
         e.Armor = Armor.ForStage(stage, boss);
+        e.enemyMovingSpeed *= PlanetDimension.RuleSpeed(rules);   // 규칙 '질주'
+        if(boss) {
+            // 평행: 관문 보스 패턴 2개, 심연: 3개 다 + 더 자주 (planet_abyss_awaken 2 → 5초마다)
+            e.TryGetComponent(out GateBossAbilities gate);
+            if(dim != PlanetDimension.Normal) {
+                if(gate == null) gate = e.gameObject.AddComponent<GateBossAbilities>();
+                gate.Setup(Mathf.Max(0, sm.PlanetIndex), dim == PlanetDimension.Abyss ? Tuning.GetInt("planet_abyss_awaken", 2) : 0);
+            } else if(gate != null) gate.enabled = false;
+            return;
+        }
+        // 색: 평행은 보랏빛, 심연은 붉게. 심연 정예 = 체력 × planet_abyss_elite_hp(5), 1.35배 크게, 진한 빨강 (planet_abyss_elite_chance 10%)
+        if(dim == PlanetDimension.Abyss && Random.value < Tuning.Get("planet_abyss_elite_chance", 0.1f)) {
+            e.EnemyHealth *= Tuning.Get("planet_abyss_elite_hp", 5f);
+            e.ApplyLook(new Color(1f, 0.32f, 0.32f), Tuning.Get("planet_abyss_elite_scale", 1.35f));
+        } else e.ApplyLook(dim == PlanetDimension.Abyss ? new Color(1f, 0.68f, 0.66f) : dim == PlanetDimension.Parallel ? new Color(0.86f, 0.76f, 1f) : Color.white, 1f);
     }
 
     // 예전 방식 스케일 (일반 스테이지·던전)
@@ -153,7 +173,13 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
 
     public void createEnemy(Enemy _e, float scale)
     {
-        Enemy e = Spawn(_e, Enemy.typeofEnemy.normal, false, RandomSide());
+        Enemy e = Spawn(_e, Enemy.typeofEnemy.normal, false, groupSide != 0 ? groupSide : RandomSide());
+        if(groupSide != 0) {   // 무리(대군 웨이브): 한쪽 한 자리 둘레에 (2026-11-25)
+            float spread = groupSpread > 0f ? groupSpread : Tuning.Get("spawn_group_spread", 0.8f);
+            bool sideways = groupSide == 1 || groupSide == 3;
+            float off = Random.Range(-spread, spread), back = Random.Range(0f, spread * 0.8f);
+            e.transform.position = groupAnchor + (sideways ? new Vector3(groupSide == 1 ? -back : back, off, 0f) : new Vector3(off, groupSide == 2 ? back : -back, 0f));
+        }
         ApplyScale(e, scale, true);
         PlanetStats(e, _e, false);
         AddEnemy(e);
@@ -170,14 +196,15 @@ public class EnemyManager : MonoBehaviour, IDataPersistence
     // 무리로 나오기 (2026-11-25): 무리의 첫 적이 나온 쪽·자리를 기억해서 나머지는 그 둘레 spawn_group_spread 칸 안에 나와요
     int groupSide;
     Vector3 groupAnchor;
-    public void BeginSpawnGroup() { groupSide = RandomSide(); groupAnchor = RandomLocation(groupSide); }
+    float groupSpread = -1f;
+    public void BeginSpawnGroup(float spread = -1f, int side = 0) { groupSide = side > 0 ? side : RandomSide(); groupAnchor = RandomLocation(groupSide); groupSpread = spread; }
     public void EndSpawnGroup() => groupSide = 0;
 
     public void createInfiniteEnemy(Enemy _e, float scale)
     {
         Enemy e = Spawn(_e, Enemy.typeofEnemy.InfiniteStage, false, groupSide != 0 ? groupSide : RandomSide());
         if(groupSide != 0) {
-            float spread = Tuning.Get("spawn_group_spread", 0.8f);
+            float spread = groupSpread > 0f ? groupSpread : Tuning.Get("spawn_group_spread", 0.8f);
             bool sideways = groupSide == 1 || groupSide == 3;   // 왼쪽·오른쪽에서 나오면 세로로, 위·아래면 가로로 흩어져요
             float off = Random.Range(-spread, spread), back = Random.Range(0f, spread * 0.6f);
             e.transform.position = groupAnchor + (sideways ? new Vector3(groupSide == 1 ? -back : back, off, 0f) : new Vector3(off, groupSide == 2 ? back : -back, 0f));

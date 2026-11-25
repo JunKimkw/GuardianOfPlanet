@@ -102,7 +102,7 @@ public class Planet : MonoBehaviour, IDataPersistence
     public void MapSelected(int index)
     {
         StageInfoTitle.text = PlanetName + " " + StagesOfThisPlanet[index].StageName;
-        TotalEnemy.text = "출현 몬스터: " + StageManager.EnemyTargetOf(StagesOfThisPlanet[index]) + "마리";
+        TotalEnemy.text = "출현 몬스터: " + StageManager.EnemyTargetOf(this, StagesOfThisPlanet[index]) + "마리";
         for(int i = 0; i < monsterCardData.Count; i++)
             monsterCardData[i].gameObject.SetActive(false);
 
@@ -165,6 +165,10 @@ public class Planet : MonoBehaviour, IDataPersistence
         for(int i = 0; i < StagesOfThisPlanet.Length; i++) {
             data.Stage_Cleared.TryGetValue(id + StagesOfThisPlanet[i].StageName, out bool Killed);
             StagesOfThisPlanet[i].StageCleared = Killed;
+            // 깬 횟수 (2026-11-25 사용자: 저장하게). 예전 저장엔 없어서 0
+            int times = 0;
+            if(data.Stage_ClearedTime != null) data.Stage_ClearedTime.TryGetValue(id + StagesOfThisPlanet[i].StageName, out times);
+            StagesOfThisPlanet[i].ClearedTime = times;
         }
 
         //Planet Clear
@@ -179,6 +183,9 @@ public class Planet : MonoBehaviour, IDataPersistence
                 data.Stage_Cleared.Remove(id + StagesOfThisPlanet[i].StageName);
 
             data.Stage_Cleared.Add(id + StagesOfThisPlanet[i].StageName, StagesOfThisPlanet[i].StageCleared);
+
+            if(data.Stage_ClearedTime == null) data.Stage_ClearedTime = new SerializableDictionary<string, int>();
+            data.Stage_ClearedTime[id + StagesOfThisPlanet[i].StageName] = StagesOfThisPlanet[i].ClearedTime;
         }
 
         if(data.Planet_Cleared.ContainsKey(id))

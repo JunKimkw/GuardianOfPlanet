@@ -155,6 +155,14 @@ public partial class Enemy : MonoBehaviour
             IsInRange = true;
         } else {
             IsInRange = screenPos.x > 0f && screenPos.x < Screen.width && screenPos.y > 0f && screenPos.y < Screen.height;
+            // 행성: 우주선 둘레 planet_attack_range(화면 가로 반폭의 85%) 안에 들어와야 쏠 수 있어요
+            //  (2026-11-25 사용자: 화력이 세면 적이 화면에 나오자마자 죽어서 쓸어 담는 느낌이 안 나요 → 적이 안쪽까지 걸어 들어오게)
+            if(IsInRange && _typeofEnemy == typeofEnemy.normal && StageManager.instance != null && StageManager.instance.isInStage) {
+                var cam = GameManager.instance.mainCamera;
+                // (2026-11-25) 가로 반폭 0.85(약 3.7칸)는 적을 잡을 거리가 짧아 너무 위험해서 → 세로 반높이 × 0.6 (약 5.7칸)
+                //  양옆에서 오는 적은 화면에 들어오자마자, 위아래에서 오는 적은 화면 안쪽까지 걸어 들어와서 쏘기 시작해요
+                IsInRange = distance <= cam.orthographicSize * Tuning.Get("planet_attack_range", 0.6f);
+            }
         }
         if(Healthbar != null) {
             Healthbar.SetHealth(EnemyHealth > 0 ? (float)(CurrentHealth / EnemyHealth) : 0f, 1f);

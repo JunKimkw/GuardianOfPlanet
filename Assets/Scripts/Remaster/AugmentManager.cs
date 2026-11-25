@@ -347,6 +347,9 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
     #endregion
 
     #region 일시정지 (팝업용)
+    public bool UIPaused => pauseCount > 0;
+    public float PausedScale { get => pausedScale; set => pausedScale = value; }
+
     public void PauseForUI()
     {
         if(pauseCount == 0) {
@@ -469,7 +472,8 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         bool treasure = UnityEngine.Random.value < TreasureShare;
         if(planetSnap != null) {   // 행성: 추가 무기 카드(두 번째 칸이 비었을 때 25%) → 무기 증강 60% · 능력치 카드 40%
             treasure = false;
-            planetWantExtra = loadoutRight == SideWeapon.None && UnityEngine.Random.value < Tuning.Get("planet_extra_weapon_chance", 0.25f);
+            // 받을 무기가 없으면 안 나와요. 자유 선택 행성에서 아직 무기가 없으면 카드 3장 모두 무기 카드 (첫 레벨업)
+            planetWantExtra = AnyExtraWeapon() && (loadoutLeft == SideWeapon.None || UnityEngine.Random.value < Tuning.Get("planet_extra_weapon_chance", 0.25f));
             planetWantWeapon = UnityEngine.Random.value < Tuning.Get("planet_weapon_card_chance", 0.6f);
         }
         var def = Pick(treasure, grade);
@@ -499,6 +503,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             if(d.id == "extraarms" && FreeWeaponsForExtra().Count == 0) continue;
             float w = 1f;
             if(blessing >= 0 && (int)d.tag == blessing) w = 2f;
+            if(planetSnap != null && d.fusionCard) w *= Tuning.Get("planet_fusion_weight", 1f);   // 행성: 합체 카드가 열리면 잘 나오게
             cands.Add(d); weights.Add(w); total += w;
         }
         if(cands.Count == 0) return null;
@@ -581,10 +586,11 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         OnAugmentsChanged();
 
         if(def.fusionCard) DoFuse(def, announce);
-        if(def.grantWeapon != SideWeapon.None && planetSnap != null && loadoutRight == SideWeapon.None) {   // 행성 추가 무기 카드
-            BorrowWeapon(def.grantWeapon);
-            loadoutRight = def.grantWeapon;
-            if(announce) ui.Toast($"두 번째 무기: {AugmentDefs.WeaponName(def.grantWeapon)}!", new Color(1f, 0.85f, 0.35f), true);
+        if(def.grantWeapon != SideWeapon.None && planetSnap != null) {   // 행성 추가 무기 카드 (두 번째 칸 또는 합체로 빈 칸)
+            GiveExtraWeapon(def.grantWeapon, announce);
+            levels.Remove(def.id);   // 같은 무기 카드가 나중에 또 나올 수 있게 (예: 합체 재료로 들어간 뒤에는 ExtraWeaponOk 가 막아요)
+            order.Remove(def.id);
+            OnAugmentsChanged();
         }
 
         switch(def.id) {
@@ -896,6 +902,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
             rebirthCount = data.rebirthCount;
         }
         LoadPlanetRuns(data);   // 행성마다 모은 증강 (PlanetRun.cs)
+        LoadDimensionData(data);   // 심연 클리어·정복, 평행 첫 완주 (PlanetRun.cs)
         clearedGates.Clear();
         if(data.clearedGates != null) foreach(var g in data.clearedGates) clearedGates.Add(g);
         else MigrateGatesFromPlanets();
@@ -1022,7 +1029,7 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(Input.GetKeyDown(KeyCode.F4)) { stardust += 100; ui.Toast("[개발] 별의 먼지 +100", Color.white); ui.RefreshHUD(); }
         if(Input.GetKeyDown(KeyCode.F5)) { pendingSetup = true; ui.Toast("[개발] 원정 준비 화면", Color.white); }
         if(Input.GetKeyDown(KeyCode.F6)) ui.ShowRebirth();
-        // F7: 게임 속도 x1 → x2 → x5 → x10 → x20 → x1
+        // F7: 게임 속도 x1 → x2 → x4 → x5 → x10 → x20 → x1 (표시 배속, 실제는 × 1.5)
         if(Input.GetKeyDown(KeyCode.F7)) ui.Toast($"[개발] 게임 속도 x{DevTools.CycleSpeed()}", Color.white);
         // F12: 스크린샷 → 작업 폴더 previews/ (Claude 가 직접 볼 수 있어요)
         if(Input.GetKeyDown(KeyCode.F12)) ui.Toast($"[개발] 스크린샷 저장: {DevTools.Screenshot()}", Color.white);

@@ -55,9 +55,15 @@ public partial class AugmentManager
     bool ViaReady(SideWeapon w)
     {
         if(w == SideWeapon.None || !RawEquipped(w)) return false;
-        foreach(var d in AugmentDefs.WeaponAugs(w))
-            if(Level(d.id) <= 0) return false;
-        return true;
+        // 원정: 3개를 하나씩(★1)이면 돼요.
+        // 행성: 3개를 다 갖고(★1 이상) 레벨 합이 planet_fusion_need_levels(11) 이상 (2026-11-25 사용자: 만렙 말고 합쳐서 일정 레벨 → 2-5~2-6쯤 합체)
+        int sum = 0;
+        foreach(var d in AugmentDefs.WeaponAugs(w)) {
+            int l = Level(d.id);
+            if(l <= 0) return false;
+            sum += l;
+        }
+        return planetSnap == null || sum >= Tuning.GetInt("planet_fusion_need_levels", 11);
     }
 
     // 이 합체를 어느 무기로 하는지 (A 우선). 없으면 None
@@ -66,7 +72,19 @@ public partial class AugmentManager
         if(f == null) return SideWeapon.None;
         if(ViaReady(f.a)) return f.a;
         if(f.b != SideWeapon.None && Owned(f.a) && FusionOf(f.b) < 0 && ViaReady(f.b)) return f.b;
+        if(PairReady(f)) return f.a;
         return SideWeapon.None;
+    }
+
+    // 행성: 합체 짝 A·B 가 둘 다 출격 중이면 두 무기 전용 증강 레벨을 합쳐서 planet_fusion_pair_levels(12) 이상 (각 무기 1개 이상)
+    //  (2026-11-25 사용자: 짝을 맞춰 잘 고르면 합체가 빨리 뜨게. 두 번째 무기를 받아도 카드가 나뉘어 손해 보지 않게)
+    bool PairReady(FusionDef f)
+    {
+        if(planetSnap == null || f.b == SideWeapon.None || !RawEquipped(f.a) || !RawEquipped(f.b) || FusionOf(f.b) >= 0) return false;
+        int a = 0, b = 0;
+        foreach(var d in AugmentDefs.WeaponAugs(f.a)) a += Level(d.id);
+        foreach(var d in AugmentDefs.WeaponAugs(f.b)) b += Level(d.id);
+        return a > 0 && b > 0 && a + b >= Tuning.GetInt("planet_fusion_pair_levels", 12);
     }
 
     // 카드가 뽑기에 나올 수 있는지: A 가 아직 합체 안 했고, A 나 B 중 하나가 준비됐음

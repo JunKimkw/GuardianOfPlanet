@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 // 리마스터 UI: 씬을 건드리지 않고 코드로 만드는 화면들 (기준 해상도 1080x2048, 가로폭 맞춤 = 기존 UI와 동일)
 // 겉모습은 기존 UI와 같은 Layer Lab GUI Pro-SuperCasual 이미지를 써요 (Resources/RemasterUI 에 복사본).
 // 모든 글자는 가운데 정렬 + 자동 크기(넘치지 않게)로 만들어요.
-public class RemasterUI : MonoBehaviour
+public partial class RemasterUI : MonoBehaviour
 {
     AugmentManager mgr;
     Canvas canvas;
@@ -515,6 +515,8 @@ public class RemasterUI : MonoBehaviour
             var c = gr.GetComponent<Canvas>();
             if(c != null && c.renderMode == RenderMode.WorldSpace) continue;
             if(h.gameObject == null || h.gameObject.transform.IsChildOf(transform)) continue;   // 우리 UI 는 빼요
+            var gfx = h.gameObject.GetComponent<Graphic>();
+            if(gfx != null && gfx.color.a < 0.05f) continue;   // (2026-11-25) 투명한 판(터치 영역 같은 것)은 창이 아니에요. 예전엔 이것 때문에 원정 칸이 계속 숨을 수 있었어요
             return true;
         }
         return false;
@@ -555,16 +557,16 @@ public class RemasterUI : MonoBehaviour
     }
 
     // 행성에 기억된 증강 보기 (행성 밖에서)
-    void ShowPlanetRunList()
+    void ShowPlanetRunList() { var sm = StageManager.instance; if(sm != null && sm.currentPlanet != null) ShowPlanetRunList(sm.planets.IndexOf(sm.currentPlanet), false); }
+    void ShowPlanetRunList(int pi, bool abyss, Action after = null)
     {
         var sm = StageManager.instance;
-        var cp = sm != null ? sm.currentPlanet : null;
+        var cp = sm != null && pi >= 0 && pi < sm.planets.Count ? sm.planets[pi] : null;
         if(cp == null) return;
-        int pi = sm.planets.IndexOf(cp);
-        var run = mgr.PlanetRunOf(pi);
+        var run = mgr.PlanetRunOf(pi, abyss);
         mgr.PauseForUI();
         var p = OpenModal(new Vector2(900, 1300), out Action close);
-        Title(p, $"{cp.PlanetName} 행성의 증강", 580, 52, 860);
+        Title(p, $"{PlanetDimension.Prefix(abyss ? PlanetDimension.Abyss : PlanetDimension.Of(pi, false))}{cp.PlanetName}의 증강", 580, 52, 860);
         if(run == null) {
             Label(p, "아직 기억된 증강이 없어요.\n맵을 클리어하면 그때까지 고른 증강이 남아요.", new Vector2(820, 200), new Vector2(0, 200), 32, TextDim);
         } else {
@@ -579,7 +581,7 @@ public class RemasterUI : MonoBehaviour
             }
             Label(p, sb.Length > 0 ? sb.ToString() : "(증강 없음)", new Vector2(820, 760), new Vector2(0, 60), 30, Color.white);
         }
-        Btn(p, "닫기", new Vector2(340, 120), new Vector2(run != null ? -190 : 0, -540), BGray, () => { close(); mgr.ResumeFromUI(); }, 42);
+        Btn(p, "닫기", new Vector2(340, 120), new Vector2(run != null ? -190 : 0, -540), BGray, () => { close(); mgr.ResumeFromUI(); after?.Invoke(); }, 42);
         if(run != null) {
             bool armed = false;
             Button reset = null;
@@ -590,15 +592,17 @@ public class RemasterUI : MonoBehaviour
                     if(t != null) t.text = "정말 초기화?";
                     return;
                 }
-                mgr.ForgetPlanetRun(pi);
+                mgr.ForgetPlanetRun(pi, abyss);
                 close();
                 mgr.ResumeFromUI();
+                after?.Invoke();
                 Toast($"{cp.PlanetName} 행성의 증강을 초기화했어요", Color.white, true);
             }, 36);
         }
     }
     void Update()
     {
+        if(mgr != null && mgr.Loaded) UpdatePlanetMap();   // 행성 지도 (A안, PlanetMapUI.cs)
         hudTimer -= Time.unscaledDeltaTime;
         if(hudTimer > 0) return;
         hudTimer = 0.25f;
