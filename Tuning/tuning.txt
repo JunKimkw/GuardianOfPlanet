@@ -785,6 +785,11 @@ star_power_max = 99
 trait_dmg_scale = 1
 # 장비 가방 (2026-11-25): 같은 장비도 한 칸씩, 능력치마다 무작위 ×min~×max (평균 mid 가 등급 사다리). 가득 차면 장비 뽑기 막기
 equip_bag_size = 100
+# 장비 칸 격자 (2026-11-26): 격자 크기 배율 · 한 줄 개수 · 가로·세로 사이
+equip_grid_scale = 0.85
+equip_grid_cols = 6
+equip_grid_gap_x = 20
+equip_grid_gap_y = 22
 equip_roll_min = 1
 equip_roll_max = 2
 equip_roll_mid = 1.5
@@ -845,3 +850,49 @@ passive_k_blackhole = 0.69
 passive_k_sniper = 0.21
 passive_k_bounce = 0.41
 passive_k_meteor = 0.61
+
+
+# 특별 뽑기 (2026-11-26, tools/gacha_plan.js): 확률 %, 천장 N번마다 유니크 이상
+gacha_rate_rare = 34.5
+gacha_rate_epic = 6.7
+gacha_rate_unique = 0.78
+gacha_rate_legend = 0.03
+gacha_rate_ancient = 0.0005
+gacha_pity = 200
+# 일반 뽑기: 천장 없음, 에픽 = 대박, 유니크 = 초대박 (나머지는 일반)
+gacha_n_rate_rare = 30.47
+gacha_n_rate_epic = 1.5
+gacha_n_rate_unique = 0.03
+# 장비 합성: 같은 등급 N개 → 같은 등급 무작위 하나
+equip_merge_count = 3
+# 장비 합성 결과 화면 크기 (화면 맞춤 x 이 값), 빛줄기 도는 속도 (도/초, 0 = 멈춤 · 기본)
+merge_result_scale = 0.8
+merge_rays_spin = 0
+# 합성 결과 반짝이가 새로 생기는 간격 (초)
+merge_spark_interval = 0.12
+# 합성 창 장비 칸 Lv 글자 사이
+merge_lv_spacing = 6
+# 세트 창에서 장비 찾기: 가방 장비가 뛰는 높이
+equip_find_jump = 40
+# 장비 창: 위 장비 정보 영역 크기 (1 = 원래, 위 끝 기준), 가방 칸 위 여백 (원래 105)
+equip_top_scale = 0.85
+equip_bag_top_inset = 12
+# 장비 창 위 판: 1 = 창 맨 위~가방 사이 세로 가운데, 0 = 위에 붙임 / 그 뒤 더 올릴 값 (단위)
+equip_top_center = 1
+equip_top_lift = 0
+# 장비 창 버튼 줄 여백: 판 아래 / 양옆 / 버튼 사이 (판 아래는 재시작 필요)
+equip_btn_pad_bottom = 30
+equip_btn_pad_side = 32
+equip_btn_gap = 16
+# 장비 창 위 판을 양옆으로 더 넓히는 값 (단위)
+equip_top_panel_wide = 36
+# 도감 보상: 1 = 예전처럼 0.5초마다 하나씩 저절로 (원래 도감 창, 기본), 0 = 새 도감 창의 '받기'로 모아 받기
+collection_auto_claim = 1
+# 새로 덮는 페이지 창(뽑기·던전·도감·버프·랭킹·설정): 0 = 원래 창 (2026-11-27 사용자), 1 = 새 창. 바꾸면 플레이 다시 시작
+ui_new_pages = 0
+# 뽑기 창: 1 = 원래 그림으로 밑에서 올라오는 판 (2026-11-27 사용자 "A 좋다"), 0 = 원래 창 그대로
+gacha_sheet = 1
+# 뽑기 창 강화석 뽑기권(빨간 별 표) 돌리는 각도, 시계 방향. 원래 그림이 30도 기울어 있어서 30 = 바닥과 평행
+gacha_stone_ticket_angle = 30
+# 뽑기 연출: 1 = 새 연출 (2026-11-27, 떨어지기 → 등급 단계 기 모으기 → 터짐 → 카드 공개 · 대박 도장), 0 = 예전 연출
+gacha_fx = 1

@@ -260,6 +260,9 @@ public class DungeonManager : MonoBehaviour, IDataPersistence
             stonePriceObj[i].SetActive(((int)currentDungeon.DungeonPriceStone.stoneGrade) == i);
         }
 
+        // 깬 기록 (새 던전 창의 '소탕', 2026-11-26)
+        PlayerPrefs.SetInt("dungeon_clear_" + currentDungeon.DungeonName, 1);
+
         //Dungeon button
         DungeonTicket--;
         setDungeonTicketText();

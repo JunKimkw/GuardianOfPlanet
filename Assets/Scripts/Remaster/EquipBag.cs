@@ -116,14 +116,16 @@ public static class EquipBag
     }
     public static bool IsEquipped(EquipFrame f) { var s = f != null ? SlotOf(f.equipData.TypeOfEquip) : null; return s != null && s.equipment == f; }
 
-    // 합성 재료: 같은 장비 중 장착 안 한 것, 강화 낮은 것, 무작위 값 낮은 것부터. keepLast 는 마지막에 (고른 장비)
+    // 합성 재료: 같은 등급 장비 중 장착 안 한 것, 강화 낮은 것, 무작위 값 낮은 것부터. keepLast 는 마지막에 (고른 장비)
+    // 2026-11-26: 같은 장비 → 같은 등급 (부위 상관없이), 결과도 같은 등급 (MergeManager)
     public static List<EquipFrame> MergeMaterials(Equips e, EquipFrame keepLast)
     {
         if(e == null || M == null) return new List<EquipFrame>();
-        return M.All_Equips.Where(f => f != null && f.equipData != null && f.equipData.id == e.id && !IsEquipped(f))
+        return M.All_Equips.Where(f => f != null && f.equipData != null && f.equipData.Grade == e.Grade && !IsEquipped(f))
             .OrderBy(f => f == keepLast ? 1 : 0).ThenBy(f => f.equipData.Level).ThenBy(f => f.equipData.Quality01).ToList();
     }
-    public static int MergeCount(Equips e) => MergeMaterials(e, null).Count;
+    // 개수만 (장비 창이 매 프레임 불러요 - 정렬·잠재력 계산 없이, 2026-11-27 점검)
+    public static int MergeCount(Equips e) => e == null || M == null ? 0 : M.All_Equips.Count(f => f != null && f.equipData != null && f.equipData.Grade == e.Grade && !IsEquipped(f));
 
     // ── 저장 ──
     public static void Save(GameData d)

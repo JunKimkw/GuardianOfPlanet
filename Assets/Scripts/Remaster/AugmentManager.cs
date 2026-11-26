@@ -1072,6 +1072,13 @@ public partial class AugmentManager : MonoBehaviour, IDataPersistence
         if(Input.GetKeyDown(KeyCode.P)) ui.ShowDebugArena();
         // U: 지금 합체 무기의 종결 바로 발동
         if(Input.GetKeyDown(KeyCode.U)) DebugTriggerCurrentUlt();
+        // B: 가방 비우기 (2026-11-27 사용자 "가방 비워 줘") — 묻는 창에서 '비우기'를 눌러야 지워요. 낀 장비는 남겨요
+        if(Input.GetKeyDown(KeyCode.B)) ui.DebugEmptyBag();
+        // G = 전설 · H = 고대 뽑기 연출 시험 (Shift = 1회, 아니면 10회). 실제로 뽑지 않아요 (2026-11-27 사용자 "레전더리랑 고대도 테스트하게")
+        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        if(Input.GetKeyDown(KeyCode.G)) ui.DebugGachaFx(4, shift ? 1 : 10);
+        if(Input.GetKeyDown(KeyCode.H)) ui.DebugGachaFx(5, shift ? 1 : 10);
+        if(Input.GetKeyDown(KeyCode.J)) ui.DebugGachaFx(3, shift ? 1 : 10);   // J = 유니크 (금빛 강림까지는 전설·고대와 같아요)
         DevTools.Tick();
         // F8: 1000스테이지 앞으로 (차원 확인용)
         if(Input.GetKeyDown(KeyCode.F8) && InfiniteStage.Instance != null) {

@@ -20,6 +20,7 @@ public static class EquipBalance
     static readonly float[] PEN_CAP = { 0.03f, 0.05f, 0.08f, 0.12f, 0.16f, 0.2f };    // 방어 관통 (0.1 = 10%, BulletSpeed 칸에 저장)
     static readonly float[] BOSS_CAP = { 5f, 8f, 12f, 18f, 25f, 35f };                // 보스 피해 % (StunPercent 칸에 저장, 1 = 1%)
     // 보정 k: 등급마다 q = 0 · 0.5 · 1 에서 5칸 배율이 목표가 되게 시뮬레이터로 찾은 값 (node tools/equip_balance.js 마지막 줄)
+    // 잠재력(×1.0~2.0)은 Equips.cs 에서 가운데 값 1.5 로 나눠 평균 ×1 이라 이 값 그대로 맞아요 (2026-11-26 확인)
     static readonly float[,] KQ = {
         { 0.8321f, 0.928f, 1.0551f }, { 0.7271f, 0.8044f, 0.9317f }, { 0.7444f, 0.7551f, 0.8662f },
         { 0.6974f, 0.6695f, 0.7545f }, { 0.6692f, 0.7117f, 0.7905f }, { 0.6037f, 0.6302f, 0.8117f } };
@@ -52,7 +53,8 @@ public static class EquipBalance
     // 화면 글자 바꾸기 (씬 파일은 그대로, 시작할 때 한 번)
     static readonly Dictionary<string, string> Relabels = new Dictionary<string, string> {
         { "총알속도(%)", "방어 관통(%)" }, { "스턴 확률(%)", "보스 피해(%)" },
-        { "총알속도", "방어 관통" }, { "스턴 확률", "보스 피해" } };
+        { "총알속도", "방어 관통" }, { "스턴 확률", "보스 피해" },
+        { "정말 진화하시겠습니까?", "정말 합성하시겠습니까?" } };   // 장비 합성 (2026-11-26)
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void RelabelScene()
     {
@@ -111,7 +113,8 @@ public static class EquipBalance
         float util = GOLD_CAP[g] * (0.6f + 0.4f * q);
         return new options {
             damage = 0,
-            damagePercent = p * (sd + sa) - aspd,
+            // 공속 몫이 상한 안이면 p·sa − aspd 가 0 인데 계산 찌꺼기(1e-9)가 남아 '데미지 +0%' 줄이 보였어요 (2026-11-26) → 아주 작으면 0
+            damagePercent = p * (sd + sa) - aspd < 1e-4f ? 0f : p * (sd + sa) - aspd,
             AttackSpeed = aspd,
             BulletSpeed = src.BulletSpeed > 0 ? PEN_CAP[g] * (0.6f + 0.4f * q) * Tuning.Get("equip_pen_scale", 1f) : 0,
             CritChance = p * sc * 100f,

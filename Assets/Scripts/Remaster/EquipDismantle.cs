@@ -16,7 +16,7 @@ public static class EquipDismantle
     public static int StonesFor(EquipFrame f) => f == null || f.equipData == null ? 0 :
         Mathf.Max(0, Tuning.GetInt("equip_dismantle_per", 1) + f.equipData.Level * Tuning.GetInt("equip_dismantle_per_level", 1));
 
-    static UpgradeStone.TypeOfStone StoneOf(Equips.MaterialClass g)
+    public static UpgradeStone.TypeOfStone StoneOf(Equips.MaterialClass g)
     {
         switch(g) {
             case Equips.MaterialClass.Rare: return UpgradeStone.TypeOfStone.Rare;
@@ -36,11 +36,18 @@ public static class EquipDismantle
             button = Object.Instantiate(mergeButton, mergeButton.transform.parent);
             button.name = "DismantleButton (remaster)";
             label = button.GetComponentInChildren<TMP_Text>(true);
+            if(label != null) {   // 2026-11-26: 버튼 4개(장착·강화·합성·분해)라 좁아요 → 한 줄, 넘치면 자동으로 작게
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.enableAutoSizing = true;
+                label.fontSizeMax = label.fontSize;
+                label.fontSizeMin = label.fontSize * 0.5f;
+            }
             var b = button.GetComponent<Button>();
             if(b != null) { b.onClick = new Button.ButtonClickedEvent(); b.onClick.AddListener(OnClick); }
         }
         if(selected != armed) armed = null;
-        bool show = selected != null && selected.equipData != null && selected.equipData.source != null && !mergeButton.activeSelf
+        // 2026-11-26: 합성 버튼과 같이 보여요 (예전엔 합성 자리에 대신 나왔어요). 버튼 줄이 자동 정렬이라 4개로 나눠져요
+        bool show = selected != null && selected.equipData != null && selected.equipData.source != null
                     && !EquipBag.IsEquipped(selected) && Tuning.GetInt("equip_dismantle_on", 1) == 1;
         button.SetActive(show);
         if(show && label != null)

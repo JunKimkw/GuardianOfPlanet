@@ -602,7 +602,11 @@ public partial class RemasterUI : MonoBehaviour
     }
     void Update()
     {
-        if(mgr != null && mgr.Loaded) { UpdatePlanetMap(); UpdateWeaponJob(); }   // 무기 전직 (WeaponJobUI.cs)   // 행성 지도 (A안, PlanetMapUI.cs)
+        if(mgr != null && mgr.Loaded) { UpdatePlanetMap(); UpdateWeaponJob(); UpdateEquipSetBar(); UpdateEquipSortBar(); UpdateAutoDismantle(); UpdateGachaSheet();   // 뽑기 = 원래 그림으로 밑에서 올라오는 판 (GachaSheetUI.cs)
+            // 새로 덮는 페이지 창(뽑기·던전·도감·버프·랭킹·설정)은 꺼 둬요 — 2026-11-27 사용자 "다른 창은 다 원래대로 돌려 두고, 원래 UI 를 이용해서".
+            //  코드는 남겨 두고 ui_new_pages 1 이면 다시 켜져요 (켜고 끄면 플레이 다시 시작)
+            if(Tuning.Get("ui_new_pages", 0f) > 0f) { UpdateGachaPage(); UpdateDungeonPage(); UpdateCollectionPage(); UpdateBuffPage(); UpdateRankingPage(); UpdateSettingsPage(); }
+        }   // 무기 전직 (WeaponJobUI.cs)   // 행성 지도 (A안, PlanetMapUI.cs)
         hudTimer -= Time.unscaledDeltaTime;
         if(hudTimer > 0) return;
         hudTimer = 0.25f;

@@ -118,7 +118,9 @@ public class CollectionManager : MonoBehaviour, IDataPersistence
         }
 
         quitLoop = false;
-        if(!DiamondReward_Tab.activeSelf) {
+        // (2026-11-27) 새 도감 창 A 는 '받기' 버튼으로 모아 받아요 → 예전처럼 0.5초마다 하나씩 저절로 주지 않아요
+        //  (예전 방식은 새 창에서 메시지가 줄줄이 쌓였어요). 2026-11-27 원래 도감 창으로 돌려서 기본 1 = 예전처럼 저절로, 0 = 새 창 받기 버튼용
+        if(!DiamondReward_Tab.activeSelf && Tuning.Get("collection_auto_claim", 1f) > 0f) {
             for(int i = 0; i < CollectionDatas.Count; i++) {
                 for(int j = 0; j < CollectionDatas[i].EarnDiamond.Length; j++) {
                     if(CollectionDatas[i].EarnDiamond[j] == 1) {

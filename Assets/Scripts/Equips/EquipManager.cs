@@ -46,6 +46,7 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     public GameObject unEquipButton;
     public GameObject UpgradeButton;
     public GameObject JinhwaButton;
+    bool mergeButtonHooked;
 
     [Header("star prefab")]
     public Transform StarParent;
@@ -97,13 +98,42 @@ public class EquipManager : MonoBehaviour, IDataPersistence
     private void Update()
     {
 #if UNITY_EDITOR
-        // 개발용 x: 장비마다 하나 더 (2026-11-25 가방: 예전엔 출시 빌드에서도 켜져 있었어요)
+        // 개발용 x: 모든 장비 종류를 하나씩 (2026-11-25 가방: 예전엔 출시 빌드에서도 켜져 있었어요)
+        // (2026-11-26 사용자: 장비가 없으면 확인을 못 해요 → 가진 장비 말고 도감(Catalog)에서 하나씩, 가방 칸 수는 안 따져요)
         if(Input.GetKeyDown("x")) {
-            foreach(EquipFrame e in All_Equips.ToArray()) EquipBag.Grant(e);
+            int n = 0;
+            foreach(EquipFrame e in EquipBag.Catalog.ToArray()) if(e != null && EquipBag.Grant(e) != null) n++;
+            Debug.Log($"[개발] 장비 {n}개 받음 (종류마다 하나, 무작위 잠재력)");
         }
 #endif
 
         ChangeEquipsUI();
+        TightenGrids();
+    }
+
+    // 장비 칸 격자 (2026-11-26 사용자: 장비 크기를 좀 줄이고 장비 사이 빈칸을 줄여 줘)
+    // 장비 탭 격자(RingTab·NecklaceTab·AccessoryTab·RelicsTab·BookTab: 칸 185×192, 사이 25×75, 5줄)
+    //  → 격자 전체를 equip_grid_scale 배로 줄이고 한 줄 equip_grid_cols 개, 사이 equip_grid_gap_x × equip_grid_gap_y
+    //  세로 사이 75 는 칸 밖으로 튀어나온 잠재력 바 자리였는데 바를 숨겨서 줄여요. 칸 안 그림은 크기가 고정이라 칸 대신 격자를 줄여요
+    //  tuning 은 장비 창이 열려 있으면 바로 먹어요
+    List<GridLayoutGroup> equipGrids;
+    void TightenGrids()
+    {
+        if(equipGrids == null) {
+            equipGrids = new List<GridLayoutGroup>();
+            foreach(var g in FindObjectsByType<GridLayoutGroup>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if(g != null && g.name.EndsWith("Tab") && Mathf.Abs(g.cellSize.x - 185f) < 1f && Mathf.Abs(g.cellSize.y - 192f) < 1f) equipGrids.Add(g);
+        }
+        float s = Tuning.Get("equip_grid_scale", 0.85f);
+        int cols = Mathf.Max(1, Tuning.GetInt("equip_grid_cols", 6));
+        var gap = new Vector2(Tuning.Get("equip_grid_gap_x", 20f), Tuning.Get("equip_grid_gap_y", 22f));
+        var sc = new Vector3(s, s, 1f);
+        foreach(var g in equipGrids) {
+            if(g == null) continue;
+            if(g.constraintCount != cols) g.constraintCount = cols;
+            if(g.spacing != gap) g.spacing = gap;
+            if(g.transform.localScale != sc) g.transform.localScale = sc;
+        }
     }
 
     //Create Methods
@@ -298,7 +328,13 @@ public class EquipManager : MonoBehaviour, IDataPersistence
             unEquipButton.SetActive(SelectedEquip == EquipingManager.Instance.Ring.equipment || SelectedEquip == EquipingManager.Instance.Necklace.equipment || SelectedEquip == EquipingManager.Instance.Book.equipment || SelectedEquip == EquipingManager.Instance.Accessory.equipment || SelectedEquip == EquipingManager.Instance.Relics.equipment);
             EquipButton.SetActive(!(SelectedEquip == EquipingManager.Instance.Ring.equipment || SelectedEquip == EquipingManager.Instance.Necklace.equipment || SelectedEquip == EquipingManager.Instance.Book.equipment || SelectedEquip == EquipingManager.Instance.Accessory.equipment || SelectedEquip == EquipingManager.Instance.Relics.equipment));
             UpgradeButton.SetActive(SelectedEquip.equipData.Level < 20);
-            JinhwaButton.SetActive(EquipBag.MergeCount(SelectedEquip.equipData) >= SelectedEquip.equipData.RequiredAmountForMerge && SelectedEquip.equipData.Grade != Equips.MaterialClass.Ancient);
+            JinhwaButton.SetActive(EquipBag.MergeCount(SelectedEquip.equipData) >= SelectedEquip.equipData.RequiredAmountForMerge);   // 고대도 같은 등급 합성 가능 (2026-11-26)
+            { var jl = JinhwaButton.GetComponentInChildren<TMPro.TMP_Text>(true); if(jl != null && jl.text != "합 성") jl.text = "합 성"; }   // 진화 → 같은 등급 합성 (2026-11-26)
+            if(!mergeButtonHooked) {   // 예전 합성 창(MergeManager) 대신 새 합성 창 (Remaster/EquipMergeUI.cs, 2026-11-26 A안)
+                var b = JinhwaButton.GetComponent<UnityEngine.UI.Button>();
+                if(b != null) { b.onClick = new UnityEngine.UI.Button.ButtonClickedEvent(); b.onClick.AddListener(() => { SoundManager.Instance.playClickSFX(); RemasterUI.OpenEquipMerge(SelectedEquip); }); }
+                mergeButtonHooked = true;
+            }
             EquipDismantle.Refresh(JinhwaButton, SelectedEquip);   // 분해 (2026-11-25)
             ChangeStarSetting(SelectedEquip.equipData.Level);
             setEquipInfoGUI();

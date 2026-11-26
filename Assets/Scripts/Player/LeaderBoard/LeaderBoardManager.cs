@@ -329,24 +329,35 @@ public class LeaderBoardManager : MonoBehaviour
         ThirdPlaceTotalDamage_UserScore.text = score;
     }
 
+    // (2026-11-27 점검) 내 기록이 아직 없으면 GetPlayerScore 가 '찾을 수 없음' 예외를 던져요 → 잡아서 빈칸으로 (콘솔에 빨간 에러가 쌓였어요)
     public async void setMyScoreInfiniteStage()
     {
-        var scoreResponse =
-          await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardInfiniteStage);
+        try {
+            var scoreResponse =
+              await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardInfiniteStage);
 
-        MyUserRank_InfiniteStage.text = (scoreResponse.Rank + 1).ToString("N0");
-        MyUserName_InfiniteStage.text = UserNameManager.Display(scoreResponse.PlayerName);
-        MyUserScore_InfiniteStage.text = "스테이지 " + scoreResponse.Score.ToString("N0");
+            MyUserRank_InfiniteStage.text = (scoreResponse.Rank + 1).ToString("N0");
+            MyUserName_InfiniteStage.text = UserNameManager.Display(scoreResponse.PlayerName);
+            MyUserScore_InfiniteStage.text = "스테이지 " + scoreResponse.Score.ToString("N0");
+        } catch(System.Exception e) {
+            Debug.Log("[랭킹] 내 스테이지 기록 없음: " + e.Message);
+            if(MyUserRank_InfiniteStage != null) MyUserRank_InfiniteStage.text = "-";
+        }
     }
 
     public async void setMyScoreTotalDamage()
     {
-        var scoreResponse =
-          await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardTotalDamage);
+        try {
+            var scoreResponse =
+              await ServiceHub.Leaderboards.GetPlayerScoreAsync(LeaderboardTotalDamage);
 
-        MyUserRank_TotalDamage.text = (scoreResponse.Rank + 1).ToString("N0");
-        MyUserName_TotalDamage.text = UserNameManager.Display(scoreResponse.PlayerName);
-        MyUserScore_TotalDamage.text = scoreResponse.Score.ToString("N0");
+            MyUserRank_TotalDamage.text = (scoreResponse.Rank + 1).ToString("N0");
+            MyUserName_TotalDamage.text = UserNameManager.Display(scoreResponse.PlayerName);
+            MyUserScore_TotalDamage.text = scoreResponse.Score.ToString("N0");
+        } catch(System.Exception e) {
+            Debug.Log("[랭킹] 내 전투력 기록 없음: " + e.Message);
+            if(MyUserRank_TotalDamage != null) MyUserRank_TotalDamage.text = "-";
+        }
     }
 
     public async void GetPlayerScore()

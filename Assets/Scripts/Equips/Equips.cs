@@ -230,32 +230,35 @@ public class Equips : MonoBehaviour
         return SP;
     }
 
+    // 합성: 같은 등급 장비 N개 → 같은 등급 무작위 장비 하나 (잠재력도 새로) — 2026-11-26 사용자 ("같은 등급 합성 3개를 1개로")
+    public static int MergeNeed => Mathf.Max(2, Tuning.GetInt("equip_merge_count", 3));
+
     public void setEquipInfo()
     {
         switch(Grade) {
             case MaterialClass.Normal:
                 gradeText = "일반";
-                RequiredAmountForMerge = 30;
+                RequiredAmountForMerge = MergeNeed;
                 break;
             case MaterialClass.Rare:
                 gradeText = "레어";
-                RequiredAmountForMerge = 20;
+                RequiredAmountForMerge = MergeNeed;
                 break;
             case MaterialClass.Epic:
                 gradeText = "에픽";
-                RequiredAmountForMerge = 15;
+                RequiredAmountForMerge = MergeNeed;
                 break;
             case MaterialClass.Unique:
                 gradeText = "유니크";
-                RequiredAmountForMerge = 10;
+                RequiredAmountForMerge = MergeNeed;
                 break;
             case MaterialClass.Legendary:
                 gradeText = "전설";
-                RequiredAmountForMerge = 5;
+                RequiredAmountForMerge = MergeNeed;
                 break;
             case MaterialClass.Ancient:
                 gradeText = "고대";
-                RequiredAmountForMerge = 0;
+                RequiredAmountForMerge = MergeNeed;
                 break;
         }
     }

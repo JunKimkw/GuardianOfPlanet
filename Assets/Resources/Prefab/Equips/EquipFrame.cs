@@ -55,6 +55,19 @@ public class EquipFrame : MonoBehaviour, IPointerClickHandler, IPointerExitHandl
         setSliderValue();
     }
 
+    // 등급 칸 바탕색 (아래 getEquipFrameColor 의 Background 와 같은 값) — 세트 창 부위 칸에서도 써요 (2026-11-26)
+    public static Color GradeColor(Equips.MaterialClass grade)
+    {
+        switch(grade) {
+            case Equips.MaterialClass.Rare: return new Color(0, 0.6588235f, 1);
+            case Equips.MaterialClass.Epic: return new Color(0.6980392f, 0.3764706f, 0.9921569f);
+            case Equips.MaterialClass.Unique: return new Color(0.8679245f, 0.6819407f, 0);
+            case Equips.MaterialClass.Legendary: return new Color(0.8745098f, 0.1843137f, 0.2196078f);
+            case Equips.MaterialClass.Ancient: return new Color(0.8679245f, 0.4799112f, 0);
+            default: return new Color(0.3803922f, 0.4941176f, 0.5411765f);
+        }
+    }
+
     public void getEquipFrameColor(Equips.MaterialClass grade)
     {
         switch(grade) {
@@ -103,13 +116,12 @@ public class EquipFrame : MonoBehaviour, IPointerClickHandler, IPointerExitHandl
         }
     }
 
-    // 2026-11-25 가방: 같은 장비도 한 칸씩이라 합성 개수 대신 잠재력 (무작위 값이 얼마나 잘 떴나, 0~100%). 그림은 UI 단계에서 다듬어요
+    // 2026-11-25 가방: 같은 장비도 한 칸씩이라 합성 개수 바 → 잠재력 바였는데
+    // 2026-11-26 사용자: "잠재력은 굳이 표시 안 해도 돼, 스탯을 보면 뭐가 좋은지 아니까" → 바를 숨겨요 (무작위 값 자체는 그대로)
     public void setSliderValue()
     {
-        float q = equipData.Quality01;
-        Slider_Amount.maxValue = 1f;
-        Slider_Amount.value = q;
-        Slider_Text.text = equipData.source != null ? $"잠재력 {q * 100f:0}%" : "";
+        if(Slider_Amount != null) Slider_Amount.gameObject.SetActive(false);
+        if(Slider_Text != null) Slider_Text.gameObject.SetActive(false);
     }
 
     public void OnPointerClick(PointerEventData eventData)

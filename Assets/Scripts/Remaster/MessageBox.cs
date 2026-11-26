@@ -7,11 +7,12 @@ using TMPro;
 // 모양 = 미리보기 previews/msg.png 의 A안(위에 아이콘 배지) + B안의 모은 정도 막대 (사용자: "A 의 UI 에 B 의 바")
 // - ShowMessage("제목", "내용")                                        : 글만
 // - ShowMessage("광석이 모자라요", "…", icon: "OreGem", have: 30, need: 1250, hint: "광석은 광산에서 캐요") : 배지 + 막대 + 작은 안내
+// - ShowMessage("게임 초기화", "…", "초기화", onOk, cancel: "취소")       : 묻는 창 [취소][초기화] — 취소·바깥을 누르면 아무것도 안 해요
 // - 리마스터 UI 맨 위 레이어(Modals, 정렬 20)라 원래 UI·다른 창 위에서도 화면 전체가 어두워져요. 바깥·확인을 누르면 닫혀요
 public partial class RemasterUI
 {
     public void ShowMessage(string title, string body, string button = "확인", Action onOk = null,
-                            string icon = null, long have = -1, long need = -1, string hint = null)
+                            string icon = null, long have = -1, long need = -1, string hint = null, string cancel = null)
     {
         if(!EnsureBuilt()) return;
         MapFont();
@@ -19,8 +20,12 @@ public partial class RemasterUI
         layer.SetAsLastSibling();
         var dim = Stretch("Dim", layer);
         dim.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
-        Action close = () => { if(layer != null) Destroy(layer.gameObject); onOk?.Invoke(); };
-        dim.gameObject.AddComponent<Button>().onClick.AddListener(() => close());
+        // cancel 을 주면 묻는 창: 바깥을 누르면 취소 (2026-11-27 점검: 초기화 확인 창에서 바깥을 눌러도 onOk = 초기화가 됐어요)
+        //  done = 두 번 눌러도 한 번만
+        bool ask = !string.IsNullOrEmpty(cancel), done = false;
+        Action close = () => { if(done) return; done = true; if(layer != null) Destroy(layer.gameObject); onOk?.Invoke(); };
+        Action dismiss = () => { if(done) return; done = true; if(layer != null) Destroy(layer.gameObject); };
+        dim.gameObject.AddComponent<Button>().onClick.AddListener(() => { if(ask) dismiss(); else close(); });
 
         // 미리보기 360 × 780 틀을 화면 가운데에. 판 = 왼쪽 40 · 폭 280, 높이는 들어가는 것에 맞춰요
         var box = Rect("Box", layer, new Vector2(1080, 780 * K), Vector2.zero);
@@ -61,11 +66,25 @@ public partial class RemasterUI
             if(badge) PxIcon(box, icon, left + 8f, y + barY + 13f, 16f);
         }
         if(small) GameFont(PxText(box, hint, 180f, y + hintY, 11f, Hex("#cfe4ff")), false);
-        Plate(box, "msg_btn", 110f, y + okY, 140f, 44f, 5f);
-        BtnText(box, button, 180f, y + okY + 22f, 17f, edge: OnYellow);
-        var hit = PxBox("Ok", box, 110f, y + okY, 140f, 44f);
-        hit.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
-        hit.gameObject.AddComponent<Button>().onClick.AddListener(() => close());
+        if(ask) {
+            // 두 버튼 (폭 116 · 사이 12, 판 가운데 180 기준): 왼쪽 취소(밝은 회청색) · 오른쪽 확인(노랑)
+            Plate(box, "msg_btn_no", 58f, y + okY, 116f, 44f, 5f);
+            BtnText(box, cancel, 116f, y + okY + 22f, 17f);
+            var no = PxBox("Cancel", box, 58f, y + okY, 116f, 44f);
+            no.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
+            no.gameObject.AddComponent<Button>().onClick.AddListener(() => dismiss());
+            Plate(box, "msg_btn_s", 186f, y + okY, 116f, 44f, 5f);
+            BtnText(box, button, 244f, y + okY + 22f, 17f, edge: OnYellow);
+            var yes = PxBox("Ok", box, 186f, y + okY, 116f, 44f);
+            yes.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
+            yes.gameObject.AddComponent<Button>().onClick.AddListener(() => close());
+        } else {
+            Plate(box, "msg_btn", 110f, y + okY, 140f, 44f, 5f);
+            BtnText(box, button, 180f, y + okY + 22f, 17f, edge: OnYellow);
+            var hit = PxBox("Ok", box, 110f, y + okY, 140f, 44f);
+            hit.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
+            hit.gameObject.AddComponent<Button>().onClick.AddListener(() => close());
+        }
         StartCoroutine(PopIn(box, 1f));
     }
 }

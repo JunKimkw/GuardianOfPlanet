@@ -90,6 +90,16 @@ public class GachaManager : MonoBehaviour, IDataPersistence
     Equips.Type randomType;
     //Earned Equip
     public List<EquipFrame> RandomEquip;
+    // 새 뽑기 창 B (2026-11-26, Remaster/GachaUI.cs) 가 읽어요
+    public int PityNormal => NormalGachaCount;
+    public int PitySpecial => SpecialGachaCount;
+    public int PityStone => UpgradeStoneGachaCount;   // 강화석 뽑기 천장 (200번마다 고대), 새 뽑기 창 막대
+    public static readonly List<(Sprite sprite, Equips.MaterialClass grade)> Recent = new List<(Sprite, Equips.MaterialClass)>();
+    public void BuyDirect(GachaData data)   // 확인 창 없이 바로 (새 창의 1회·10회 버튼)
+    {
+        currentGacha = data;
+        gacha();
+    }
 
     public List<RandomStone> randomStones;
     public int[] StoneNumber;
@@ -318,8 +328,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i - 1].gameObject.SetActive(true);
             resultEquipsData[i - 1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
 
@@ -420,8 +430,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i - 1].gameObject.SetActive(true);
             resultEquipsData[i - 1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
 
@@ -606,8 +616,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i - 1].gameObject.SetActive(true);
             resultEquipsData[i - 1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
-            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().value = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i - 1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
 
@@ -655,7 +665,7 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         // 가방이 가득 차면 장비 뽑기를 막아요 (다이아·뽑기권을 쓰기 전에). 강화석 뽑기는 괜찮아요 — 2026-11-25
         if(currentGacha.gacha != GachaData.GachaType.UpgradeStone && currentGacha.gacha != GachaData.GachaType.UpgradeStonex10) {
             int need = currentGacha.gacha == GachaData.GachaType.Normalx10 || currentGacha.gacha == GachaData.GachaType.Specialx10 ? 10 : 1;
-            if(!EquipBag.HasRoom(need)) {
+            if(!EquipBag.HasRoom(need) && !RemasterUI.AutoMakeRoom(need)) {   // 자동 분해를 켠 등급이 있으면 먼저 자리를 만들어요 (2026-11-26)
                 if(AugmentManager.Instance != null) AugmentManager.Instance.UI.Toast($"가방이 가득 찼어요 ({EquipBag.Count}/{EquipBag.Size})\n분해하거나 합성해서 자리를 만들어요", new Color(1f, 0.6f, 0.5f));
                 return;
             }
@@ -763,6 +773,9 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             SpecialGacha(10);
 
         if(isEquipGacha) {
+            // 최근 뽑은 장비 (새 뽑기 창): 좋은 것부터 5개
+            Recent.Clear();
+            foreach(var e in RandomEquip.Where(x => x != null && x.equipData != null).OrderByDescending(x => (int)x.equipData.Grade).Take(5)) Recent.Add((e.equipData.Sprite_Equip, e.equipData.Grade));
             m_Class = Equips.MaterialClass.Normal;
 
             for(int i = 0; i < RandomEquip.Count; i++) {
@@ -798,27 +811,14 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         AchievementManager.instance.GachaTimeQuest += count;
 
         for(int i = 0; i < count; i++) {
-            NormalGachaCount++;
             randomType = getRandomType();
-
-            float random = Random.Range(0, 100);
-            if(NormalGachaCount >= 100) {
-                random = 0.05f;
-                NormalGachaCount -= 100;
-            }
-            if(random < 0.05f)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Unique, randomType));
-            else if(random < 5.5f)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Epic, randomType));
-            else if(random < 40f)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Rare, randomType));
-            else if(random < 101)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Normal, randomType));
+            RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(RollNormalGrade(), randomType));
         }
 
         for(int i = 0; i < RandomEquip.Count; i++) {
             RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
+        RemasterUI.QueueAutoDismantle(RandomEquip);   // 자동 분해 (뽑기 화면이 닫힌 뒤, 2026-11-26)
 
         for(int i = 0; i < resultEquipsData.Count; i++) {
             resultEquipsData[i].gameObject.SetActive(false);
@@ -828,8 +828,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i-1].gameObject.SetActive(true);
             resultEquipsData[i-1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
         }
 
         SetSliderValue();
@@ -848,26 +848,14 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         AchievementManager.instance.GachaTimeQuest += count;
 
         for(int i = 0; i < count; i++) {
-            SpecialGachaCount++;
             randomType = getRandomType();
-            float random = Random.Range(0.0f, 100.0f);
-            if(SpecialGachaCount >= 150) {
-                random = 0.03f;
-                SpecialGachaCount -= 150;
-            }
-            if(random < 0.025f)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Legendary, randomType));
-            else if(random < 0.9f)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Unique, randomType));
-            else if(random < 50f)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Epic, randomType));
-            else if(random < 101)
-                RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(Equips.MaterialClass.Rare, randomType));
+            RandomEquip.Add(EquipManager.Instance.getRandomItem_Grade(RollGrade(ref SpecialGachaCount), randomType));
         }
 
         for(int i = 0; i < RandomEquip.Count; i++) {
             RandomEquip[i] = EquipBag.Grant(RandomEquip[i]);   // 가방에 장비 하나 (2026-11-25)
         }
+        RemasterUI.QueueAutoDismantle(RandomEquip);   // 자동 분해 (뽑기 화면이 닫힌 뒤, 2026-11-26)
         for(int i = 0; i < resultEquipsData.Count; i++) {
             resultEquipsData[i].gameObject.SetActive(false);
         }
@@ -876,8 +864,8 @@ public class GachaManager : MonoBehaviour, IDataPersistence
             resultEquipsData[i-1].gameObject.SetActive(true);
             resultEquipsData[i-1].SetEquipment(RandomEquip[gachaCount - i]);
             resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue = RandomEquip[gachaCount - i].equipData.RequiredAmountForMerge;
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData);
-            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.CountOf(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().value = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData);
+            resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().gameObject.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = EquipBag.MergeCount(RandomEquip[gachaCount - i].equipData) + "/" + resultEquipsData[i-1].transform.GetComponentInChildren<Slider>().maxValue;
         }
         SetSliderValue();
     }
@@ -959,6 +947,11 @@ public class GachaManager : MonoBehaviour, IDataPersistence
 
     public void StartAnimation()
     {
+        // 새 연출 (2026-11-27, Remaster/GachaFxUI.cs). gacha_fx 0 이면 아래 예전 연출
+        if(RemasterUI.GachaFxOn) {
+            var rui = FindAnyObjectByType<RemasterUI>();
+            if(rui != null) { rui.PlayGachaFx(isEquipGacha, RandomEquip, StoneNumber, currentGacha, GachaBox_Image != null ? GachaBox_Image.sprite : null); return; }
+        }
         //기본적인 세팅
         Result_Panel.SetActive(false);
         GachaBox_Image.gameObject.SetActive(true);
@@ -1419,17 +1412,44 @@ public class GachaManager : MonoBehaviour, IDataPersistence
         AlertAll.SetActive(NormalAlert.activeSelf || SpecialAlert.activeSelf || StoneAlert.activeSelf);
     }
 
+    // 장비 뽑기 등급 (2026-11-26 사용자 결정, tools/gacha_plan.js)
+    //   특별 뽑기: 일반 58 · 레어 34.5 · 에픽 6.7 · 유니크 0.78 · 전설 0.03 · 고대 0.0005 %, gacha_pity(200)번마다 유니크 이상 확정
+    //   (예전: 일반 뽑기는 정수로 뽑아서 유니크가 0.05% 가 아니라 1% 로 나오던 버그, 천장 100·150)
+    //   pity = 그 뽑기의 천장 숫자 (유니크 이상이 나오면 0)
+    public static Equips.MaterialClass RollGrade(ref int pity)
+    {
+        pity++;
+        float x = Random.Range(0f, 100f);
+        float anc = Tuning.Get("gacha_rate_ancient", 0.0005f), leg = Tuning.Get("gacha_rate_legend", 0.03f);
+        float uni = Tuning.Get("gacha_rate_unique", 0.78f), epi = Tuning.Get("gacha_rate_epic", 6.7f), rar = Tuning.Get("gacha_rate_rare", 34.5f);
+        Equips.MaterialClass g;
+        if(x < anc) g = Equips.MaterialClass.Ancient;
+        else if(x < anc + leg) g = Equips.MaterialClass.Legendary;
+        else if(x < anc + leg + uni) g = Equips.MaterialClass.Unique;
+        else if(x < anc + leg + uni + epi) g = Equips.MaterialClass.Epic;
+        else if(x < anc + leg + uni + epi + rar) g = Equips.MaterialClass.Rare;
+        else g = Equips.MaterialClass.Normal;
+        if(pity >= PityMax && g < Equips.MaterialClass.Unique) g = Equips.MaterialClass.Unique;
+        if(g >= Equips.MaterialClass.Unique) pity = 0;
+        return g;
+    }
+    // 일반 뽑기 (2026-11-26 사용자: "운 초대박이 유니크, 대박이 에픽 정도, 천장은 없애고")
+    //   일반 68 · 레어 30.47 · 에픽 1.5 · 유니크 0.03 %, 천장 없음. 전설·고대는 안 나와요 (특별 뽑기에서만)
+    public static Equips.MaterialClass RollNormalGrade()
+    {
+        float x = Random.Range(0f, 100f);
+        float uni = Tuning.Get("gacha_n_rate_unique", 0.03f), epi = Tuning.Get("gacha_n_rate_epic", 1.5f), rar = Tuning.Get("gacha_n_rate_rare", 30.47f);
+        if(x < uni) return Equips.MaterialClass.Unique;
+        if(x < uni + epi) return Equips.MaterialClass.Epic;
+        if(x < uni + epi + rar) return Equips.MaterialClass.Rare;
+        return Equips.MaterialClass.Normal;
+    }
+    public static int PityMax => Mathf.Max(1, Tuning.GetInt("gacha_pity", 200));
+
     public void SetSliderValue()
     {
-        if(NormalGachaCount <= 100)
-            NormalSlider.setProgress(NormalGachaCount, 100);
-        else
-            NormalSlider.setProgress(100, 100);
-
-        if(SpecialGachaCount <= 150)
-            SpecialSlider.setProgress(SpecialGachaCount, 150);
-        else
-            SpecialSlider.setProgress(150, 150);
+        if(NormalSlider != null) NormalSlider.gameObject.SetActive(false);   // 일반 뽑기는 천장 없음
+        SpecialSlider.setProgress(Mathf.Min(SpecialGachaCount, PityMax), PityMax);
 
         if(UpgradeStoneGachaCount <= 200)
             StoneSlider.setProgress(UpgradeStoneGachaCount, 200);

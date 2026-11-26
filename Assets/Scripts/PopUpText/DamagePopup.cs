@@ -7,6 +7,7 @@ public class DamagePopup : MonoBehaviour
 {
     public static DamagePopup Create(Vector3 position, double damageAmount, bool isCriticalHit)
     {
+        if(!RemasterUI.ShowDamageText) return null;   // 설정 "데미지 숫자 보기" 끔 (2026-11-26)
         GameObject damagepopupTransform = ObjectPoolPopUp.Instance.GetPoolObject(PoolObjectTypePopUp.Damage);
         damagepopupTransform.transform.position = Spread(position);
         damagepopupTransform.SetActive(true);
@@ -17,6 +18,7 @@ public class DamagePopup : MonoBehaviour
     }
     public static DamagePopup Create(Vector3 position, double damageAmount , bool isCriticalHit, Color c)
     {
+        if(!RemasterUI.ShowDamageText) return null;   // 설정 "데미지 숫자 보기" 끔 (2026-11-26)
         GameObject damagepopupTransform = ObjectPoolPopUp.Instance.GetPoolObject(PoolObjectTypePopUp.Damage);
         damagepopupTransform.transform.position = Spread(position);
         damagepopupTransform.SetActive(true);

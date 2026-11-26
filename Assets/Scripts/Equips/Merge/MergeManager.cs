@@ -132,6 +132,14 @@ public class MergeManager : MonoBehaviour
                 TypeBorder.color = new Color(1, 0.1882353f, 0.3019608f);
                 Light.color = new Color(1, 0.5607843f, 0.6117647f);
                 break;
+            case Equips.MaterialClass.Ancient:   // 고대도 합성 (2026-11-26) — EquipFrame 의 고대 색
+                if(stoneSprites != null && stoneSprites.Length > 5) stoneImage.sprite = stoneSprites[5];
+                Background.color = new Color(0.8679245f, 0.4799112f, 0);
+                Background_BG.color = new Color(0.8113208f, 0.3971962f, 0);
+                Glow.color = new Color(0.8773585f, 0.2940994f, 0);
+                TypeBorder.color = new Color(1, 0.4712134f, 0.0235849f);
+                Light.color = new Color(1, 0.5529412f, 0);
+                break;
         }
     }
 
@@ -146,8 +154,10 @@ public class MergeManager : MonoBehaviour
         //UI Setting
         MergeEquip_UI.setGUI(MergingEquip);
 
-        //Result
-        ResultItem.setGUI(EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade + 1, MergingEquip.equipData.TypeOfEquip));
+        RelabelMerge();
+
+        //Result (같은 등급 무작위, 2026-11-26)
+        ResultItem.setGUI(EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade, MergeType()));
         ResultItem.Image_Equip.gameObject.SetActive(false);
         QuestionMark_Equip.SetActive(true);
         ResultItemLevel_Text.text = "Lv.0";
@@ -169,6 +179,8 @@ public class MergeManager : MonoBehaviour
             MergePrice = 1000000000;
         else if(MergingEquip.equipData.Grade == Equips.MaterialClass.Legendary)
             MergePrice = 10000000000;
+        else
+            MergePrice = 100000000000;   // 고대 (2026-11-26: 고대도 같은 등급 합성)
 
         UIChange();
     }
@@ -182,9 +194,9 @@ public class MergeManager : MonoBehaviour
     {
         if(gameObject.activeSelf && !isMerging) {
             //Button
-            MergeButton.interactable = GameManager.GetMoney() >= MergePrice && EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
+            MergeButton.interactable = GameManager.GetMoney() >= MergePrice && EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= StoneNeed(MergingEquip.equipData.Grade);
 
-            stoneAmount_Text.text = UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount.ToString() + "/" + mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
+            stoneAmount_Text.text = UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount.ToString() + "/" + StoneNeed(MergingEquip.equipData.Grade);
             equipAmount_Text.text = EquipBag.MergeCount(MergingEquip.equipData) + "/" + MergingEquip.equipData.RequiredAmountForMerge;
             MergePriceText.text = GameManager.MoneyString(MergePrice);
             RequiredGoldPrice.text = GameManager.MoneyStringForGamemanager(GameManager.instance.money) + "/" + GameManager.MoneyString(MergePrice);
@@ -194,7 +206,7 @@ public class MergeManager : MonoBehaviour
             else
                 equipAmount_Text.color = new Color(0.8490566f, 0, 0.05251745f);
 
-            if(UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade])
+            if(UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= StoneNeed(MergingEquip.equipData.Grade))
                 stoneAmount_Text.color = new Color(0, 0.8396226f, 0.06517614f);
             else
                 stoneAmount_Text.color = new Color(0.8490566f, 0, 0.05251745f);
@@ -208,6 +220,21 @@ public class MergeManager : MonoBehaviour
 
     EquipFrame mergeSelfPending;
 
+    // 진화 → 합성 글자 (장면 글자는 그대로, 열 때 바꿔요) — 2026-11-26 사용자: "진화가 아직도 있어"
+    void RelabelMerge()
+    {
+        foreach(var t in GetComponentsInChildren<TextMeshProUGUI>(true)) {
+            if(t == null || string.IsNullOrEmpty(t.text)) continue;
+            if(t.text.StartsWith("장비를 진화하여"))
+                t.text = $"같은 등급 장비 {Equips.MergeNeed}개로\n같은 등급의 무작위 장비 하나를 얻어요.\n(부위와 잠재력도 새로 정해져요)";
+            else if(t.text.Contains("진화")) t.text = t.text.Replace("진화", "합성");
+            else if(t.text.Contains("진 화")) t.text = t.text.Replace("진 화", "합 성");
+        }
+    }
+    // 강화석 칸 (고대는 표에 없으면 전설 칸 값을 써요)
+    int StoneNeed(Equips.MaterialClass g) => mergeStoneRequirement == null || mergeStoneRequirement.Length == 0 ? 0 : mergeStoneRequirement[Mathf.Min((int)g, mergeStoneRequirement.Length - 1)];
+    static Equips.Type MergeType() => GachaManager.Instance != null ? GachaManager.Instance.getRandomType() : (Equips.Type)Random.Range(0, 5);
+
     public void MergeEquipment()
     {
         isMerging = true;
@@ -219,8 +246,9 @@ public class MergeManager : MonoBehaviour
         foreach(var f in EquipBag.MergeMaterials(MergingEquip.equipData, MergingEquip).Take(MergingEquip.equipData.RequiredAmountForMerge).ToList()) {
             if(f == MergingEquip) mergeSelfPending = f; else EquipBag.Remove(f);
         }
-        UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount -= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
-        ResultEquip = EquipBag.Grant(EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade + 1, MergingEquip.equipData.TypeOfEquip));   // 새 장비 (무작위 값)
+        UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount -= StoneNeed(MergingEquip.equipData.Grade);
+        // 같은 등급 · 부위 무작위 (뽑기와 같은 부위 비율) · 잠재력 새로 (2026-11-26 사용자)
+        ResultEquip = EquipBag.Grant(EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade, MergeType()));
 
         for(int i = 0; i < ResultTab_Stats.Count; i++) {
             ResultTab_Stats[i].gameObject.SetActive(false);
@@ -253,7 +281,7 @@ public class MergeManager : MonoBehaviour
     public void MergingEffectUIs(bool Real)
     {
         if(!Real)
-            RandomEquip = EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade + 1, MergingEquip.equipData.TypeOfEquip);
+            RandomEquip = EquipManager.Instance.getRandomItem_Grade(MergingEquip.equipData.Grade, MergeType());
         else {
             RandomEquip = ResultEquip;
         }
@@ -291,7 +319,7 @@ public class MergeManager : MonoBehaviour
             EquipManager.Instance.EquipClicked(ResultEquip);
         }
         OpenMergeTab();
-        MergeButton.interactable = GameManager.GetMoney() >= MergePrice && EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= mergeStoneRequirement[(int)MergingEquip.equipData.Grade];
+        MergeButton.interactable = GameManager.GetMoney() >= MergePrice && EquipBag.MergeCount(MergingEquip.equipData) >= MergingEquip.equipData.RequiredAmountForMerge && UpgradeStoneManager.instance.stonesData[(int)MergingEquip.equipData.Grade].StoneAmount >= StoneNeed(MergingEquip.equipData.Grade);
         UIChange();
     }
 
@@ -385,8 +413,8 @@ public class MergeManager : MonoBehaviour
 
         //Slider
         ResultItemAmountSlider.maxValue = RandomEquip.equipData.RequiredAmountForMerge;
-        ResultItemAmountSlider.value = EquipBag.CountOf(RandomEquip.equipData);
-        ResultSlider_Text.text = EquipBag.CountOf(RandomEquip.equipData) + "/" + RandomEquip.equipData.RequiredAmountForMerge;
+        ResultItemAmountSlider.value = EquipBag.MergeCount(RandomEquip.equipData);   // 같은 등급 개수 (합성 재료)
+        ResultSlider_Text.text = EquipBag.MergeCount(RandomEquip.equipData) + "/" + RandomEquip.equipData.RequiredAmountForMerge;
     }
 
     public void checkIfRewardStone()
