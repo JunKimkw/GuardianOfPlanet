@@ -32,8 +32,8 @@ public partial class RemasterUI
         bool badge = !string.IsNullOrEmpty(icon), bar = need > 0 && have >= 0, small = !string.IsNullOrEmpty(hint);
         int lines = string.IsNullOrEmpty(body) ? 0 : Mathf.Clamp(body.Split('\n').Length + Mathf.FloorToInt(MeasureText(body, 12.5f) / 250f), 1, 6);
         // 세로 칸: 제목 38~62 · 본문 줄마다 20 · 막대 30 · 안내 22 · 버튼 44 + 아래 24
-        float cy = 38f;
-        float titleY = cy + 12f; cy += 26f;
+        float cy = badge ? 38f : 26f;   // 배지가 없으면 제목을 위로 (2026-11-28 사용자: 제목을 조금 위로, 위아래 여백 고르게)
+        float titleY = cy + 12f - (badge ? 0f : Tuning.Get("msg_title_up", 6f)); cy += 26f;   // 제목만 조금 더 위로 (2026-11-28 사용자)
         float bodyY = cy + lines * 10f; cy += lines * 20f + (lines > 0 ? 6f : 0f);
         float barY = cy; if(bar) cy += 34f;
         float hintY = cy + 8f; if(small) cy += 22f;
@@ -85,6 +85,6 @@ public partial class RemasterUI
             hit.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
             hit.gameObject.AddComponent<Button>().onClick.AddListener(() => close());
         }
-        StartCoroutine(PopIn(box, 1f));
+        StartCoroutine(PopIn(box, Mathf.Clamp(Tuning.Get("msg_scale", 0.85f), 0.5f, 1.2f)));   // 창 크기 (사용자: 조금만 작게)
     }
 }

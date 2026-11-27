@@ -127,11 +127,14 @@ public partial class RemasterUI
     }
 
     // 막대 채우기: 내보낼 때 100% 로 잰 칸을 가로로 줄여요 (왼쪽 기준)
-    void GenFill(GenView v, string key, float frac)
+    // clip = 폭을 줄이지 않고 잘라서 보여요 (둥근 채움이 찌그러지지 않게, 2026-11-28 자동 분해 가방 막대)
+    void GenFill(GenView v, string key, float frac, bool clip = false)
     {
         if(v == null || !v.objs.TryGetValue(key, out var l)) return;
         foreach(var g in l) {
             if(g == null) continue;
+            var fi = clip ? g.GetComponent<Image>() : null;
+            if(fi != null) { fi.type = Image.Type.Filled; fi.fillMethod = Image.FillMethod.Horizontal; fi.fillOrigin = 0; fi.fillAmount = Mathf.Clamp01(frac); continue; }
             var rt = (RectTransform)g.transform;
             if(!genFull.TryGetValue(rt, out float full)) genFull[rt] = full = rt.sizeDelta.x;
             rt.sizeDelta = new Vector2(full * Mathf.Clamp01(frac), rt.sizeDelta.y);

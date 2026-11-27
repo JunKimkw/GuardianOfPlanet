@@ -62,6 +62,26 @@ public class StatsManager : MonoBehaviour, IDataPersistence
         setStatsPointUI();
     }
 
+    // 새 정보 창 (2026-11-28, Remaster/InfoSheetUI.cs): 다음 레벨에 필요한 포인트 (-1 = 최대) · 확인 창 없이 바로 올리기
+    public StatsData DataOf(StatsData.TypeofStat t) => statsDatas.Find(x => x != null && x._typeOfStat == t);
+    public int NextCost(StatsData.TypeofStat t)
+    {
+        var d = DataOf(t);
+        if(d == null || d._statsLevel >= requiredStats_per_level.Length) return -1;
+        return requiredStats_per_level[d._statsLevel];
+    }
+    public bool UpgradeDirect(StatsData.TypeofStat t)
+    {
+        var d = DataOf(t);
+        int c = NextCost(t);
+        if(d == null || c < 0 || statPoint < c) return false;
+        statPoint -= c;
+        UsedPoint += c;
+        d.UpgradeStat();
+        setStatsPointUI();
+        return true;
+    }
+
     public float getStatAmount(StatsData.TypeofStat data)
     {
         for(int i = 0; i < statsDatas.Count; i++) {

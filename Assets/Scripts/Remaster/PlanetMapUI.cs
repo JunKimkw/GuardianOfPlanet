@@ -53,6 +53,8 @@ public partial class RemasterUI
         if(open && !mapWasOpen) OpenPlanetMap();
         mapWasOpen = open;
         if(!open || mapRoot == null) return;
+        PlanetSafe();
+        CrispTexts(mapRoot);
         mapTime += Time.unscaledDeltaTime;
         if(shipRt != null) shipRt.anchoredPosition = shipBase + new Vector2(0, Mathf.Sin(mapTime * 2.2f) * 8f);
         if(curRing != null) curRing.localRotation = Quaternion.Euler(0, 0, -mapTime * 10f);
@@ -69,6 +71,11 @@ public partial class RemasterUI
         if(!DimOpen(dim)) dim = 0;
         ShowDim(dim);
         CloseSheet();
+        // 아래에서 올라와요 (2026-11-28 사용자: 모험도 던전처럼) — 뒤는 어두운 막(옛 지도 화면이 비치지 않게)
+        var fitC = mapRoot.GetComponent<RemasterWidthFit>();
+        if(fitC != null) fitC.Apply();
+        mapFrame.anchoredPosition = Vector2.zero;
+        StartCoroutine(SlideIn(mapFrame, mapFrame.localScale.x));
     }
 
     #region 그리기 도구 (미리보기 px 좌표: 부모의 왼쪽 위가 0,0 · 아래로 +)
@@ -576,6 +583,8 @@ public partial class RemasterUI
         smallRound = MakeRounded(32, 9);
         MapFont();
         mapRoot = Stretch("RemasterPlanetMap", stagesMap.transform);
+        var backdrop = Stretch("Backdrop", mapRoot);   // 올라오는 동안 옛 지도 화면을 가려요
+        backdrop.gameObject.AddComponent<Image>().color = new Color(4 / 255f, 6 / 255f, 22 / 255f, 0.9f);
         // 옛날 캔버스는 가로·세로 반반 맞춤이라 가로 길이가 기기마다 달라요 → 가로 1080 기준 틀을 만들어 크기를 맞춰요
         var fit = mapRoot.gameObject.AddComponent<RemasterWidthFit>();
         mapFrame = Rect("Frame", mapRoot, new Vector2(1080, 2340), Vector2.zero);
@@ -627,6 +636,42 @@ public partial class RemasterUI
         mapNav.anchoredPosition = Vector2.zero;
     }
 
+    // 안전 영역 (2026-11-28 사용자: 아이폰에서 위가 다 잘려요 → 지금부터 모든 화면) — 노치·카메라 자리만큼 위를, 홈 막대만큼 아래를 비워요. 배경은 화면 끝까지
+    float planetSafeBot;
+    void PlanetSafe()
+    {
+        if(mapFrame == null || mapTop == null || mapScroll == null) return;
+        GenSafe(mapFrame.sizeDelta.y, out float t, out float b);
+        planetSafeBot = b;
+        mapTop.anchoredPosition = new Vector2(0f, -t);
+        var vp = (RectTransform)mapScroll.viewport;
+        float gap = Tuning.Get("quick_bar_gap", -2f);   // 아래 바와 화면 아래 사이 (2026-11-28 사용자: 조금 더 낮춰도 돼요 16 → 4, 더 밑으로 → -2: 바 그림자만 화면 밖)
+        vp.offsetMin = new Vector2(0f, (NavHEff + gap) * K + b);
+        vp.offsetMax = new Vector2(0f, -t);
+        if(mapQuick != null) mapQuick.anchoredPosition = new Vector2(0f, (NavHEff + gap) * K + b);
+        if(mapNav != null) mapNav.anchoredPosition = new Vector2(0f, b);
+    }
+
+    // 테두리 있는 지도 글씨 = 버튼 글꼴 (2026-11-28 사용자: 검은 테두리 글씨가 흐려 보여요 → '입장권' 처럼 선명한 버튼 글씨)
+    //  새로 생긴 글만 0.3초마다 한 번 바꿔요 (글 색은 그대로). map_crisp_text 0 = 예전 미원체 외곽선
+    readonly HashSet<TMP_Text> crispDone = new HashSet<TMP_Text>();
+    float crispNext;
+    void CrispTexts(Transform root, bool now = false)   // now = 방금 만든 화면 (한 프레임도 예전 글씨가 안 보이게)
+    {
+        if(root == null || Tuning.Get("map_crisp_text", 1f) <= 0f || (!now && Time.unscaledTime < crispNext)) return;
+        if(!now) crispNext = Time.unscaledTime + 0.3f;
+        if(crispDone.Count > 3000) crispDone.RemoveWhere(x => x == null);
+        foreach(var t in root.GetComponentsInChildren<TMP_Text>(true)) {
+            if(t == null || !crispDone.Add(t)) continue;
+            var m = t.fontSharedMaterial;
+            if(m == null || !m.IsKeywordEnabled("OUTLINE_ON") || m.GetFloat("_OutlineWidth") <= 0f) continue;
+            Color c = t.color, oc = m.GetColor("_OutlineColor");
+            StyleBtnText(t, t.fontSize / K, oc);
+            t.fontSize *= Mathf.Clamp(Tuning.Get("map_crisp_scale", 0.82f), 0.5f, 1.2f);   // 버튼 글꼴이 같은 크기에서 더 커 보여요 (2026-11-28 사용자: 글씨가 너무 커졌어요)
+            t.color = c;
+        }
+    }
+
     void CloseStagesMap()
     {
         CloseSheet();
@@ -643,6 +688,12 @@ public partial class RemasterUI
         Clear(mapTop);
         ResBar(mapTop);
         BuildDimTabs(dim);
+        if(!PlanetNavOn) {   // 아래 메뉴가 없으면 위 오른쪽 X 로 닫아요 (던전 지도와 같은 자리)
+            Plate(mapTop, "btn_close", 316f, 9f, 34f, 34f, 7f);
+            var cl = PxBox("Close", mapTop, 310f, 4f, 46f, 44f);
+            cl.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
+            cl.gameObject.AddComponent<Button>().onClick.AddListener(CloseStagesMap);
+        }
     }
 
     // 재화 3칸 (left 10, top 10, 높이 30, 사이 6)
@@ -687,21 +738,27 @@ public partial class RemasterUI
                 sub = $"{done}/{n}";
             }
             bool lockIcon = !open;
-            float wName = MeasureText(names[d], 16f), wSub = sub.Length > 0 ? MeasureText(sub, 11f) : 0f;
+            float subSize = Tuning.Get("dim_tab_sub_size", 14f);   // 작은 숫자 2/14 (2026-11-28 사용자: 좀 키워 줘, 11 → 14)
+            float wName = MeasureText(names[d], 16f), wSub = sub.Length > 0 ? MeasureText(sub, subSize) : 0f;
             float total = (lockIcon ? 16f + 5f : 0f) + wName + (sub.Length > 0 ? 5f + wSub : 0f);
             float cx = tx + 54f - total / 2f, cy = ty + 22f;
             if(lockIcon) { PxIcon(mapTop, "Icon_Lock03", cx + 8f, cy, 16f); cx += 21f; }
             PxText(mapTop, names[d], cx, cy, 16f, Color.white, 2f, Navy, TextAlignmentOptions.Left);
             cx += wName + 5f;
-            if(sub.Length > 0) { var st = PxText(mapTop, sub, cx, cy + 1f, 11f, Color.white, 1f, Navy, TextAlignmentOptions.Left); st.alpha = 0.85f; }
+            if(sub.Length > 0) { var st = PxText(mapTop, sub, cx, cy + 1f, subSize, Color.white, 1f, Navy, TextAlignmentOptions.Left); st.alpha = 0.9f; }
         }
     }
 
     // 아래 메뉴: 미리보기와 같은 아이콘 5개 (상점 · 장비 · 모험 · 함선 · 설정). 가운데 '모험'이 튀어나와요
     //  누르면 지도를 닫고 옛날 로비의 그 버튼을 눌러 줘요 (모험 = 지도 닫기)
+    // 아래 메뉴 끄기 (2026-11-28 사용자: "밑에 이 부분 없애 줘") — planet_nav 0 = 없음 (닫기는 위 오른쪽 X). 1 = 예전처럼
+    static bool PlanetNavOn => Tuning.Get("planet_nav", 0f) > 0f;
+    float NavHEff => PlanetNavOn ? NavH : 0f;
     void BuildNav(int dim, string navKeyOverride = null)
     {
         Clear(mapNav);
+        mapNav.gameObject.SetActive(PlanetNavOn);
+        if(!PlanetNavOn) return;
         var navBg = Plate(mapNav, "nav_bg", 0f, 0f, 360f, NavH, 0f);
         navBg.raycastTarget = true;
         var bottom = GameObject.Find("Bottom Buttons");
@@ -840,6 +897,7 @@ public partial class RemasterUI
         BuildTop(dim);
         BuildNav(dim);
         BuildRoute(dim);
+        CrispTexts(mapRoot, true);
     }
 
     // 행성 k 의 가운데 (지도 안 px, 위가 0). 미리보기: 짝수 x 97, 홀수 x 256, 아래에서 위로
@@ -1220,7 +1278,7 @@ public partial class RemasterUI
         float room = mapFrame.sizeDelta.y - NavH * K - 40f;
         // (2026-11-25 사용자: 화면을 너무 덮어요) planet_sheet_scale(0.88)배로 작게, 메뉴 위 planet_sheet_gap(10px) 띄워서
         float sheetK = Mathf.Clamp(Tuning.Get("planet_sheet_scale", 0.88f), 0.5f, 1f);
-        holder.anchoredPosition = new Vector2(0, (NavH + Tuning.Get("planet_sheet_gap", 10f)) * K);
+        holder.anchoredPosition = new Vector2(0, (NavHEff + Tuning.Get("planet_sheet_gap", 10f)) * K + planetSafeBot);
         holder.localScale = Vector3.one * Mathf.Min(sheetK, room / ((548f + 70f) * K));
         var sheet = PxBox("Panel", holder, 0f, 0f, 360f, 548f);
         var sp = sheet.gameObject.AddComponent<Image>();
@@ -1281,6 +1339,13 @@ public partial class RemasterUI
         float py = 262f, lx0 = 16f, rx0 = 16f + 160f + 8f;
         Plate(s, "info", lx0, py, 160f, 164f, 0f);   // (사용자: 홀로그램 창 말고) A안 둥근 정보 판
         PxText(s, "만날 적", lx0 + 14f, py + 18f, 13f, Hex("#ff9b9b"), 0f, null, TextAlignmentOptions.Left);
+        // 적 정보 버튼 (2026-11-28 사용자: 행성에도 적 정보 버튼) — '만날 적' 칸 오른쪽 위, 던전과 같은 적 정보 창 (EnemyInfoUI.cs)
+        //  (2026-11-28 사용자: 출현 적과 너무 붙어요 → 작게) 50 × 20, 글 10.5, '만날 적' 글과 같은 높이
+        Plate(s, "btn_blue_s", lx0 + 160f - 8f - 50f, py + 8f, 50f, 20f, 7f);
+        PxText(s, "적 정보", lx0 + 160f - 8f - 25f, py + 17.5f, 10.5f, Color.white, 2f, Hex("#1a3f9e"));
+        var ei = PxBox("EnemyInfo", s, lx0 + 160f - 8f - 54f, py + 2f, 58f, 32f);
+        ei.gameObject.AddComponent<Image>().color = new Color(1, 1, 1, 0.001f);
+        ei.gameObject.AddComponent<Button>().onClick.AddListener(() => { if(SoundManager.Instance != null) SoundManager.Instance.playClickSFX(); ShowPlanetEnemies(dim, p, m); });
         int enemies = StageManager.EnemyTargetOf(planet, st, dim);
         Kv(s, "ItemIcon_Battle", 20f, "출현 적 ", enemies.ToString(), lx0 + 12f, py + 44f);
         Kv(s, "PictoIcon_Fire", 18f, "대군 ", $"{StageManager.HordeCountOf(m, dim)}번", lx0 + 12f, py + 70f);
@@ -1325,6 +1390,7 @@ public partial class RemasterUI
         var gb = go.gameObject.AddComponent<Button>();
         gb.onClick.AddListener(() => Launch(dim, p, m));
         gb.interactable = MapOpen(dim, p, m);
+        CrispTexts(sheetLayer, true);
     }
 
     // 보스 그림: 그림자(흰 동그라미 'Circle')는 빼고 가장 큰 몸통 그림 (2026-11-25: 흰 동그라미가 나왔어요)

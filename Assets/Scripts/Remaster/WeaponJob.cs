@@ -16,8 +16,13 @@ using UnityEngine;
 // - 숫자는 모두 tuning (job_*). 값은 성장 예산표에서 다시 정해요
 public static class WeaponJob
 {
-    public const int Slots = 6, MaxLevel = 20, WeaponCount = 11;   // TraitsData.WeaponType 0~10
-    public static readonly int[] SlotLevel = { 50, 100, 200, 300, 500, 1000 };
+    public const int Slots = 6, WeaponCount = 11;   // TraitsData.WeaponType 0~10
+    // 2026-11-28 사용자: 개조 상한 100 · 개조 레벨당 피해 1% · 칸은 '개조 레벨'로 열려요 (예전: 상한 20, 칸은 무기 레벨 50~1000)
+    //  레벨당 효과는 예전(상한 20)의 1/5 → Lv.100 = 예전 Lv.20 과 같은 크기
+    public static int MaxLevel => Mathf.Max(1, Mathf.RoundToInt(Tuning.Get("job_max_level", 100f)));
+    public static int OpenWeaponLv => Mathf.Max(1, Mathf.RoundToInt(Tuning.Get("job_open_weapon_lv", 50f)));   // 개조가 열리는 무기 레벨 (Lv.1 공짜)
+    static readonly float[] SlotLvDefault = { 1, 10, 25, 40, 60, 80 };
+    public static int SlotLv(int s) => Mathf.Max(1, Mathf.RoundToInt(Tuning.Get("job_slot_lv" + s, SlotLvDefault[Mathf.Clamp(s, 0, Slots - 1)])));   // 칸이 열리는 개조 레벨
     public static readonly string[] SlotName = { "사격 방식", "시작 증강", "치명 vs 안정", "연타 vs 첫 타", "경제", "마무리" };
 
     static int[] levels = new int[WeaponCount];
@@ -57,10 +62,10 @@ public static class WeaponJob
     {
         int i = (int)w; if(i < 0 || i >= WeaponCount) return 0;
         int l = levels[i];
-        if(l == 0 && WeaponLevel(w) >= SlotLevel[0]) l = 1;
+        if(l == 0 && WeaponLevel(w) >= OpenWeaponLv) l = 1;
         return Mathf.Clamp(l, 0, MaxLevel);
     }
-    public static bool SlotOpen(TraitsData.WeaponType w, int slot) => WeaponLevel(w) >= SlotLevel[slot];
+    public static bool SlotOpen(TraitsData.WeaponType w, int slot) => Level(w) >= SlotLv(slot);
     public static int Pick(TraitsData.WeaponType w, int slot) { int i = (int)w * Slots + slot; return i >= 0 && i < picks.Length ? picks[i] : -1; }
     // 열린 칸에서 고른 쪽 (안 열렸거나 안 골랐으면 -1)
     public static int Active(TraitsData.WeaponType w, int slot) => SlotOpen(w, slot) ? Pick(w, slot) : -1;
@@ -71,10 +76,20 @@ public static class WeaponJob
     public static long LevelUpCost(TraitsData.WeaponType w)
     {
         int l = Level(w);
-        if(l >= MaxLevel || WeaponLevel(w) < SlotLevel[0]) return -1;
-        return (long)(Price[Mathf.Clamp(l, 0, Price.Length - 1)] * (double)Tuning.Get("job_cost_mul", 1f));
+        if(l >= MaxLevel || WeaponLevel(w) < OpenWeaponLv) return -1;
+        return (long)(PriceAt(l) * (double)Tuning.Get("job_cost_mul", 1f));
     }
-    public static long SwapCost(TraitsData.WeaponType w) => (long)(Price[Mathf.Clamp(Level(w), 0, Price.Length - 1)] * (double)Tuning.Get("job_swap_mul", 0.25f));
+    public static long SwapCost(TraitsData.WeaponType w) => (long)(PriceAt(Level(w)) * (double)Tuning.Get("job_swap_mul", 0.25f));
+    // 임시 가격 (2026-11-28 사용자: "임시로 x3 넣어 줘") = job_cost_base × job_cost_growth^(지금 레벨 − 1) → Lv.1→2 5천, 마지막 Lv.19→20 약 1.9조
+    //  예전 표(Price, 레벨마다 약 ×4.6, 마지막 5조)는 광산으로 끝까지 못 올려요. 진짜 값은 P4 행성 기지 채굴장 생산량에 맞춰 다시 정해요
+    //  job_cost_growth 를 0 으로 하면 예전 표로 돌아가요
+    static double PriceAt(int l)
+    {
+        float g = Tuning.Get("job_cost_growth", 1.2f);
+        if(g <= 0f) return Price[Mathf.Clamp(l, 0, Price.Length - 1)];
+        double v = Tuning.Get("job_cost_base", 5000f) * System.Math.Pow(g, Mathf.Max(0, l - 1));
+        return System.Math.Min(v, 9e17);
+    }
 
     public static bool TryLevelUp(TraitsData.WeaponType w)
     {
@@ -97,24 +112,24 @@ public static class WeaponJob
 
     // ── 효과 크기 (전직 레벨 1당) ──
     static float T(string k, float d) => Tuning.Get(k, d);
-    public static float DamagePer => T("job_dmg_per", 0.05f);           // 그 무기 피해 +5%
+    public static float DamagePer => T("job_dmg_per", 0.01f);           // 그 무기 피해 +5%
     public static string Describe(TraitsData.WeaponType w, int slot, int choice, int lv)
     {
         float L = Mathf.Max(1, lv);
         string P(float v) => $"+{v * 100f:0.#}%";
         switch(slot * 2 + choice) {
-            case 0: return $"공속 {P(L * T("job_rapid_as", 0.03f))}";
-            case 1: return $"1발 피해 {P(L * T("job_heavy_dmg", 0.05f))}";
+            case 0: return $"공속 {P(L * T("job_rapid_as", 0.006f))}";
+            case 1: return $"1발 피해 {P(L * T("job_heavy_dmg", 0.01f))}";
             case 2: return w == TraitsData.WeaponType.MainWeapon ? $"시작 증강 뽑기 +{StartCount(lv)}" : $"{AugName(w, 0)} Lv.{StartCount(lv)} 들고 출발";
             case 3: return w == TraitsData.WeaponType.MainWeapon ? $"시작 리롤 +{StartCount(lv) * 2}" : $"{AugName(w, 1)} Lv.{StartCount(lv)} 들고 출발";
-            case 4: return $"치명 확률 +{L * T("job_crit_cc", 1f):0.#}%p";
-            case 5: return $"기본 피해 {P(L * T("job_steady_dmg", 0.03f))}";
-            case 6: return $"맞힐수록 쌓임 최대 {P(L * T("job_combo_max", 0.04f))}";
-            case 7: return $"가득 찬 적 피해 {P(L * T("job_first_dmg", 0.08f))}";
-            case 8: return $"처치 골드 {P(L * T("job_gold", 0.03f))}";
-            case 9: return $"처치 경험치 {P(L * T("job_exp", 0.03f))}";
-            case 10: return $"방어 관통 {P(L * T("job_pen", 0.03f))}";
-            case 11: return $"치명 피해 {P(L * T("job_cdmg", 0.10f))}";
+            case 4: return $"치명 확률 +{L * T("job_crit_cc", 0.2f):0.#}%p";
+            case 5: return $"기본 피해 {P(L * T("job_steady_dmg", 0.006f))}";
+            case 6: return $"맞힐수록 쌓임 최대 {P(L * T("job_combo_max", 0.008f))}";
+            case 7: return $"가득 찬 적 피해 {P(L * T("job_first_dmg", 0.016f))}";
+            case 8: return $"처치 골드 {P(L * T("job_gold", 0.006f))}";
+            case 9: return $"처치 경험치 {P(L * T("job_exp", 0.006f))}";
+            case 10: return $"방어 관통 {P(L * T("job_pen", 0.006f))}";
+            case 11: return $"치명 피해 {P(L * T("job_cdmg", 0.02f))}";
         }
         return "";
     }
@@ -158,18 +173,18 @@ public static class WeaponJob
         string P(float v) => $"+{v * 100f:0.#}%";
         bool main = w == TraitsData.WeaponType.MainWeapon;
         switch(slot * 2 + choice) {
-            case 0: return P(L * T("job_rapid_as", 0.03f));
-            case 1: return P(L * T("job_heavy_dmg", 0.05f));
+            case 0: return P(L * T("job_rapid_as", 0.006f));
+            case 1: return P(L * T("job_heavy_dmg", 0.01f));
             case 2: return main ? $"+{StartCount(lv)}번" : $"Lv.{StartCount(lv)}";
             case 3: return main ? $"+{StartCount(lv) * 2}번" : $"Lv.{StartCount(lv)}";
-            case 4: return $"+{L * T("job_crit_cc", 1f):0.#}%p";
-            case 5: return P(L * T("job_steady_dmg", 0.03f));
-            case 6: return "최대 " + P(L * T("job_combo_max", 0.04f));
-            case 7: return P(L * T("job_first_dmg", 0.08f));
-            case 8: return P(L * T("job_gold", 0.03f));
-            case 9: return P(L * T("job_exp", 0.03f));
-            case 10: return P(L * T("job_pen", 0.03f));
-            case 11: return P(L * T("job_cdmg", 0.10f));
+            case 4: return $"+{L * T("job_crit_cc", 0.2f):0.#}%p";
+            case 5: return P(L * T("job_steady_dmg", 0.006f));
+            case 6: return "최대 " + P(L * T("job_combo_max", 0.008f));
+            case 7: return P(L * T("job_first_dmg", 0.016f));
+            case 8: return P(L * T("job_gold", 0.006f));
+            case 9: return P(L * T("job_exp", 0.006f));
+            case 10: return P(L * T("job_pen", 0.006f));
+            case 11: return P(L * T("job_cdmg", 0.02f));
         }
         return "";
     }
@@ -187,9 +202,15 @@ public static class WeaponJob
     public static string PerLevelLine(TraitsData.WeaponType w, int slot, int choice)
     {
         if(slot == 1) {
-            int step = Mathf.Max(1, Mathf.RoundToInt(T("job_aug_step", 7f)));
+            int step = Mathf.Max(1, Mathf.RoundToInt(T("job_aug_step", 35f)));
             bool main = w == TraitsData.WeaponType.MainWeapon;
-            return $"개조 레벨 {step}마다 " + (main ? (choice == 0 ? "+1번" : "+2번") : "증강 레벨 +1");
+            // 언제 커지는지 레벨로 바로 (2026-11-28 사용자: "35마다 증강 레벨 +1 이 뭔 소리야")
+            //  예) 개조 Lv.35·70 에 증강 Lv.2·3 / 기본총: 개조 Lv.35·70 에 뽑기 2·3번
+            var at = new List<string>(); var to = new List<string>();
+            for(int l = step; l <= MaxLevel; l += step) { at.Add(l.ToString()); int c = StartCount(l); to.Add((main && choice == 1 ? c * 2 : c).ToString()); }
+            if(at.Count == 0) return main ? (choice == 0 ? "판 시작에 증강 뽑기 1번 더" : "판 시작에 리롤 2번 더") : "증강 Lv.1 로 시작";
+            string lvs = string.Join("·", at), vals = string.Join("·", to);
+            return main ? $"개조 Lv.{lvs} 에 {(choice == 0 ? "뽑기" : "리롤")} {vals}번" : $"개조 Lv.{lvs} 에 증강 Lv.{vals}";
         }
         return "개조 레벨마다 " + PerLevel(w, slot, choice);   // (2026-11-26 사용자: "전직 Lv 마다" → "전직 레벨마다")
     }
@@ -199,16 +220,16 @@ public static class WeaponJob
     {
         string P(float v) => $"+{v * 100f:0.#}%";
         switch(slot * 2 + choice) {
-            case 0: return P(T("job_rapid_as", 0.03f)); case 1: return P(T("job_heavy_dmg", 0.05f));
-            case 2: case 3: return $"Lv.{Mathf.RoundToInt(T("job_aug_step", 7f))} 마다 +1";
-            case 4: return $"+{T("job_crit_cc", 1f):0.#}%p"; case 5: return P(T("job_steady_dmg", 0.03f));
-            case 6: return P(T("job_combo_max", 0.04f)); case 7: return P(T("job_first_dmg", 0.08f));
-            case 8: return P(T("job_gold", 0.03f)); case 9: return P(T("job_exp", 0.03f));
-            case 10: return P(T("job_pen", 0.03f)); case 11: return P(T("job_cdmg", 0.10f));
+            case 0: return P(T("job_rapid_as", 0.006f)); case 1: return P(T("job_heavy_dmg", 0.01f));
+            case 2: case 3: return $"Lv.{Mathf.RoundToInt(T("job_aug_step", 35f))} 마다 +1";
+            case 4: return $"+{T("job_crit_cc", 0.2f):0.#}%p"; case 5: return P(T("job_steady_dmg", 0.006f));
+            case 6: return P(T("job_combo_max", 0.008f)); case 7: return P(T("job_first_dmg", 0.016f));
+            case 8: return P(T("job_gold", 0.006f)); case 9: return P(T("job_exp", 0.006f));
+            case 10: return P(T("job_pen", 0.006f)); case 11: return P(T("job_cdmg", 0.02f));
         }
         return "";
     }
-    public static int StartCount(int lv) => 1 + Mathf.Max(0, lv) / Mathf.Max(1, Mathf.RoundToInt(T("job_aug_step", 7f)));
+    public static int StartCount(int lv) => 1 + Mathf.Max(0, lv) / Mathf.Max(1, Mathf.RoundToInt(T("job_aug_step", 35f)));
 
     // 시작 증강 ①·② (무기 전용 증강 S 두 개)
     static readonly Dictionary<TraitsData.WeaponType, string[]> StartAugs = new Dictionary<TraitsData.WeaponType, string[]> {
@@ -250,28 +271,28 @@ public static class WeaponJob
         int L = Level(w);
         if(L <= 0) return 1.0;
         double mul = 1.0 + L * DamagePer;
-        if(Active(w, 0) == 1) mul *= 1.0 + L * T("job_heavy_dmg", 0.05f);
-        if(Active(w, 2) == 0 && !crit && Random.value * 100f < L * T("job_crit_cc", 1f)) crit = true;
-        if(Active(w, 2) == 1) mul *= 1.0 + L * T("job_steady_dmg", 0.03f);
+        if(Active(w, 0) == 1) mul *= 1.0 + L * T("job_heavy_dmg", 0.01f);
+        if(Active(w, 2) == 0 && !crit && Random.value * 100f < L * T("job_crit_cc", 0.2f)) crit = true;
+        if(Active(w, 2) == 1) mul *= 1.0 + L * T("job_steady_dmg", 0.006f);
         int s3 = Active(w, 3);
         if(s3 == 0) {
             if(e.jobComboWeapon == wi) e.jobComboStacks = Mathf.Min(8, e.jobComboStacks + 1); else { e.jobComboWeapon = wi; e.jobComboStacks = 1; }
-            mul *= 1.0 + e.jobComboStacks / 8.0 * L * T("job_combo_max", 0.04f);
+            mul *= 1.0 + e.jobComboStacks / 8.0 * L * T("job_combo_max", 0.008f);
         } else if(s3 == 1 && e.EnemyHealth > 0 && e.CurrentHealth >= e.EnemyHealth * T("job_first_hp", 0.9f)) {
-            mul *= 1.0 + L * T("job_first_dmg", 0.08f);
+            mul *= 1.0 + L * T("job_first_dmg", 0.016f);
         }
         int s5 = Active(w, 5);
-        if(s5 == 0) armorPen = Mathf.Clamp01(armorPen + L * T("job_pen", 0.03f));
-        else if(s5 == 1 && crit) critDamage += L * T("job_cdmg", 0.10f);
+        if(s5 == 0) armorPen = Mathf.Clamp01(armorPen + L * T("job_pen", 0.006f));
+        else if(s5 == 1 && crit) critDamage += L * T("job_cdmg", 0.02f);
         return mul;
     }
 
     // 처치 골드·경험치 (마지막으로 때린 무기)
-    public static float KillGoldMul(int wi) => wi >= 0 && wi < WeaponCount && Active((TraitsData.WeaponType)wi, 4) == 0 ? 1f + Level((TraitsData.WeaponType)wi) * T("job_gold", 0.03f) : 1f;
-    public static float KillExpMul(int wi) => wi >= 0 && wi < WeaponCount && Active((TraitsData.WeaponType)wi, 4) == 1 ? 1f + Level((TraitsData.WeaponType)wi) * T("job_exp", 0.03f) : 1f;
+    public static float KillGoldMul(int wi) => wi >= 0 && wi < WeaponCount && Active((TraitsData.WeaponType)wi, 4) == 0 ? 1f + Level((TraitsData.WeaponType)wi) * T("job_gold", 0.006f) : 1f;
+    public static float KillExpMul(int wi) => wi >= 0 && wi < WeaponCount && Active((TraitsData.WeaponType)wi, 4) == 1 ? 1f + Level((TraitsData.WeaponType)wi) * T("job_exp", 0.006f) : 1f;
 
     // 공속 (WeaponBase.Trait 에 더해요)
-    public static float AttackSpeed(TraitsData.WeaponType w) => Active(w, 0) == 0 ? Mathf.Min(0.6f, Level(w) * T("job_rapid_as", 0.03f)) : 0f;
+    public static float AttackSpeed(TraitsData.WeaponType w) => Active(w, 0) == 0 ? Mathf.Min(0.6f, Level(w) * T("job_rapid_as", 0.006f)) : 0f;
 
     // ── 저장 ──
     public static void Load(GameData d)

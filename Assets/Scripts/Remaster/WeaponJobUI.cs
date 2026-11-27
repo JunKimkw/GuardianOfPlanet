@@ -212,7 +212,7 @@ public partial class RemasterUI
             long cost = WeaponJob.LevelUpCost(w);
             Plate(row, "wj_btn_p", 226f, 10f, 84f, 46f, 5f);
             WText(row, "개조 Lv↑", 267.5f, 27.5f, 14f, Color.white, 1f, Hex("#3a0d66"));
-            WText(row, cost < 0 ? (jl >= WeaponJob.MaxLevel ? "MAX" : $"무기 Lv.{WeaponJob.SlotLevel[0]}") : "광석 " + GameManager.MoneyString(cost), 268f, 42f, 10f, Color.white, 1f, Hex("#3a0d66"));
+            WText(row, cost < 0 ? (jl >= WeaponJob.MaxLevel ? "MAX" : $"무기 Lv.{WeaponJob.OpenWeaponLv}") : "광석 " + GameManager.MoneyString(cost), 268f, 42f, 10f, Color.white, 1f, Hex("#3a0d66"));
             JobHit(row, "JobUp", 226f, 10f, 84f, 46f, () => {
                 if(!WeaponJob.TryLevelUp(ww)) Toast(WeaponJob.LevelUpCost(ww) < 0 ? "아직 올릴 수 없어요" : "광석이 모자라요", new Color(1f, 0.6f, 0.5f));
                 BuildWeaponRows();
@@ -228,7 +228,7 @@ public partial class RemasterUI
                 else if(p >= 0) { Plate(row, "wjA_chip_on", cx, 66f, 46f, 32f, 0f); PxIcon(row, JobIcon(w, k, p), cx + 23f, 82f, 24f); }
                 else { Plate(row, "wjA_chip_q", cx, 66f, 46f, 32f, 10f); WText(row, "?", cx + 23f, 82f, 17f, Color.white, 1f, Hex("#2a0a50")); }
                 JobHit(row, "Slot" + k, cx, 66f, 46f, 32f, () => {
-                    if(!WeaponJob.SlotOpen(ww, kk)) { Toast($"무기 Lv.{WeaponJob.SlotLevel[kk]} 에 열려요", new Color(1f, 0.85f, 0.5f)); return; }
+                    if(!WeaponJob.SlotOpen(ww, kk)) { Toast($"개조 Lv.{WeaponJob.SlotLv(kk)} 에 열려요", new Color(1f, 0.85f, 0.5f)); return; }
                     OpenPick(ww, kk, false);
                 });
             }
@@ -287,8 +287,8 @@ public partial class RemasterUI
         PxIcon(box, "ItemIcon_Battle", 180f, 179f, 50f);
         // 글씨는 원래 게임 한글 글꼴 (2026-11-26 사용자: "여기 글씨들도 바꿔 줘")
         GameFont(WText(box, $"{WeaponJob.WeaponName(w)} 개조!", 180f, 234f, 22f, Color.white, 2f, Navy), true);
-        string sub = cur < 0 ? $"Lv.{WeaponJob.SlotLevel[s]} 에 새 칸이 열렸어요 · 하나를 골라요"
-                             : $"Lv.{WeaponJob.SlotLevel[s]} {WeaponJob.SlotName[s]} · 바꾸기 광석 {GameManager.MoneyString(WeaponJob.SwapCost(w))}";
+        string sub = cur < 0 ? $"개조 Lv.{WeaponJob.SlotLv(s)} 에 새 칸이 열렸어요 · 하나를 골라요"
+                             : $"개조 Lv.{WeaponJob.SlotLv(s)} {WeaponJob.SlotName[s]} · 바꾸기 광석 {GameManager.MoneyString(WeaponJob.SwapCost(w))}";
         GameFont(WText(box, sub, 180f, 258.5f, 12.5f, Hex("#e6efff")), false);
         for(int c = 0; c < 2; c++) {
             int cc = c;

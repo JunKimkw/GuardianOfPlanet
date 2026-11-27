@@ -179,7 +179,7 @@ public partial class RemasterUI
         Plate(box, "es_ok", 134f, oy, 92f, 25.3f, 3f);
         GameFont(PxText(box, "확인", 180f, oy + 12.65f, 11.5f, Color.white, 1f, Navy), true);
         JobHit(box, "Ok", 134f, oy, 92f, 25.3f, () => { if(layer != null) Destroy(layer.gameObject); });
-        StartCoroutine(PopIn(box, 1f));
+        StartCoroutine(SlideIn(box, 1f));   // 아래에서 올라와요 (모든 창)
     }
     // 받침 있으면 '이', 없으면 '가' (공격력이 · 공격 속도가)
     static string EsIGa(string w)
@@ -331,7 +331,24 @@ public partial class RemasterUI
         var tbImg = topbar != null ? topbar.GetComponent<Image>() : null;
         if(tbImg != null) tbImg.color = back;
         // 맨 위 띠 오른쪽 '일괄 분해' (2026-11-26: 분해 창 A 를 여는 곳)
-        if(topbar != null) {
+        // → 1·2·3·4 프리셋 줄 오른쪽 빈자리로 (2026-11-28 사용자: 일괄 분해가 잘려요 — 맨 위 띠는 화면 위 끝·노치에 걸려요)
+        //  Equip Set(472×50, 왼쪽 위 기준) 안 px: 오른쪽 끝 = 장착 칸 상자 오른쪽 (Equip Set 왼쪽에서 약 914 단위), 높이 = 프리셋 칸(75)
+        // 오른쪽 끝 = 아래 회색 장착 칸 판(Group_Slots) 오른쪽 끝 (2026-11-28 사용자: "일괄 분해 오른쪽 끝이랑 밑에 회색 오른쪽 끝을 맞춰 줘")
+        //  → 회색 판에 오른쪽 위 기준으로 붙여요 (화면 비율이 달라도 끝이 맞아요). 높이 = 프리셋 탭 줄 (회색 판 위 끝에서 dismantle_btn_up 위)
+        var gs = bag.parent != null ? bag.parent.Find("Middle/Group_Slots") as RectTransform : null;
+        if(gs != null) {
+            float bx = 0f, bw = 92f, bh = 25f;
+            var holder = new GameObject("Dismantle (remaster)", typeof(RectTransform)).GetComponent<RectTransform>();
+            holder.SetParent(gs, false);
+            holder.anchorMin = holder.anchorMax = new Vector2(1f, 1f);
+            holder.pivot = new Vector2(1f, 0f);
+            holder.sizeDelta = new Vector2(bw * K, bh * K);
+            holder.anchoredPosition = new Vector2(0f, Tuning.Get("dismantle_btn_up", 20f));
+            holder.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // 회색 판엔 가로 정렬이 있어요
+            Plate(holder, "mg_btn_p", bx, 0f, bw, bh, 3f);
+            GameFont(PxText(holder, "일괄 분해", bx + bw / 2f, bh / 2f, 11.5f, Color.white, 1f, MgEdge), true, MgEdge);
+            JobHit(holder, "OpenDismantle", bx, 0f, bw, bh, () => { if(SoundManager.Instance != null) SoundManager.Instance.playClickSFX(); ShowDismantle(true); });
+        } else if(topbar != null) {
             float th = ((RectTransform)topbar).rect.height / K;
             Plate(topbar, "mg_btn_p", 360f - 12f - 92f, (th - 30f) / 2f, 92f, 30f, 3f);
             GameFont(PxText(topbar, "일괄 분해", 360f - 12f - 46f, th / 2f, 12f, Color.white, 1f, MgEdge), true, MgEdge);

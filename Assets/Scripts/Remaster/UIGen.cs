@@ -125,7 +125,9 @@ public partial class RemasterUI
             foreach(var g in cl) if(g != null) ((RectTransform)g.transform).anchoredPosition += new Vector2(dx * K, 0f);
             if(v.rects.TryGetValue("close", out var cr)) v.rects["close"] = new UnityEngine.Rect(cr.x + dx, cr.y, cr.width, cr.height);
         }
-        if(pop) StartCoroutine(PopIn(v.box, fit));
+        // 장비 분해 창은 올라오지 않고 바로 (2026-11-28 사용자: "장비 분해 창은 아래에서 올라오는 애니메이션 없애 줘")
+        if(pop && (name == "dismantle" || name == "dispick")) v.box.localScale = new Vector3(fit, fit, 1f);
+        else if(pop) StartCoroutine(SlideIn(v.box, fit));   // 아래에서 올라와요 (2026-11-28 사용자: 모든 창)
         return v;
     }
 
@@ -259,6 +261,29 @@ public partial class RemasterUI
             act();
         });
     }
+    // 닫기(X)를 원래 게임에서 가장 많이 쓰는 X 로 (2026-11-28 사용자: "X 도 다른 창에서 많이 쓰이는 X 로 바꿔 줘")
+    //  = 장면의 원래 닫기 버튼(Button_Round06_Red 판 + Icon_Close01, 장면에서 45번)을 복사해서 미리보기 X 자리 가운데에. 누르기는 원래 'close' 자리(GenHit) 그대로
+    GameObject genOrigClose;
+    void GenUseOrigClose(GenView v)
+    {
+        if(v == null || !v.rects.TryGetValue("close", out var r)) return;
+        if(genOrigClose == null)
+            foreach(var tr in FindObjectsByType<Transform>(FindObjectsInactive.Include))
+                if(tr.name == "Button_Close" && tr.parent != null && tr.parent.name == "Popup08_Topbar_Divided") { genOrigClose = tr.gameObject; break; }
+        if(genOrigClose == null) return;
+        GenShow(v, "close", false);
+        var c = Instantiate(genOrigClose, v.box, false);
+        c.name = "OrigClose";
+        c.SetActive(true);
+        foreach(var b in c.GetComponentsInChildren<Selectable>(true)) Destroy(b);   // 원래 버튼의 연결(설정 닫기)은 지워요
+        foreach(var g in c.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = false;
+        var rt = (RectTransform)c.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.localScale = Vector3.one * Tuning.Get("gen_close_scale", 0.9f);
+        rt.anchoredPosition = new Vector2((r.x + r.width / 2f) * K, -(r.y + r.height / 2f) * K);
+    }
+
     void GenClose(GenView v)
     {
         if(v != null && v.layer != null) Destroy(v.layer.gameObject);

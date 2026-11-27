@@ -60,6 +60,7 @@ public class DungeonManager : MonoBehaviour, IDataPersistence
 
     //Daily ExtraDungeonTicket Limit
     int LimitExtraDungeonTicket;
+    public int ExtraTicketsToday => LimitExtraDungeonTicket;   // 오늘 더 받은 입장권 수 (리마스터 안내 창 "오늘 N / 3", 2026-11-28)
 
     private void Awake()
     {

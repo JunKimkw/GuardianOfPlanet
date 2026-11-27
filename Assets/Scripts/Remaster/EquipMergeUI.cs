@@ -173,7 +173,7 @@ public partial class RemasterUI
         JobHit(box, "All", 80f, 690f, 200f, 30f, () => { if(MgPool(mgGrade).Count(x => x.equipData.Level == 0) >= MgNeed && !mgBusy) StartCoroutine(MergeRun(box, slots, true)); });
 
         box.localScale = new Vector3(fit, fit, 1f);
-        if(pop) StartCoroutine(PopIn(box, fit));
+        if(pop) StartCoroutine(SlideIn(box, fit)); else box.localScale = new Vector3(fit, fit, 1f);   // 아래에서 올라와요 (2026-11-28 사용자: 모든 창)
     }
 
     // 합성 창·결과 창 지우기: 이름으로 하나만 찾지 않고 모두 (지우는 중인 창이 남아 새 창을 가리지 않게, 2026-11-26 "두 번째부터 장비가 안 보여")

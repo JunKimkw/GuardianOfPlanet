@@ -339,7 +339,7 @@ public partial class RemasterUI : MonoBehaviour
             Destroy(dim.gameObject);
             RefreshHUD();
         };
-        StartCoroutine(PopIn(rt, fit));
+        StartCoroutine(SlideIn(rt, fit));   // 아래에서 올라와요 (2026-11-28 사용자: 모든 창)
         return rt;
     }
 
@@ -602,7 +602,11 @@ public partial class RemasterUI : MonoBehaviour
     }
     void Update()
     {
-        if(mgr != null && mgr.Loaded) { UpdatePlanetMap(); UpdateWeaponJob(); UpdateEquipSetBar(); UpdateEquipSortBar(); UpdateAutoDismantle(); UpdateGachaSheet();   // 뽑기 = 원래 그림으로 밑에서 올라오는 판 (GachaSheetUI.cs)
+        UpdateNoticeRestyle();   // 게임 전체 안내 창 B안 (NoticeRestyleUI.cs)
+        if(mgr != null && mgr.Loaded) { UpdatePlanetMap(); UpdateWeaponJob(); UpdateEquipSetBar(); UpdateEquipSortBar(); UpdateAutoDismantle(); UpdatePageSlides();
+            UpdateInfoSheet();      // 정보 창 A3 (InfoSheetUI.cs)
+            UpdateGachaSheet();     // 뽑기 = 원래 그림으로 밑에서 올라오는 판 (GachaSheetUI.cs) — 2026-11-28 점검: 위 줄 주석에 묻혀 안 불리고 있었어요
+            UpdateDungeonSheet();   // 던전 B안 = 밑에서 올라오는 판 + 목록 + 입장 창 (DungeonSheetUI.cs)
             // 새로 덮는 페이지 창(뽑기·던전·도감·버프·랭킹·설정)은 꺼 둬요 — 2026-11-27 사용자 "다른 창은 다 원래대로 돌려 두고, 원래 UI 를 이용해서".
             //  코드는 남겨 두고 ui_new_pages 1 이면 다시 켜져요 (켜고 끄면 플레이 다시 시작)
             if(Tuning.Get("ui_new_pages", 0f) > 0f) { UpdateGachaPage(); UpdateDungeonPage(); UpdateCollectionPage(); UpdateBuffPage(); UpdateRankingPage(); UpdateSettingsPage(); }
@@ -729,9 +733,19 @@ public partial class RemasterUI : MonoBehaviour
     #region 토스트
     readonly List<RectTransform> toasts = new List<RectTransform>();
 
+    readonly Dictionary<RectTransform, string> toastText = new Dictionary<RectTransform, string>();
+    readonly Dictionary<RectTransform, Coroutine> toastRun = new Dictionary<RectTransform, Coroutine>();
+
     public void Toast(string text, Color color, bool big = false)
     {
         if(!EnsureBuilt()) return;
+        // 같은 문구가 이미 떠 있으면 새로 띄우지 않고 그 알림의 시간만 다시 (2026-11-28 사용자: 똑같은 문구가 줄줄이 쌓여요)
+        foreach(var kv in toastText) {
+            if(kv.Key == null || kv.Value != text) continue;
+            if(toastRun.TryGetValue(kv.Key, out var old) && old != null) StopCoroutine(old);
+            toastRun[kv.Key] = StartCoroutine(ToastLife(kv.Key, big ? 3f : 2.2f));
+            return;
+        }
         var box = Frame(toastRoot, "ItemFrame02_Single_Navy", new Vector2(900, big ? 124 : 96), Vector2.zero, new Color(1, 1, 1, 0.95f), "Toast");
         var rt = box.rectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.78f);
@@ -739,12 +753,14 @@ public partial class RemasterUI : MonoBehaviour
         toasts.Insert(0, rt);
         for(int i = 0; i < toasts.Count; i++)
             if(toasts[i] != null) toasts[i].anchoredPosition = new Vector2(0, -i * 112);
-        StartCoroutine(ToastLife(rt, big ? 3f : 2.2f));
+        toastText[rt] = text;
+        toastRun[rt] = StartCoroutine(ToastLife(rt, big ? 3f : 2.2f));
     }
 
     IEnumerator ToastLife(RectTransform rt, float life)
     {
-        var cg = rt.gameObject.AddComponent<CanvasGroup>();
+        var cg = rt.GetComponent<CanvasGroup>();
+        if(cg == null) cg = rt.gameObject.AddComponent<CanvasGroup>();
         cg.blocksRaycasts = false;
         float t = 0;
         while(t < life) {
@@ -753,6 +769,7 @@ public partial class RemasterUI : MonoBehaviour
             yield return null;
         }
         toasts.Remove(rt);
+        toastText.Remove(rt); toastRun.Remove(rt);
         Destroy(rt.gameObject);
     }
     #endregion
